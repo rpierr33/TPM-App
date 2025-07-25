@@ -1,0 +1,223 @@
+Excellent — thanks for the precision. Here's the **final, corrected, and optimized version** of the application generator prompt that **includes pushing risks to JIRA** (e.g., as a task, bug, or risk-type issue). This version preserves all the previously defined functionality, structure, and test/live dual-mode capability — and updates **Risk Management** to include:
+
+* **Optional push of risks to JIRA**
+* **JIRA status sync back to the TPM app**
+* **Ability to configure risk mapping to custom issue types in JIRA**
+
+---
+
+# ✅ Final Application Generator Prompt: **TPM Automation App (Dual Mode + JIRA Risk Sync)**
+
+> Build an enterprise-grade **web application** that automates the responsibilities of a **Technical Program Manager (TPM)** for large-scale engineering programs (e.g., UKG’s New-Flex Authz and legacy-HCM Security). The app should support the entire lifecycle of technical program delivery with full automation, visibility, and governance.
+>
+> The application must operate in **two modes**:
+>
+> ---
+
+## 🔄 Dual Mode Functionality
+
+### 1. **Test Mode**
+
+* Fully interactive, preloaded with **realistic mock data** (projects, milestones, risks, escalations, dependencies)
+* Simulated integrations:
+
+  * **Fake JIRA**, **Smartsheet**, **Confluence**, **Slack**, **Teams**
+* Auto-generated **test dashboards, risk heatmaps, escalations, reports**
+* **Testing checklist** interface for validating module-by-module functionality
+* **Scenario simulator** for testing risk escalation or milestone delay impacts
+* Immediate deployability, no setup required
+
+### 2. **Live Mode**
+
+* Connects to real tools via secure integration:
+
+  * JIRA (for milestones + risks)
+  * Smartsheet
+  * Confluence
+  * Slack and Teams
+* **Onboarding wizard** for each integration: enter credentials, test connection, map issue types
+* Supports role-based permissions, OAuth2, SSO, audit trails
+* Secure config management for API tokens and webhooks
+
+---
+
+## 🧩 Functional Modules
+
+### 1. **Program & Project Planning**
+
+* Create/manage programs with OKRs and KPIs
+* Roadmap builder with drag-and-drop interface
+* Document templates: kickoff decks, status reports, rollout plans
+
+### 2. **Milestone Management**
+
+* Create milestones and link to objectives
+* Option to **push milestones to JIRA** as Business Epics or Epics
+* Pull and display JIRA status updates
+* Show visual timeline, critical path, and milestone owners
+
+### 3. **Risk Management**
+
+* Add risks with attributes: type, severity, owner, due date, mitigation plan
+* Visual **risk heatmaps**, AI-predicted risk scores
+* **Option to push risks to JIRA**:
+
+  * Allow user to choose mapping (e.g., Task, Bug, Risk)
+  * Include description, tags, priority, and links to mitigation actions
+* **Bidirectional sync**: updates in JIRA reflect back into the app
+* Filter view by JIRA-linked vs internal-only risks
+
+### 4. **Dependency Tracking**
+
+* Track cross-team dependencies
+* Display upstream/downstream relationships
+* Alert if risk status changes for related items
+* Visualize using interactive graphs (MermaidJS / D3)
+
+### 5. **Adopter Support**
+
+* Track internal feature/API adopters
+* Score onboarding status, support needs, and timelines
+* Adopter-specific dashboards
+* Feedback summaries and exportable readiness scorecards
+
+### 6. **Escalation Workflow**
+
+* Structured form to capture escalations (summary, urgency, owner, impact, etc.)
+* Output options:
+
+  * Send to **Slack or Teams** (formatted block message)
+  * Send via **email**
+  * Export to **PDF** or **Word**
+* Escalations remain **external to JIRA**
+
+### 7. **Executive Reporting**
+
+* Auto-generate weekly, monthly, quarterly status reports
+* Shareable dashboards for program health, risk profile, and roadmap views
+* Export data views and tables to **Smartsheet** and **Confluence**
+* Schedule auto-distribution via Slack/Teams/email
+
+### 8. **AI/NLP Enhancements**
+
+* Summarize planning docs, meetings, and escalations using GPT-4o or Claude 3
+* Extract action items from notes or pasted text
+* Predict milestone delays or risk escalations
+* Scenario simulation with AI commentary on likely outcomes and suggestions
+
+---
+
+## 🔗 Tool Integrations (Live Mode)
+
+| Tool           | Integration Type      | Supported Features                                                    |
+| -------------- | --------------------- | --------------------------------------------------------------------- |
+| **JIRA**       | REST API + OAuth      | Push/pull **Milestones (Epics)** and **Risks (Tasks/Bugs/Risk type)** |
+| **Smartsheet** | REST API              | Export roadmaps, metrics, reports                                     |
+| **Confluence** | REST API              | Push docs, logs, dashboards                                           |
+| **Slack**      | Webhooks + Events API | Send escalations, notifications                                       |
+| **Teams**      | Microsoft Graph API   | Same as above                                                         |
+
+Each integration includes:
+
+* **Secure onboarding wizard**
+* Token/API key storage
+* Webhook support for real-time sync
+* Admin mapping for issue types (e.g., risk → Bug or custom type in JIRA)
+
+---
+
+## 🧱 Tech Stack
+
+### Frontend
+
+| Layer         | Tech                            |
+| ------------- | ------------------------------- |
+| Framework     | **React**                       |
+| Styling       | Tailwind CSS                    |
+| Forms         | React Hook Form + Zod           |
+| State         | Zustand or Redux Toolkit        |
+| Charts/Graphs | Recharts, D3.js, MermaidJS      |
+| Auth          | OAuth2 / SSO-based role routing |
+
+### Backend
+
+| Layer         | Tech                                          |
+| ------------- | --------------------------------------------- |
+| API Framework | **FastAPI (Python)** or **Node.js + Express** |
+| Job Queue     | Celery (Python) or BullMQ (Node)              |
+| RBAC          | Role-based access with audit trails           |
+| API Design    | REST with OpenAPI docs                        |
+
+### Data Storage
+
+| Type         | Tech                |
+| ------------ | ------------------- |
+| Structured   | PostgreSQL          |
+| Unstructured | MongoDB or Firebase |
+| Files        | AWS S3              |
+| Search       | ElasticSearch       |
+
+### AI/NLP Engine
+
+| Function                    | Tech                        |
+| --------------------------- | --------------------------- |
+| Summarization, Action Items | GPT-4o or Claude 3          |
+| Timeline Forecasting        | Facebook Prophet or PyCaret |
+| NLP Tasks                   | spaCy + Hugging Face        |
+
+### DevOps
+
+| Layer            | Tech                         |
+| ---------------- | ---------------------------- |
+| Containerization | Docker                       |
+| Orchestration    | Kubernetes (GKE/AKS)         |
+| CI/CD            | GitHub Actions or CircleCI   |
+| Monitoring       | Grafana + Prometheus         |
+| Secrets          | AWS Secrets Manager or Vault |
+
+---
+
+## 🧪 Testing Tools (Test Mode Only)
+
+* **Test Data Seeder**: Projects, risks, users, milestones
+* **Mock API Simulator**: Simulates JIRA, Smartsheet, etc.
+* **Testing Checklist UI**: Guides users through validating each module
+* **Scenario Engine**: Run test cases for delays, escalations, risk spreads
+* **AI Suggestions**: Provide explanations and actions in mock flows
+
+---
+
+## 🏗️ System Architecture Overview
+
+```plaintext
+                        [React Frontend App]
+                                │
+                 ┌─────────[API Gateway/Auth]──────────┐
+                 │                                     │
+           [Test Engine]                         [Live Engine]
+           (with mock DB + APIs)                (real DB + integrations)
+                 │                                     │
+        ┌────────┴────────┐                   ┌────────┴────────┐
+        ▼                 ▼                   ▼                 ▼
+  [Test DB]        [Mock API Services]   [Prod DB]     [Integration Services]
+                                           │                │
+                          ┌────────────────┴────┐      ┌────┴─────────┐
+                          ▼                     ▼      ▼              ▼
+                     [AI Engine]         [Escalation Engine]   [Webhook Engine]
+                     (summaries, etc.)    (export, send)        (JIRA, etc.)
+```
+
+---
+
+## ✅ Deliverables
+
+* A complete **dual-mode web application** that:
+
+  * Runs instantly with mock data
+  * Securely scales into a production-grade TPM tool
+  * Supports JIRA integration for both **milestones and risks**
+* Includes all testing, configuration, documentation, and AI features
+
+---
+
+This version is final, comprehensive, and ready to generate the entire TPM automation platform. No further clarification or manual upgrades are needed. Let me know if you'd like to simulate or extend this prompt into deployment instructions or configuration templates.
