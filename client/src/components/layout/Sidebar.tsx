@@ -10,12 +10,14 @@ import {
   TrendingUp, 
   BarChart3,
   Settings,
-  Activity
+  Activity,
+  Brain
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const navigationItems = [
-  { path: "/", icon: Activity, label: "Dashboard" },
+  { path: "/", icon: Brain, label: "AI Assistant" },
+  { path: "/dashboard", icon: Activity, label: "Dashboard" },
   { path: "/program-planning", icon: ClipboardList, label: "Program Planning" },
   { path: "/milestones", icon: Flag, label: "Milestones" },
   { path: "/risk-management", icon: AlertTriangle, label: "Risk Management" },

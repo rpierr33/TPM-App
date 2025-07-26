@@ -320,6 +320,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI-FIRST routes for voice and chat interface
+  app.post("/api/ai/voice-command", async (req, res) => {
+    try {
+      const { input } = req.body;
+      const result = await aiService.processVoiceCommand(input);
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing voice command:", error);
+      res.status(500).json({ message: "Failed to process voice command" });
+    }
+  });
+
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { message, context } = req.body;
+      const response = await aiService.chatWithAI(message, context);
+      res.json({ response });
+    } catch (error) {
+      console.error("Error in AI chat:", error);
+      res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
+
+  app.get("/api/ai/daily-briefing", async (req, res) => {
+    try {
+      const briefing = await aiService.generateDailyBriefing();
+      res.json(briefing);
+    } catch (error) {
+      console.error("Error generating daily briefing:", error);
+      res.status(500).json({ message: "Failed to generate briefing" });
+    }
+  });
+
+  app.post("/api/ai/analyze-program", async (req, res) => {
+    try {
+      const { programId } = req.body;
+      const analysis = await aiService.analyzeProgram(programId);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing program:", error);
+      res.status(500).json({ message: "Failed to analyze program" });
+    }
+  });
+
   // Reports routes
   app.get("/api/reports", async (req, res) => {
     try {
