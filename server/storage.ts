@@ -1,6 +1,8 @@
 import {
   users,
   programs,
+  projects,
+  initiatives,
   milestones,
   risks,
   dependencies,
@@ -8,10 +10,17 @@ import {
   escalations,
   integrations,
   reports,
+  stakeholders,
+  stakeholderInteractions,
+  pmpRecommendations,
   type User,
   type InsertUser,
   type Program,
   type InsertProgram,
+  type Project,
+  type InsertProject,
+  type Initiative,
+  type InsertInitiative,
   type Milestone,
   type InsertMilestone,
   type Risk,
@@ -26,6 +35,12 @@ import {
   type InsertIntegration,
   type Report,
   type InsertReport,
+  type Stakeholder,
+  type InsertStakeholder,
+  type StakeholderInteraction,
+  type InsertStakeholderInteraction,
+  type PmpRecommendation,
+  type InsertPmpRecommendation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count } from "drizzle-orm";
@@ -94,6 +109,38 @@ export interface IStorage {
     upcomingMilestones: number;
     adopterScore: number;
   }>;
+
+  // Initiative operations
+  getInitiatives(): Promise<Initiative[]>;
+  getInitiative(id: string): Promise<Initiative | undefined>;
+  createInitiative(initiative: InsertInitiative): Promise<Initiative>;
+  updateInitiative(id: string, updates: Partial<InsertInitiative>): Promise<Initiative>;
+  deleteInitiative(id: string): Promise<void>;
+
+  // Project operations
+  getProjects(programId?: string): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, updates: Partial<InsertProject>): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
+
+  // Stakeholder operations
+  getStakeholders(): Promise<Stakeholder[]>;
+  getStakeholder(id: string): Promise<Stakeholder | undefined>;
+  createStakeholder(stakeholder: InsertStakeholder): Promise<Stakeholder>;
+  updateStakeholder(id: string, updates: Partial<InsertStakeholder>): Promise<Stakeholder>;
+  deleteStakeholder(id: string): Promise<void>;
+
+  // Stakeholder interaction operations
+  getStakeholderInteractions(stakeholderId?: string): Promise<StakeholderInteraction[]>;
+  getStakeholderInteraction(id: string): Promise<StakeholderInteraction | undefined>;
+  createStakeholderInteraction(interaction: InsertStakeholderInteraction): Promise<StakeholderInteraction>;
+  updateStakeholderInteraction(id: string, updates: Partial<InsertStakeholderInteraction>): Promise<StakeholderInteraction>;
+
+  // PMP recommendation operations
+  getPmpRecommendations(programId?: string, projectId?: string): Promise<PmpRecommendation[]>;
+  createPmpRecommendation(recommendation: InsertPmpRecommendation): Promise<PmpRecommendation>;
+  updatePmpRecommendation(id: string, updates: Partial<InsertPmpRecommendation>): Promise<PmpRecommendation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -367,6 +414,150 @@ export class DatabaseStorage implements IStorage {
       upcomingMilestones: upcomingMilestonesResult.count,
       adopterScore: Math.round(avgAdopterScore),
     };
+  }
+
+  // Initiative operations
+  async getInitiatives(): Promise<Initiative[]> {
+    return await db.select().from(initiatives).orderBy(desc(initiatives.createdAt));
+  }
+
+  async getInitiative(id: string): Promise<Initiative | undefined> {
+    const [initiative] = await db.select().from(initiatives).where(eq(initiatives.id, id));
+    return initiative;
+  }
+
+  async createInitiative(initiativeData: InsertInitiative): Promise<Initiative> {
+    const [initiative] = await db.insert(initiatives).values(initiativeData).returning();
+    return initiative;
+  }
+
+  async updateInitiative(id: string, initiativeData: Partial<InsertInitiative>): Promise<Initiative> {
+    const [initiative] = await db
+      .update(initiatives)
+      .set({ ...initiativeData, updatedAt: new Date() })
+      .where(eq(initiatives.id, id))
+      .returning();
+    return initiative;
+  }
+
+  async deleteInitiative(id: string): Promise<void> {
+    await db.delete(initiatives).where(eq(initiatives.id, id));
+  }
+
+  // Project operations
+  async getProjects(programId?: string): Promise<Project[]> {
+    if (programId) {
+      return await db.select().from(projects).where(eq(projects.programId, programId));
+    }
+    return await db.select().from(projects).orderBy(desc(projects.createdAt));
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
+  async createProject(projectData: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(projectData).returning();
+    return project;
+  }
+
+  async updateProject(id: string, projectData: Partial<InsertProject>): Promise<Project> {
+    const [project] = await db
+      .update(projects)
+      .set({ ...projectData, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return project;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
+  // Stakeholder operations
+  async getStakeholders(): Promise<Stakeholder[]> {
+    return await db.select().from(stakeholders).orderBy(desc(stakeholders.createdAt));
+  }
+
+  async getStakeholder(id: string): Promise<Stakeholder | undefined> {
+    const [stakeholder] = await db.select().from(stakeholders).where(eq(stakeholders.id, id));
+    return stakeholder;
+  }
+
+  async createStakeholder(stakeholderData: InsertStakeholder): Promise<Stakeholder> {
+    const [stakeholder] = await db.insert(stakeholders).values(stakeholderData).returning();
+    return stakeholder;
+  }
+
+  async updateStakeholder(id: string, stakeholderData: Partial<InsertStakeholder>): Promise<Stakeholder> {
+    const [stakeholder] = await db
+      .update(stakeholders)
+      .set({ ...stakeholderData, updatedAt: new Date() })
+      .where(eq(stakeholders.id, id))
+      .returning();
+    return stakeholder;
+  }
+
+  async deleteStakeholder(id: string): Promise<void> {
+    await db.delete(stakeholders).where(eq(stakeholders.id, id));
+  }
+
+  // Stakeholder interaction operations
+  async getStakeholderInteractions(stakeholderId?: string): Promise<StakeholderInteraction[]> {
+    if (stakeholderId) {
+      return await db.select().from(stakeholderInteractions)
+        .where(eq(stakeholderInteractions.stakeholderId, stakeholderId))
+        .orderBy(desc(stakeholderInteractions.createdAt));
+    }
+    return await db.select().from(stakeholderInteractions).orderBy(desc(stakeholderInteractions.createdAt));
+  }
+
+  async getStakeholderInteraction(id: string): Promise<StakeholderInteraction | undefined> {
+    const [interaction] = await db.select().from(stakeholderInteractions).where(eq(stakeholderInteractions.id, id));
+    return interaction;
+  }
+
+  async createStakeholderInteraction(interactionData: InsertStakeholderInteraction): Promise<StakeholderInteraction> {
+    const [interaction] = await db.insert(stakeholderInteractions).values(interactionData).returning();
+    return interaction;
+  }
+
+  async updateStakeholderInteraction(id: string, interactionData: Partial<InsertStakeholderInteraction>): Promise<StakeholderInteraction> {
+    const [interaction] = await db
+      .update(stakeholderInteractions)
+      .set({ ...interactionData, updatedAt: new Date() })
+      .where(eq(stakeholderInteractions.id, id))
+      .returning();
+    return interaction;
+  }
+
+  // PMP recommendation operations
+  async getPmpRecommendations(programId?: string, projectId?: string): Promise<PmpRecommendation[]> {
+    const conditions = [];
+    if (programId) conditions.push(eq(pmpRecommendations.programId, programId));
+    if (projectId) conditions.push(eq(pmpRecommendations.projectId, projectId));
+    
+    if (conditions.length > 0) {
+      return await db.select().from(pmpRecommendations)
+        .where(and(...conditions))
+        .orderBy(desc(pmpRecommendations.priority), desc(pmpRecommendations.createdAt));
+    }
+    return await db.select().from(pmpRecommendations).orderBy(desc(pmpRecommendations.priority), desc(pmpRecommendations.createdAt));
+  }
+
+  async createPmpRecommendation(recommendationData: InsertPmpRecommendation): Promise<PmpRecommendation> {
+    const [recommendation] = await db.insert(pmpRecommendations).values(recommendationData).returning();
+    return recommendation;
+  }
+
+  async updatePmpRecommendation(id: string, recommendationData: Partial<InsertPmpRecommendation>): Promise<PmpRecommendation> {
+    const [recommendation] = await db
+      .update(pmpRecommendations)
+      .set({ ...recommendationData, updatedAt: new Date() })
+      .where(eq(pmpRecommendations.id, id))
+      .returning();
+    return recommendation;
   }
 }
 

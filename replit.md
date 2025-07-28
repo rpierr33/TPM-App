@@ -39,10 +39,16 @@ Preferred communication style: Simple, everyday language.
 - **WebSocket**: Native WebSocket server for real-time updates
 
 ### Database Schema
-The application uses a comprehensive PostgreSQL schema with the following key entities:
-- **Programs**: Main program entities with status tracking
-- **Milestones**: Program milestones with due dates and status
-- **Risks**: Risk management with severity, probability, and impact scoring
+The application uses a comprehensive PostgreSQL schema with hierarchical entity relationships:
+- **Initiatives**: High-level strategic objectives spanning multiple programs/projects
+- **Programs**: Main program entities containing multiple projects
+- **Projects**: Project entities belonging to specific programs
+- **Initiative-Program/Project Mappings**: Many-to-many relationships with contribution tracking
+- **Milestones**: Program/project milestones with PMP phase classification
+- **Risks**: Risk management with PMP categories and enhanced program/project associations
+- **Stakeholders**: Leadership style and communication preference tracking
+- **Stakeholder Interactions**: Predictive response modeling and accuracy tracking
+- **PMP Recommendations**: Best practice suggestions based on PMI standards
 - **Dependencies**: Cross-program/milestone dependencies
 - **Adopters**: Team adoption tracking with readiness scores
 - **Escalations**: Issue escalation management
@@ -139,6 +145,32 @@ The application uses a comprehensive PostgreSQL schema with the following key en
 The application is designed to be highly modular and extensible, with clear separation between test and live environments, comprehensive error handling, and a robust type system throughout the stack.
 
 ## Recent Changes
+
+### January 28, 2025
+- ✅ **Enhanced Hierarchical Structure**: Implemented complete program/project/initiative architecture
+  - Initiatives: High-level strategic objectives spanning multiple programs/projects
+  - Programs: Contain multiple projects with hierarchical relationships
+  - Projects: Belong to programs with clear parent-child relationships
+  - Many-to-many mappings between initiatives and programs/projects
+- ✅ **PMI PMP Best Practices Integration**: Full PMI Project Management Professional standards
+  - Five PMP phases: Initiating, Planning, Executing, Monitoring & Controlling, Closing
+  - Ten knowledge areas: Integration, Scope, Schedule, Cost, Quality, Resource, Communications, Risk, Procurement, Stakeholder
+  - Context-aware recommendations based on project phase and challenges
+  - Intelligent next-step suggestions following PMI best practices
+- ✅ **Advanced Stakeholder Management**: Leadership style analysis and predictive capabilities
+  - Leadership styles: Autocratic, Democratic, Laissez-faire, Transformational, Transactional
+  - Communication styles: Direct, Analytical, Expressive, Amiable
+  - Predictive response modeling based on historical interactions
+  - Learning system that improves accuracy over time
+  - Tailored recommendations for stakeholder engagement
+- ✅ **Database Schema Enhancement**: Added comprehensive new entity support
+  - Projects, initiatives, stakeholders, stakeholder interactions, PMP recommendations
+  - Initiative-program and initiative-project mapping tables
+  - Enhanced milestones and risks to support both programs and projects
+- ✅ **Service Layer Expansion**: New specialized services for advanced features
+  - PMPService: Context-aware best practice recommendations
+  - StakeholderService: Leadership analysis and response prediction
+  - Enhanced AI integration with hierarchical entity support
 
 ### January 26, 2025
 - ✅ **MVP Completion**: Full TPM automation platform is now functional and operational

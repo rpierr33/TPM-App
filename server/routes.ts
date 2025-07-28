@@ -364,6 +364,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Initiative routes
+  app.get("/api/initiatives", async (req, res) => {
+    try {
+      const initiatives = await storage.getInitiatives();
+      res.json(initiatives);
+    } catch (error) {
+      console.error("Error fetching initiatives:", error);
+      res.status(500).json({ message: "Failed to fetch initiatives" });
+    }
+  });
+
+  app.post("/api/initiatives", async (req, res) => {
+    try {
+      const initiative = await storage.createInitiative(req.body);
+      res.json(initiative);
+    } catch (error) {
+      console.error("Error creating initiative:", error);
+      res.status(500).json({ message: "Failed to create initiative" });
+    }
+  });
+
+  // Project routes
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const { programId } = req.query;
+      const projects = await storage.getProjects(programId as string);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const project = await storage.createProject(req.body);
+      res.json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  // Stakeholder routes
+  app.get("/api/stakeholders", async (req, res) => {
+    try {
+      const stakeholders = await storage.getStakeholders();
+      res.json(stakeholders);
+    } catch (error) {
+      console.error("Error fetching stakeholders:", error);
+      res.status(500).json({ message: "Failed to fetch stakeholders" });
+    }
+  });
+
+  app.post("/api/stakeholders", async (req, res) => {
+    try {
+      const stakeholder = await storage.createStakeholder(req.body);
+      res.json(stakeholder);
+    } catch (error) {
+      console.error("Error creating stakeholder:", error);
+      res.status(500).json({ message: "Failed to create stakeholder" });
+    }
+  });
+
+  // PMP recommendations routes
+  app.get("/api/pmp-recommendations", async (req, res) => {
+    try {
+      const { programId, projectId } = req.query;
+      const recommendations = await storage.getPmpRecommendations(
+        programId as string, 
+        projectId as string
+      );
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching PMP recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  app.patch("/api/pmp-recommendations/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const recommendation = await storage.updatePmpRecommendation(id, req.body);
+      res.json(recommendation);
+    } catch (error) {
+      console.error("Error updating PMP recommendation:", error);
+      res.status(500).json({ message: "Failed to update recommendation" });
+    }
+  });
+
   // Reports routes
   app.get("/api/reports", async (req, res) => {
     try {

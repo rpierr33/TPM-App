@@ -92,6 +92,21 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Initiatives - high-level strategic objectives that span multiple programs/projects
+export const initiatives = pgTable("initiatives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  status: programStatusEnum("status").default("planning"),
+  ownerId: varchar("owner_id").references(() => users.id),
+  strategicObjectives: jsonb("strategic_objectives"), // High-level business objectives
+  successCriteria: jsonb("success_criteria"), // Key success metrics
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const programs = pgTable("programs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
@@ -106,16 +121,54 @@ export const programs = pgTable("programs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Projects - contained within programs
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  programId: varchar("program_id").references(() => programs.id),
+  status: programStatusEnum("status").default("planning"),
+  ownerId: varchar("owner_id").references(() => users.id),
+  deliverables: jsonb("deliverables"), // Key project deliverables
+  budget: decimal("budget", { precision: 12, scale: 2 }),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Many-to-many mapping between initiatives and programs
+export const initiativePrograms = pgTable("initiative_programs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  initiativeId: varchar("initiative_id").references(() => initiatives.id),
+  programId: varchar("program_id").references(() => programs.id),
+  contribution: text("contribution"), // How this program contributes to the initiative
+  priority: integer("priority"), // Priority within the initiative
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Many-to-many mapping between initiatives and projects
+export const initiativeProjects = pgTable("initiative_projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  initiativeId: varchar("initiative_id").references(() => initiatives.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  contribution: text("contribution"), // How this project contributes to the initiative
+  priority: integer("priority"), // Priority within the initiative
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const milestones = pgTable("milestones", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title").notNull(),
   description: text("description"),
   programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
   status: milestoneStatusEnum("status").default("not_started"),
   ownerId: varchar("owner_id").references(() => users.id),
   dueDate: timestamp("due_date"),
   completedDate: timestamp("completed_date"),
   jiraEpicKey: varchar("jira_epic_key"), // JIRA integration
+  pmpPhase: varchar("pmp_phase"), // PMI PMP project phase (Initiating, Planning, Executing, Monitoring, Closing)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -125,6 +178,7 @@ export const risks = pgTable("risks", {
   title: varchar("title").notNull(),
   description: text("description"),
   programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
   severity: riskSeverityEnum("severity"),
   impact: integer("impact"), // 1-5 scale
   probability: integer("probability"), // 1-5 scale
@@ -134,6 +188,7 @@ export const risks = pgTable("risks", {
   dueDate: timestamp("due_date"),
   jiraIssueKey: varchar("jira_issue_key"), // JIRA integration
   aiScore: decimal("ai_score", { precision: 5, scale: 2 }), // AI-predicted risk score
+  pmpCategory: varchar("pmp_category"), // PMP risk categories (Technical, External, Organizational, Project Management)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -382,6 +437,103 @@ export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
 
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
+
+// Stakeholder tracking with leadership styles and predictive analysis
+export const stakeholders = pgTable("stakeholders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  email: varchar("email"),
+  role: varchar("role"),
+  department: varchar("department"),
+  leadershipStyle: varchar("leadership_style"), // Autocratic, Democratic, Laissez-faire, Transformational, etc.
+  communicationStyle: varchar("communication_style"), // Direct, Analytical, Expressive, Amiable
+  decisionMakingStyle: varchar("decision_making_style"), // Data-driven, Intuitive, Consensus-seeking, Quick
+  influenceLevel: integer("influence_level"), // 1-5 scale
+  supportLevel: integer("support_level"), // 1-5 scale for project support
+  preferredCommunication: jsonb("preferred_communication"), // Email, Slack, Face-to-face, etc.
+  responsePatterns: jsonb("response_patterns"), // Historical response analysis
+  predictiveScore: decimal("predictive_score", { precision: 5, scale: 2 }), // AI prediction accuracy
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Stakeholder interactions tracking
+export const stakeholderInteractions = pgTable("stakeholder_interactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stakeholderId: varchar("stakeholder_id").references(() => stakeholders.id),
+  programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  interactionType: varchar("interaction_type"), // Meeting, Email, Decision, Escalation
+  context: text("context"), // What was discussed or decided
+  predictedResponse: text("predicted_response"), // AI predicted response
+  actualResponse: text("actual_response"), // What actually happened
+  accuracy: decimal("accuracy", { precision: 5, scale: 2 }), // Prediction accuracy score
+  recommendations: jsonb("recommendations"), // AI recommendations for this stakeholder
+  followUpRequired: boolean("follow_up_required").default(false),
+  followUpDate: timestamp("follow_up_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// PMP best practices tracking and recommendations
+export const pmpRecommendations = pgTable("pmp_recommendations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  pmpPhase: varchar("pmp_phase").notNull(), // Initiating, Planning, Executing, Monitoring, Closing
+  knowledgeArea: varchar("knowledge_area"), // Integration, Scope, Schedule, Cost, Quality, Resource, Communications, Risk, Procurement, Stakeholder
+  recommendation: text("recommendation").notNull(),
+  reasoning: text("reasoning"), // Why this recommendation was made
+  priority: integer("priority"), // 1-5 priority level
+  status: varchar("status").default("pending"), // pending, accepted, implemented, rejected
+  implementedDate: timestamp("implemented_date"),
+  feedback: text("feedback"), // User feedback on the recommendation
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas for new entities
+export const insertInitiativeSchema = createInsertSchema(initiatives).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStakeholderSchema = createInsertSchema(stakeholders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStakeholderInteractionSchema = createInsertSchema(stakeholderInteractions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPmpRecommendationSchema = createInsertSchema(pmpRecommendations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new entities
+export type Initiative = typeof initiatives.$inferSelect;
+export type InsertInitiative = z.infer<typeof insertInitiativeSchema>;
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Stakeholder = typeof stakeholders.$inferSelect;
+export type InsertStakeholder = z.infer<typeof insertStakeholderSchema>;
+export type StakeholderInteraction = typeof stakeholderInteractions.$inferSelect;
+export type InsertStakeholderInteraction = z.infer<typeof insertStakeholderInteractionSchema>;
+export type PmpRecommendation = typeof pmpRecommendations.$inferSelect;
+export type InsertPmpRecommendation = z.infer<typeof insertPmpRecommendationSchema>;
 
 // Dashboard metrics type
 export type DashboardMetrics = {
