@@ -353,6 +353,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct program analysis (no AI required)
+  app.post("/api/analyze-program", async (req, res) => {
+    try {
+      const { programId } = req.body;
+      
+      // If no programId provided, analyze all programs
+      const programs = programId ? [await storage.getProgram(programId)] : await storage.getPrograms();
+      const results = [];
+
+      for (const program of programs.filter(p => p)) {
+        // Get all related components
+        const milestones = await storage.getMilestones(program.id);
+        const risks = await storage.getRisks(program.id);
+        const dependencies = await storage.getDependencies(program.id);
+        const adopters = await storage.getAdopters(program.id);
+        const projects = await storage.getProjects(program.id);
+
+        // Identify missing components and create risk alerts
+        const missingComponents = [];
+        const riskAlerts = [];
+
+        if (milestones.length === 0) {
+          missingComponents.push("milestones");
+          riskAlerts.push({
+            type: "missing_component",
+            severity: "high",
+            title: "No Milestones Defined",
+            description: `Program "${program.name}" has no milestones, making it impossible to track progress and deadlines.`,
+            recommendation: "Define key milestones with dates to establish clear deliverables and timeline expectations."
+          });
+        }
+
+        if (risks.length === 0) {
+          missingComponents.push("risks");
+          riskAlerts.push({
+            type: "missing_component", 
+            severity: "high",
+            title: "No Risk Assessment",
+            description: `Program "${program.name}" has no identified risks, leaving potential issues unmanaged.`,
+            recommendation: "Conduct risk assessment to identify, analyze, and plan mitigation strategies for potential program threats."
+          });
+        }
+
+        if (dependencies.length === 0) {
+          missingComponents.push("dependencies");
+          riskAlerts.push({
+            type: "missing_component",
+            severity: "medium", 
+            title: "No Dependencies Tracked",
+            description: `Program "${program.name}" has no documented dependencies, which could lead to coordination issues.`,
+            recommendation: "Identify and document dependencies between teams, systems, and external factors."
+          });
+        }
+
+        if (adopters.length === 0) {
+          missingComponents.push("adopters");
+          riskAlerts.push({
+            type: "missing_component",
+            severity: "medium",
+            title: "No Adopter Tracking",
+            description: `Program "${program.name}" has no adopter readiness tracking, risking poor change management.`,
+            recommendation: "Define adopter teams and track their readiness to ensure successful program adoption."
+          });
+        }
+
+        if (projects.length === 0) {
+          missingComponents.push("projects");
+          riskAlerts.push({
+            type: "missing_component",
+            severity: "high",
+            title: "No Projects Defined", 
+            description: `Program "${program.name}" has no projects, making execution unclear.`,
+            recommendation: "Break down the program into specific projects with defined scope and deliverables."
+          });
+        }
+
+        results.push({
+          programId: program.id,
+          programName: program.name,
+          missingComponents,
+          riskAlerts,
+          completenessScore: Math.round(((5 - missingComponents.length) / 5) * 100)
+        });
+      }
+
+      res.json({
+        analysis: results,
+        summary: `Analyzed ${results.length} program(s). Found ${results.reduce((sum, r) => sum + r.riskAlerts.length, 0)} risk alerts for missing components.`
+      });
+    } catch (error) {
+      console.error("Error analyzing program:", error);
+      res.status(500).json({ message: "Failed to analyze program" });
+    }
+  });
+
   app.post("/api/ai/analyze-program", async (req, res) => {
     try {
       const { programId } = req.body;
