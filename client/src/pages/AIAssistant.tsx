@@ -193,40 +193,66 @@ export default function AIAssistant() {
           </TabsContent>
         </Tabs>
 
-        {/* Quick Actions */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-sm">Try These Commands</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {[
-                "Create a new program called API Migration",
-                "Show me all critical risks",
-                "What milestones are due this week?",
-                "Analyze my program health",
-                "Generate an executive report",
-                "What should I prioritize today?"
-              ].map((command, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs text-left justify-start"
-                  onClick={() => {
-                    // This would trigger the command in the active interface
-                    toast({
-                      title: "Command Example",
-                      description: `Try saying: "${command}"`,
-                    });
-                  }}
-                >
-                  "{command}"
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Voice Commands Guide */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                Voice Commands
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium text-sm text-gray-700 mb-1">Program Management:</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p>• "Create program called [name]"</p>
+                    <p>• "Show program status"</p>
+                    <p>• "Analyze program risks"</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-gray-700 mb-1">Risk & Milestone Tracking:</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p>• "Add milestone for [date]"</p>
+                    <p>• "What risks need attention?"</p>
+                    <p>• "Show critical alerts"</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Chat Commands
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium text-sm text-gray-700 mb-1">Quick Actions:</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p>• "Generate daily briefing"</p>
+                    <p>• "Executive report for [program]"</p>
+                    <p>• "What should I prioritize?"</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-gray-700 mb-1">Analysis & Insights:</p>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p>• "Check program completeness"</p>
+                    <p>• "Find missing components"</p>
+                    <p>• "Suggest improvements"</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );

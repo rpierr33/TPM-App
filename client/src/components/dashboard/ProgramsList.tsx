@@ -25,7 +25,7 @@ export function ProgramsList() {
     mutationFn: async (programId: string) => {
       return await apiRequest("/api/analyze-program", "POST", { programId });
     },
-    onSuccess: (data, programId) => {
+    onSuccess: (data: any, programId: string) => {
       const program = programs.find(p => p.id === programId);
       const analysis = data.analysis?.[0];
       if (analysis) {
@@ -36,7 +36,7 @@ export function ProgramsList() {
         });
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Analysis Failed",
         description: "Unable to analyze program at this time",
@@ -122,11 +122,11 @@ export function ProgramsList() {
                     <div className="flex items-center gap-6 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        <span>Start: {formatDate(program.startDate)}</span>
+                        <span>Start: {program.startDate ? formatDate(program.startDate.toString()) : "Not set"}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        <span>End: {formatDate(program.endDate)}</span>
+                        <span>End: {program.endDate ? formatDate(program.endDate.toString()) : "Not set"}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="h-4 w-4" />
