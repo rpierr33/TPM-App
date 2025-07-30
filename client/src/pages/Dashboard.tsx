@@ -7,6 +7,7 @@ import { ActiveRisksTable } from "@/components/dashboard/ActiveRisksTable";
 import { AdopterDashboard } from "@/components/dashboard/AdopterDashboard";
 import { AIInsights } from "@/components/dashboard/AIInsights";
 import { EscalationModal } from "@/components/modals/EscalationModal";
+import { ProgramsList } from "@/components/dashboard/ProgramsList";
 import { useState } from "react";
 import { 
   ChartGantt, 
@@ -53,10 +54,10 @@ export default function Dashboard() {
           ) : (
             <>
               <MetricsCard
-                title="Active Programs"
+                title="All Programs"
                 value={metrics?.activePrograms || 0}
-                change="+2 this month"
-                changeType="increase"
+                change="Active & Planning"
+                changeType="neutral"
                 icon={ChartGantt}
                 iconColor="bg-primary-100"
               />
@@ -98,6 +99,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           <ActiveRisksTable />
           <AdopterDashboard />
+        </div>
+
+        {/* Programs List Section */}
+        <div className="mb-6">
+          <ProgramsList />
         </div>
 
         {/* AI Insights Panel */}

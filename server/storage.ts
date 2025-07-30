@@ -382,9 +382,11 @@ export class DatabaseStorage implements IStorage {
     upcomingMilestones: number;
     adopterScore: number;
   }> {
-    const [activeProgramsResult] = await db
-      .select({ count: count() })
-      .from(programs);
+    // Get all programs and count them manually for better reliability
+    const allPrograms = await db.select().from(programs);
+    const activeProgramsCount = allPrograms.filter(p => 
+      p.status === "active" || p.status === "planning"
+    ).length;
 
     const [criticalRisksResult] = await db
       .select({ count: count() })
@@ -408,7 +410,7 @@ export class DatabaseStorage implements IStorage {
       : 0;
 
     return {
-      activePrograms: activeProgramsResult.count,
+      activePrograms: activeProgramsCount,
       criticalRisks: criticalRisksResult.count,
       upcomingMilestones: upcomingMilestonesResult.count,
       adopterScore: Math.round(avgAdopterScore),
