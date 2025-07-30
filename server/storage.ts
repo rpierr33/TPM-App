@@ -384,8 +384,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     const [activeProgramsResult] = await db
       .select({ count: count() })
-      .from(programs)
-      .where(eq(programs.status, "active"));
+      .from(programs);
 
     const [criticalRisksResult] = await db
       .select({ count: count() })
