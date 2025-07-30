@@ -60,6 +60,7 @@ export default function Dashboard() {
                 changeType="neutral"
                 icon={ChartGantt}
                 iconColor="bg-primary-100"
+                navigateTo="/programs"
               />
               <MetricsCard
                 title="Critical Risks"
@@ -68,6 +69,7 @@ export default function Dashboard() {
                 changeType="increase"
                 icon={AlertTriangle}
                 iconColor="bg-red-100"
+                navigateTo="/risk-management"
               />
               <MetricsCard
                 title="Upcoming Milestones"
@@ -76,6 +78,7 @@ export default function Dashboard() {
                 changeType="neutral"
                 icon={Flag}
                 iconColor="bg-yellow-100"
+                navigateTo="/milestones"
               />
               <MetricsCard
                 title="Adopter Score"
@@ -84,6 +87,7 @@ export default function Dashboard() {
                 changeType="increase"
                 icon={Users}
                 iconColor="bg-green-100"
+                navigateTo="/adopter-support"
               />
             </>
           )}

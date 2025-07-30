@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Dashboard from "@/pages/Dashboard";
+import Programs from "@/pages/Programs";
 import AIAssistant from "@/pages/AIAssistant";
 import ProgramPlanning from "@/pages/ProgramPlanning";
 import Milestones from "@/pages/Milestones";
@@ -23,6 +24,7 @@ function Router() {
         <Switch>
           <Route path="/" component={AIAssistant} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/programs" component={Programs} />
           <Route path="/program-planning" component={ProgramPlanning} />
           <Route path="/milestones" component={Milestones} />
           <Route path="/risk-management" component={RiskManagement} />

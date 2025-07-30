@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface MetricsCardProps {
   title: string;
@@ -8,6 +9,8 @@ interface MetricsCardProps {
   changeType?: "increase" | "decrease" | "neutral";
   icon: LucideIcon;
   iconColor: string;
+  onClick?: () => void;
+  navigateTo?: string;
 }
 
 export function MetricsCard({ 
@@ -16,8 +19,19 @@ export function MetricsCard({
   change, 
   changeType = "neutral", 
   icon: Icon,
-  iconColor 
+  iconColor,
+  onClick,
+  navigateTo
 }: MetricsCardProps) {
+  const [, setLocation] = useLocation();
+
+  const handleClick = () => {
+    if (navigateTo) {
+      setLocation(navigateTo);
+    } else if (onClick) {
+      onClick();
+    }
+  };
   const getTrendIcon = () => {
     if (changeType === "increase") return TrendingUp;
     if (changeType === "decrease") return TrendingDown;
@@ -33,7 +47,10 @@ export function MetricsCard({
   const TrendIcon = getTrendIcon();
 
   return (
-    <Card className="border border-gray-200">
+    <Card 
+      className={`border border-gray-200 ${(onClick || navigateTo) ? 'cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200' : ''}`}
+      onClick={handleClick}
+    >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
