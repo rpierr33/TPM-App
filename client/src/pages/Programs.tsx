@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ChartGantt, 
   Plus,
@@ -13,19 +16,55 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  Pause
+  Pause,
+  Eye
 } from "lucide-react";
 import type { Program } from "@shared/schema";
 
 export default function Programs() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: programs = [], isLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
 
+  const analyzeProgramMutation = useMutation({
+    mutationFn: async (programId: string) => {
+      return await apiRequest("/api/analyze-program", "POST", { programId });
+    },
+    onSuccess: (data: any, programId: string) => {
+      const program = programs.find(p => p.id === programId);
+      const analysis = data.analysis?.[0];
+      if (analysis) {
+        toast({
+          title: `${program?.name} Analysis Complete`,
+          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Completeness: ${analysis.completenessScore}%`,
+          variant: analysis.riskAlerts?.length > 0 ? "destructive" : "default",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Analysis Failed",
+        description: "Unable to analyze program at this time",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleNewProgram = () => {
     console.log("Create new program");
+  };
+
+  const handleCheckRisks = (programId: string) => {
+    analyzeProgramMutation.mutate(programId);
+  };
+
+  const handleViewDetails = (programId: string) => {
+    // Navigate to program details page
+    setLocation(`/program-planning?programId=${programId}`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -257,11 +296,21 @@ export default function Programs() {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleCheckRisks(program.id)}
+                        disabled={analyzeProgramMutation.isPending}
+                      >
                         <AlertTriangle className="h-4 w-4 mr-1" />
-                        Check Risks
+                        {analyzeProgramMutation.isPending ? "Analyzing..." : "Check Risks"}
                       </Button>
-                      <Button variant="default" size="sm">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleViewDetails(program.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
                     </div>
