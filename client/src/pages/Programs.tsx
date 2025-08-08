@@ -102,7 +102,8 @@ export default function Programs() {
   );
 
   const statusCounts = programs.reduce((acc, program) => {
-    acc[program.status] = (acc[program.status] || 0) + 1;
+    const status = program.status || 'unknown';
+    acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 

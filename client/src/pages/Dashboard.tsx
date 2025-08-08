@@ -7,7 +7,7 @@ import { ActiveRisksTable } from "@/components/dashboard/ActiveRisksTable";
 import { AdopterDashboard } from "@/components/dashboard/AdopterDashboard";
 import { AIInsights } from "@/components/dashboard/AIInsights";
 import { EscalationModal } from "@/components/modals/EscalationModal";
-import { ProgramsList } from "@/components/dashboard/ProgramsList";
+// import { ProgramsList } from "@/components/dashboard/ProgramsList";
 import { useState } from "react";
 import { 
   ChartGantt, 
