@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { MissingComponentsModal } from "@/components/modals/MissingComponentsModal";
 import { 
   ChartGantt, 
   AlertTriangle, 
@@ -16,6 +18,9 @@ import type { Program } from "@shared/schema";
 
 export function ProgramsList() {
   const { toast } = useToast();
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
 
   const { data: programs = [], isLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
@@ -28,10 +33,16 @@ export function ProgramsList() {
     onSuccess: (data: any, programId: string) => {
       const program = programs.find(p => p.id === programId);
       const analysis = data.analysis?.[0];
-      if (analysis) {
+      if (analysis && program) {
+        // Set data for the modal
+        setSelectedProgram(program);
+        setAnalysisData(analysis);
+        setShowMissingComponentsModal(true);
+        
+        // Also show toast for immediate feedback
         toast({
-          title: `${program?.name} Analysis Complete`,
-          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Completeness: ${analysis.completenessScore}%`,
+          title: `${program.name} Analysis Complete`,
+          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Opening detailed view...`,
           variant: analysis.riskAlerts?.length > 0 ? "destructive" : "default",
         });
       }
@@ -88,6 +99,7 @@ export function ProgramsList() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -156,5 +168,20 @@ export function ProgramsList() {
         )}
       </CardContent>
     </Card>
+
+    {/* Missing Components Modal */}
+    {selectedProgram && analysisData && (
+      <MissingComponentsModal
+        open={showMissingComponentsModal}
+        onClose={() => {
+          setShowMissingComponentsModal(false);
+          setSelectedProgram(null);
+          setAnalysisData(null);
+        }}
+        program={selectedProgram}
+        analysis={analysisData}
+      />
+    )}
+  </>
   );
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MissingComponentsModal } from "@/components/modals/MissingComponentsModal";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,6 +24,9 @@ import type { Program } from "@shared/schema";
 
 export default function Programs() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -37,10 +41,16 @@ export default function Programs() {
     onSuccess: (data: any, programId: string) => {
       const program = programs.find(p => p.id === programId);
       const analysis = data.analysis?.[0];
-      if (analysis) {
+      if (analysis && program) {
+        // Set data for the modal
+        setSelectedProgram(program);
+        setAnalysisData(analysis);
+        setShowMissingComponentsModal(true);
+        
+        // Also show toast for immediate feedback
         toast({
-          title: `${program?.name} Analysis Complete`,
-          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Completeness: ${analysis.completenessScore}%`,
+          title: `${program.name} Analysis Complete`,
+          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Opening detailed view...`,
           variant: analysis.riskAlerts?.length > 0 ? "destructive" : "default",
         });
       }
@@ -300,7 +310,7 @@ export default function Programs() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleCheckRisks(program.id)}
+                        onClick={() => analyzeProgramMutation.mutate(program.id)}
                         disabled={analyzeProgramMutation.isPending}
                       >
                         <AlertTriangle className="h-4 w-4 mr-1" />
@@ -322,6 +332,20 @@ export default function Programs() {
           )}
         </div>
       </main>
+      
+      {/* Missing Components Modal */}
+      {selectedProgram && analysisData && (
+        <MissingComponentsModal
+          open={showMissingComponentsModal}
+          onClose={() => {
+            setShowMissingComponentsModal(false);
+            setSelectedProgram(null);
+            setAnalysisData(null);
+          }}
+          program={selectedProgram}
+          analysis={analysisData}
+        />
+      )}
     </div>
   );
 }
