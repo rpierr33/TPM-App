@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, Plus, Filter, ExternalLink, Brain, TrendingUp } from "lucide-react";
 import { useMode } from "@/hooks/useMode";
+import type { Risk, Program } from "@shared/schema";
 
 export default function RiskManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,17 +40,17 @@ export default function RiskManagement() {
   const queryClient = useQueryClient();
   const { isTestMode } = useMode();
 
-  const { data: risks = [], isLoading } = useQuery({
+  const { data: risks = [], isLoading } = useQuery<Risk[]>({
     queryKey: ["/api/risks"],
   });
 
-  const { data: programs = [] } = useQuery({
+  const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
 
   const createRiskMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/risks", data);
+      return await apiRequest("/api/risks", "POST", data);
     },
     onSuccess: () => {
       toast({

@@ -33,7 +33,7 @@ export function EscalationModal({ open, onOpenChange, programId }: EscalationMod
 
   const createEscalationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/escalations", data);
+      return await apiRequest("/api/escalations", "POST", data);
     },
     onSuccess: () => {
       toast({

@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Flag, Calendar, User, ExternalLink, Plus, Filter } from "lucide-react";
 import { useMode } from "@/hooks/useMode";
+import type { Milestone, Program } from "@shared/schema";
 
 export default function Milestones() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,17 +33,17 @@ export default function Milestones() {
   const queryClient = useQueryClient();
   const { isTestMode } = useMode();
 
-  const { data: milestones = [], isLoading } = useQuery({
+  const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/milestones"],
   });
 
-  const { data: programs = [] } = useQuery({
+  const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
 
   const createMilestoneMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/milestones", data);
+      return await apiRequest("/api/milestones", "POST", data);
     },
     onSuccess: () => {
       toast({

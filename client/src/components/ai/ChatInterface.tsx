@@ -17,6 +17,26 @@ interface ChatMessage {
   type: 'user' | 'ai';
 }
 
+interface ChatResponse {
+  response: string;
+  suggestions?: string[];
+  context?: any;
+}
+
+interface DailyBriefing {
+  summary: string;
+  alerts: Array<{
+    message: string;
+    type: string;
+    priority: string;
+  }>;
+  priorities: Array<{
+    title: string;
+    description: string;
+    urgency: string;
+  }>;
+}
+
 interface Suggestion {
   text: string;
   action: () => void;
@@ -29,16 +49,16 @@ export function ChatInterface() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { data: briefing } = useQuery({
+  const { data: briefing } = useQuery<DailyBriefing>({
     queryKey: ["/api/ai/daily-briefing"],
     refetchInterval: 1000 * 60 * 30, // Refresh every 30 minutes
   });
 
   const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async (message: string): Promise<ChatResponse> => {
       return await apiRequest("/api/ai/chat", "POST", { message, context });
     },
-    onSuccess: (data, message) => {
+    onSuccess: (data: ChatResponse, message) => {
       const chatMessage: ChatMessage = {
         id: Date.now().toString(),
         message,
@@ -128,8 +148,8 @@ export function ChatInterface() {
                 <div className="mb-2">
                   <Badge variant="destructive" className="text-xs mb-1">Alerts</Badge>
                   <ul className="text-xs space-y-1">
-                    {briefing.alerts.slice(0, 2).map((alert: string, i: number) => (
-                      <li key={i}>• {alert}</li>
+                    {briefing.alerts.slice(0, 2).map((alert, i: number) => (
+                      <li key={i}>• {alert.message}</li>
                     ))}
                   </ul>
                 </div>
@@ -139,8 +159,8 @@ export function ChatInterface() {
                 <div>
                   <Badge variant="default" className="text-xs mb-1">Top Priorities</Badge>
                   <ul className="text-xs space-y-1">
-                    {briefing.priorities.slice(0, 3).map((priority: string, i: number) => (
-                      <li key={i}>• {priority}</li>
+                    {briefing.priorities.slice(0, 3).map((priority, i: number) => (
+                      <li key={i}>• {priority.title}</li>
                     ))}
                   </ul>
                 </div>

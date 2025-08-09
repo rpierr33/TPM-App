@@ -26,6 +26,7 @@ import {
   FileText,
   Mail
 } from "lucide-react";
+import type { Adopter, Program } from "@shared/schema";
 
 export default function AdopterSupport() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -43,17 +44,17 @@ export default function AdopterSupport() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: adopters = [], isLoading } = useQuery({
+  const { data: adopters = [], isLoading } = useQuery<Adopter[]>({
     queryKey: ["/api/adopters"],
   });
 
-  const { data: programs = [] } = useQuery({
+  const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
 
   const createAdopterMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/adopters", data);
+      return await apiRequest("/api/adopters", "POST", data);
     },
     onSuccess: () => {
       toast({

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, GitBranch, Plus, Filter, AlertCircle } from "lucide-react";
+import type { Dependency, Program, Milestone } from "@shared/schema";
 
 export default function Dependencies() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,21 +31,21 @@ export default function Dependencies() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: dependencies = [], isLoading } = useQuery({
+  const { data: dependencies = [], isLoading } = useQuery<Dependency[]>({
     queryKey: ["/api/dependencies"],
   });
 
-  const { data: programs = [] } = useQuery({
+  const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
 
-  const { data: milestones = [] } = useQuery({
+  const { data: milestones = [] } = useQuery<Milestone[]>({
     queryKey: ["/api/milestones"],
   });
 
   const createDependencyMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/dependencies", data);
+      return await apiRequest("/api/dependencies", "POST", data);
     },
     onSuccess: () => {
       toast({

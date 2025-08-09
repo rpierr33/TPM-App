@@ -16,12 +16,59 @@ declare global {
   }
 }
 
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
 interface VoiceCommand {
   id: string;
   input: string;
-  response: any;
+  response: VoiceCommandResponse;
   timestamp: Date;
   success: boolean;
+}
+
+interface VoiceCommandResponse {
+  success: boolean;
+  message: string;
+  action?: string;
+  data?: any;
+  followUp?: string[];
 }
 
 export function VoiceInterface() {
@@ -33,10 +80,10 @@ export function VoiceInterface() {
   const { toast } = useToast();
 
   const voiceCommandMutation = useMutation({
-    mutationFn: async (input: string) => {
+    mutationFn: async (input: string): Promise<VoiceCommandResponse> => {
       return await apiRequest("/api/ai/voice-command", "POST", { input });
     },
-    onSuccess: (data, input) => {
+    onSuccess: (data: VoiceCommandResponse, input) => {
       const command: VoiceCommand = {
         id: Date.now().toString(),
         input,
@@ -74,33 +121,36 @@ export function VoiceInterface() {
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
       
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
+      if (recognitionRef.current) {
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setCurrentInput(transcript);
-        handleVoiceCommand(transcript);
-      };
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = event.results[0][0].transcript;
+          setCurrentInput(transcript);
+          handleVoiceCommand(transcript);
+        };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-        setIsRecording(false);
-      };
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+          setIsRecording(false);
+        };
 
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        setIsRecording(false);
-        toast({
-          title: "Voice Recognition Error",
-          description: "Unable to process voice input",
-          variant: "destructive"
-        });
-      };
+        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          setIsRecording(false);
+          toast({
+            title: "Voice Recognition Error",
+            description: "Unable to process voice input",
+            variant: "destructive"
+          });
+        };
+      }
     }
   }, []);
 
