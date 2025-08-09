@@ -9,7 +9,8 @@ import {
   insertAdopterSchema,
   insertEscalationSchema,
   insertIntegrationSchema,
-  insertReportSchema
+  insertReportSchema,
+  type Program
 } from "@shared/schema";
 import { aiService } from "./services/ai";
 import { integrationService } from "./services/integrations";
@@ -359,10 +360,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { programId } = req.body;
       
       // If no programId provided, analyze all programs
-      const programs = programId ? [await storage.getProgram(programId)] : await storage.getPrograms();
+      let programs: Program[];
+      if (programId) {
+        const program = await storage.getProgram(programId);
+        programs = program ? [program] : [];
+      } else {
+        programs = await storage.getPrograms();
+      }
       const results = [];
 
-      for (const program of programs.filter(p => p)) {
+      for (const program of programs) {
         // Get all related components
         const milestones = await storage.getMilestones(program.id);
         const risks = await storage.getRisks(program.id);
