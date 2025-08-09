@@ -105,10 +105,7 @@ export default function Dashboard() {
           <AdopterDashboard />
         </div>
 
-        {/* Programs List Section */}
-        <div className="mb-6">
-          <ProgramsList />
-        </div>
+        {/* Programs List Section - Available through Programs page */}
 
         {/* AI Insights Panel */}
         <AIInsights />
