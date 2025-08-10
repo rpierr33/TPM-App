@@ -221,7 +221,10 @@ export default function Dashboard() {
                     <CardContent className="pt-0">
                       {/* Program Components Summary */}
                       <div className="grid grid-cols-4 gap-4 mb-4">
-                        <div className="text-center">
+                        <button
+                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
+                          onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
+                        >
                           <div className="flex items-center justify-center mb-1">
                             <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
                             <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
@@ -230,9 +233,12 @@ export default function Dashboard() {
                           {criticalRisks.length > 0 && (
                             <div className="text-xs text-red-600 font-medium">{criticalRisks.length} critical</div>
                           )}
-                        </div>
+                        </button>
 
-                        <div className="text-center">
+                        <button
+                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
+                          onClick={() => setLocation(`/milestones?programId=${program.id}`)}
+                        >
                           <div className="flex items-center justify-center mb-1">
                             <Flag className="h-4 w-4 text-yellow-500 mr-1" />
                             <span className="text-lg font-semibold text-gray-900">{programMilestones.length}</span>
@@ -241,17 +247,23 @@ export default function Dashboard() {
                           {overdueMilestones.length > 0 && (
                             <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
                           )}
-                        </div>
+                        </button>
 
-                        <div className="text-center">
+                        <button
+                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
+                          onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
+                        >
                           <div className="flex items-center justify-center mb-1">
                             <Users className="h-4 w-4 text-blue-500 mr-1" />
                             <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
                           </div>
                           <div className="text-xs text-gray-500">Teams</div>
-                        </div>
+                        </button>
 
-                        <div className="text-center">
+                        <button
+                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
+                          onClick={() => setLocation(`/dependencies?programId=${program.id}`)}
+                        >
                           <div className="flex items-center justify-center mb-1">
                             <GitBranch className="h-4 w-4 text-purple-500 mr-1" />
                             <span className="text-lg font-semibold text-gray-900">{programDependencies.length}</span>
@@ -260,7 +272,7 @@ export default function Dashboard() {
                           {blockedDependencies.length > 0 && (
                             <div className="text-xs text-red-600 font-medium">{blockedDependencies.length} blocked</div>
                           )}
-                        </div>
+                        </button>
                       </div>
 
                       {/* Quick Actions */}
@@ -292,7 +304,7 @@ export default function Dashboard() {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          onClick={() => setLocation(`/programs`)}
+                          onClick={() => setLocation(`/program-planning?id=${program.id}`)}
                           className="text-primary-600 hover:text-primary-700"
                         >
                           <Eye className="h-3 w-3 mr-1" />
@@ -382,7 +394,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Insights & Recommendations</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Priorities Today */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/ai-assistant")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Priorities Today</h3>
@@ -394,7 +406,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Critical Alerts */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/risk-management")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Critical Alerts</h3>
@@ -406,7 +418,7 @@ export default function Dashboard() {
             </Card>
 
             {/* AI Recommendations */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/ai-assistant")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Recommendations</h3>
@@ -420,7 +432,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Program Health */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/programs")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Program Health</h3>
@@ -433,7 +445,10 @@ export default function Dashboard() {
                   size="sm" 
                   variant="outline" 
                   className="w-full text-xs"
-                  onClick={() => setLocation("/ai-assistant")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocation("/ai-assistant");
+                  }}
                 >
                   Quick Analysis
                 </Button>
