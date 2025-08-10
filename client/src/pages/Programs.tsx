@@ -235,8 +235,9 @@ export default function Programs() {
     if (!program?.endDate) missing.push("End Date");
     if (!program?.description || program?.description.trim() === "") missing.push("Description");
 
-    // More realistic completeness calculation - if everything is missing, it should be very low
-    const totalRequiredComponents = 10;
+    // Accurate completeness calculation based on what the demo program actually has
+    // Demo program has: name (always present), description, 1 risk = 3 out of 13 total components
+    const totalRequiredComponents = 13; // name, description, start date, end date, owner, risks, milestones, dependencies, adopters, epics, business epics, stories, milestone steps
     const completedComponents = totalRequiredComponents - missing.length;
     const completeness = Math.round((completedComponents / totalRequiredComponents) * 100);
     
@@ -522,21 +523,21 @@ export default function Programs() {
                               <AlertTriangle className="h-4 w-4 text-yellow-600" />
                               <span className="text-sm font-medium text-yellow-800">Missing Components</span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {completenessData.missing.slice(0, 5).map((component) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 w-full">
+                              {completenessData.missing.slice(0, 8).map((component) => (
                                 <Badge 
                                   key={component} 
                                   variant="outline" 
-                                  className="text-sm px-3 py-1 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  className="text-sm px-3 py-2 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors whitespace-nowrap text-center justify-center"
                                   onClick={() => handleNavigateToComponent(component, program.id)}
                                 >
                                   {component}
                                 </Badge>
                               ))}
-                              {completenessData.missing.length > 5 && (
+                              {completenessData.missing.length > 8 && (
                                 <Badge 
                                   variant="outline" 
-                                  className="text-sm px-3 py-1 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  className="text-sm px-3 py-2 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors whitespace-nowrap text-center justify-center"
                                   onClick={() => {
                                     // Show all missing components in a modal or toast
                                     toast({
@@ -546,7 +547,7 @@ export default function Programs() {
                                     });
                                   }}
                                 >
-                                  +{completenessData.missing.length - 5} more
+                                  +{completenessData.missing.length - 8} more
                                 </Badge>
                               )}
                             </div>
