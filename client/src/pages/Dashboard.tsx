@@ -978,7 +978,7 @@ export default function Dashboard() {
               <p className="text-sm text-gray-600">AI-powered analysis and prioritized actions</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Today's Priorities */}
             <Card className="border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setShowPrioritiesModal(true)}>
               <CardContent className="p-6">
@@ -1018,32 +1018,6 @@ export default function Dashboard() {
                   {Math.max(3, Math.floor(overallMetrics.totalPrograms * 0.5))}
                 </div>
                 <div className="text-sm text-gray-500">PMI Recommendations</div>
-              </CardContent>
-            </Card>
-
-            {/* Program Health Overview */}
-            <Card className="border border-gray-200 cursor-pointer hover:border-green-300 transition-colors" onClick={() => setLocation("/programs")}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">Health Overview</h3>
-                  <Users className="h-5 w-5 text-green-500" />
-                </div>
-                <div className="mb-2">
-                  <Badge className={
-                    overallMetrics.criticalRisks === 0 && overallMetrics.overdueMilestones === 0 
-                      ? "bg-green-100 text-green-800" 
-                      : overallMetrics.criticalRisks < 3 
-                        ? "bg-yellow-100 text-yellow-800" 
-                        : "bg-red-100 text-red-800"
-                  }>
-                    {overallMetrics.criticalRisks === 0 && overallMetrics.overdueMilestones === 0 
-                      ? "Excellent" 
-                      : overallMetrics.criticalRisks < 3 
-                        ? "Fair" 
-                        : "At Risk"}
-                  </Badge>
-                </div>
-                <div className="text-sm text-gray-500">{overallMetrics.activePrograms} active programs</div>
               </CardContent>
             </Card>
           </div>
