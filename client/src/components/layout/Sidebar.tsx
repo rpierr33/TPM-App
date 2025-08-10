@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 const navigationItems = [
   { path: "/", icon: Brain, label: "AI Assistant" },
   { path: "/dashboard", icon: Activity, label: "Dashboard" },
-  { path: "/program-planning", icon: ClipboardList, label: "Program Planning" },
+  { path: "/programs", icon: ClipboardList, label: "Programs" },
   { path: "/milestones", icon: Flag, label: "Milestones" },
   { path: "/risk-management", icon: AlertTriangle, label: "Risk Management" },
   { path: "/dependencies", icon: ChartGantt, label: "Dependencies" },
@@ -49,7 +49,7 @@ export function Sidebar() {
       return mockStatuses[name] || "disconnected";
     }
     
-    const integration = integrations?.find((i: any) => i.name === name);
+    const integration = Array.isArray(integrations) ? integrations.find((i: any) => i.name === name) : undefined;
     return integration?.status || "disconnected";
   };
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MissingComponentsModal } from "@/components/modals/MissingComponentsModal";
+import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,9 +19,11 @@ import {
   Clock,
   CheckCircle,
   Pause,
-  Eye
+  Eye,
+  Flag,
+  GitBranch
 } from "lucide-react";
-import type { Program } from "@shared/schema";
+import type { Program, Risk, Milestone, Dependency, Adopter, JiraEpic, JiraBepic, JiraStory } from "@shared/schema";
 
 export default function Programs() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -32,6 +35,34 @@ export default function Programs() {
 
   const { data: programs = [], isLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
+  });
+
+  const { data: risks = [] } = useQuery<Risk[]>({
+    queryKey: ["/api/risks"],
+  });
+
+  const { data: milestones = [] } = useQuery<Milestone[]>({
+    queryKey: ["/api/milestones"],
+  });
+
+  const { data: dependencies = [] } = useQuery<Dependency[]>({
+    queryKey: ["/api/dependencies"],
+  });
+
+  const { data: adopters = [] } = useQuery<Adopter[]>({
+    queryKey: ["/api/adopters"],
+  });
+
+  const { data: jiraEpics = [] } = useQuery<JiraEpic[]>({
+    queryKey: ["/api/jira-epics"],
+  });
+
+  const { data: jiraBepics = [] } = useQuery<JiraBepic[]>({
+    queryKey: ["/api/jira-bepics"],
+  });
+
+  const { data: jiraStories = [] } = useQuery<JiraStory[]>({
+    queryKey: ["/api/jira-stories"],
   });
 
   const analyzeProgramMutation = useMutation({
@@ -73,8 +104,46 @@ export default function Programs() {
   };
 
   const handleViewDetails = (programId: string) => {
-    // Navigate to program details page
-    setLocation(`/program-planning?programId=${programId}`);
+    // Navigate to program details page - for now, redirect to dashboard
+    setLocation("/dashboard");
+  };
+
+  // Helper function to calculate program completeness
+  const getProgramCompleteness = (programId: string) => {
+    const programRisks = risks.filter(r => r.programId === programId);
+    const programMilestones = milestones.filter(m => m.programId === programId);
+    const programDependencies = dependencies.filter(d => d.programId === programId);
+    const programAdopters = adopters.filter(a => a.programId === programId);
+    
+    const program = programs.find(p => p.id === programId);
+    
+    const missing = [];
+    if (programMilestones.length === 0) missing.push("Milestones");
+    if (programRisks.length === 0) missing.push("Risks");
+    if (programDependencies.length === 0) missing.push("Dependencies");
+    if (programAdopters.length === 0) missing.push("Adopters");
+    if (jiraEpics.length === 0) missing.push("Epics");
+    if (jiraBepics.length === 0) missing.push("Business Epics");
+    if (jiraStories.length === 0) missing.push("Stories");
+    if (!program?.startDate) missing.push("Start Date");
+    if (!program?.endDate) missing.push("End Date");
+    if (!program?.description || program?.description.trim() === "") missing.push("Description");
+
+    const completeness = Math.round(((10 - missing.length) / 10) * 100);
+    
+    return {
+      completeness,
+      missing,
+      components: {
+        risks: programRisks.length,
+        milestones: programMilestones.length,
+        dependencies: programDependencies.length,
+        adopters: programAdopters.length,
+        epics: jiraEpics.length,
+        bepics: jiraBepics.length,
+        stories: jiraStories.length
+      }
+    };
   };
 
   const getStatusIcon = (status: string) => {
@@ -273,62 +342,120 @@ export default function Programs() {
               </CardContent>
             </Card>
           ) : (
-            filteredPrograms.map((program) => (
-              <Card key={program.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {getStatusIcon(program.status)}
-                        <h3 className="text-xl font-semibold text-gray-900">{program.name}</h3>
-                        <Badge className={`${getStatusColor(program.status)} border`}>
-                          {program.status}
-                        </Badge>
+            filteredPrograms.map((program) => {
+              const completenessData = getProgramCompleteness(program.id);
+              
+              return (
+                <Card key={program.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          {getStatusIcon(program.status || 'active')}
+                          <h3 className="text-xl font-semibold text-gray-900">{program.name}</h3>
+                          <Badge className={`${getStatusColor(program.status || 'active')} border`}>
+                            {program.status || 'active'}
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-gray-600 mb-4">
+                          {program.description || "No description provided"}
+                        </p>
+
+                        {/* Program Completeness */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between text-sm mb-2">
+                            <span className="text-gray-700 font-medium">Program Completeness</span>
+                            <span className={`font-semibold ${completenessData.completeness >= 80 ? 'text-green-600' : 
+                                               completenessData.completeness >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                              {completenessData.completeness}%
+                            </span>
+                          </div>
+                          <Progress value={completenessData.completeness} className="w-full" />
+                        </div>
+
+                        {/* Component Stats */}
+                        <div className="grid grid-cols-4 gap-3 mb-4">
+                          <div className="text-center p-2 bg-gray-50 rounded">
+                            <div className="text-lg font-semibold text-red-600">{completenessData.components.risks}</div>
+                            <div className="text-xs text-gray-600">Risks</div>
+                          </div>
+                          <div className="text-center p-2 bg-gray-50 rounded">
+                            <div className="text-lg font-semibold text-blue-600">{completenessData.components.milestones}</div>
+                            <div className="text-xs text-gray-600">Milestones</div>
+                          </div>
+                          <div className="text-center p-2 bg-gray-50 rounded">
+                            <div className="text-lg font-semibold text-purple-600">{completenessData.components.dependencies}</div>
+                            <div className="text-xs text-gray-600">Dependencies</div>
+                          </div>
+                          <div className="text-center p-2 bg-gray-50 rounded">
+                            <div className="text-lg font-semibold text-green-600">{completenessData.components.adopters}</div>
+                            <div className="text-xs text-gray-600">Teams</div>
+                          </div>
+                        </div>
+
+                        {/* Missing Components Alert */}
+                        {completenessData.missing.length > 0 && (
+                          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <div className="flex items-center gap-2 mb-1">
+                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                              <span className="text-sm font-medium text-yellow-800">Missing Components</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {completenessData.missing.slice(0, 5).map((component) => (
+                                <Badge key={component} variant="outline" className="text-xs border-yellow-300 text-yellow-800">
+                                  {component}
+                                </Badge>
+                              ))}
+                              {completenessData.missing.length > 5 && (
+                                <Badge variant="outline" className="text-xs border-yellow-300 text-yellow-800">
+                                  +{completenessData.missing.length - 5} more
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Calendar className="h-4 w-4" />
+                            <span>Start: {formatDate(program.startDate || null)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Calendar className="h-4 w-4" />
+                            <span>End: {formatDate(program.endDate || null)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Users className="h-4 w-4" />
+                            <span>Owner: {program.ownerId || "Unassigned"}</span>
+                          </div>
+                        </div>
                       </div>
                       
-                      <p className="text-gray-600 mb-4">
-                        {program.description || "No description provided"}
-                      </p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Calendar className="h-4 w-4" />
-                          <span>Start: {formatDate(program.startDate || null)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Calendar className="h-4 w-4" />
-                          <span>End: {formatDate(program.endDate || null)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Users className="h-4 w-4" />
-                          <span>Owner: {program.ownerId || "Unassigned"}</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => analyzeProgramMutation.mutate(program.id)}
+                          disabled={analyzeProgramMutation.isPending}
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          {analyzeProgramMutation.isPending ? "Analyzing..." : "Check Risks"}
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => handleViewDetails(program.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => analyzeProgramMutation.mutate(program.id)}
-                        disabled={analyzeProgramMutation.isPending}
-                      >
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        {analyzeProgramMutation.isPending ? "Analyzing..." : "Check Risks"}
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => handleViewDetails(program.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </main>

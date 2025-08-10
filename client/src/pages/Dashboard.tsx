@@ -47,7 +47,7 @@ export default function Dashboard() {
   const onHoldPrograms = programs.filter(p => p.status === 'on_hold');
 
   const handleNewProgram = () => {
-    setLocation("/program-planning");
+    setLocation("/programs");
   };
 
   const getProgramRisks = (programId: string) => {
@@ -280,7 +280,7 @@ export default function Dashboard() {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                          onClick={() => setLocation(`/program/${program.id}`)}
                           className="text-primary-600 hover:text-primary-700"
                         >
                           <Eye className="h-3 w-3 mr-1" />
