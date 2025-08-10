@@ -27,7 +27,14 @@ import {
   Star,
   Eye,
   Edit,
-  Plus
+  Plus,
+  Flag,
+  ChartGantt,
+  Activity,
+  BarChart3,
+  FileText,
+  Link2,
+  Gauge
 } from "lucide-react";
 
 interface ProgramDetailsProps {
@@ -67,6 +74,72 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const programMilestones = milestones.filter(m => m.programId === programId);
   const programDependencies = dependencies.filter(d => d.programId === programId);
   const programAdopters = adopters.filter(a => a.programId === programId);
+
+  // Calculate program health and status
+  const getProgramHealth = () => {
+    const totalComponents = programRisks.length + programMilestones.length + programDependencies.length + programStakeholders.length;
+    
+    // Risk analysis
+    const highRisks = programRisks.filter(r => r.severity === 'high' || r.severity === 'critical').length;
+    const overdueMilestones = programMilestones.filter(m => {
+      if (!m.dueDate) return false;
+      const dueDate = new Date(m.dueDate);
+      const today = new Date();
+      return dueDate < today && m.status !== 'completed';
+    }).length;
+    const blockedDependencies = programDependencies.filter(d => d.status === 'blocked').length;
+
+    let healthScore = 100;
+    healthScore -= highRisks * 15;
+    healthScore -= overdueMilestones * 20;
+    healthScore -= blockedDependencies * 10;
+    healthScore = Math.max(0, healthScore);
+
+    let status = 'Healthy';
+    let color = 'text-green-600';
+    if (healthScore < 50) {
+      status = 'Critical';
+      color = 'text-red-600';
+    } else if (healthScore < 70) {
+      status = 'At Risk';
+      color = 'text-yellow-600';
+    }
+
+    return { score: healthScore, status, color, totalComponents, highRisks, overdueMilestones, blockedDependencies };
+  };
+
+  const health = getProgramHealth();
+
+  // Get upcoming items (next 30 days)
+  const getUpcomingItems = () => {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    const upcomingMilestones = programMilestones.filter(m => {
+      if (!m.dueDate || m.status === 'completed') return false;
+      const dueDate = new Date(m.dueDate);
+      return dueDate >= today && dueDate <= thirtyDaysFromNow;
+    }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+    return { upcomingMilestones };
+  };
+
+  const upcoming = getUpcomingItems();
+
+  // Generate program summary for stakeholders
+  const generateProgramSummary = () => {
+    const completedMilestones = programMilestones.filter(m => m.status === 'completed').length;
+    const totalMilestones = programMilestones.length;
+    const mitigatedRisks = programRisks.filter(r => r.status === 'mitigated' || r.status === 'resolved').length;
+    
+    const summary = `The ${program.name} is currently in ${program.status} status with ${health.score}% health score. The program encompasses ${health.totalComponents} tracked components including ${programMilestones.length} milestones, ${programRisks.length} risks, ${programDependencies.length} dependencies, and ${programStakeholders.length} stakeholders. Progress indicates ${completedMilestones} of ${totalMilestones} milestones completed (${totalMilestones > 0 ? Math.round((completedMilestones/totalMilestones) * 100) : 0}%) with ${mitigatedRisks} risks successfully mitigated.
+
+    ${health.status === 'Critical' ? 'Immediate attention required due to ' + health.highRisks + ' high-severity risks and ' + health.overdueMilestones + ' overdue milestones.' : 
+      health.status === 'At Risk' ? 'Program requires monitoring with ' + (health.highRisks + health.overdueMilestones) + ' items needing attention.' :
+      'Program is performing well with no critical issues identified.'} Key focus areas include ${upcoming.upcomingMilestones.length > 0 ? upcoming.upcomingMilestones.length + ' upcoming milestones in the next 30 days' : 'maintaining current momentum'} and ${programDependencies.filter(d => d.status === 'at_risk').length > 0 ? 'resolving at-risk dependencies' : 'dependency management'}.`;
+    
+    return summary;
+  };
 
   // PMI Stakeholder Analysis - Power/Interest Grid
   const getStakeholderPowerInterestCategory = (stakeholder: any) => {
@@ -213,13 +286,13 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        <Tabs defaultValue="stakeholders" className="w-full">
+        <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="overview">Program Snapshot</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
             <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
+            <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stakeholders" className="space-y-6 mt-6">
@@ -498,30 +571,233 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             )}
           </TabsContent>
 
-          {/* Other tabs content - simplified for now */}
-          <TabsContent value="overview" className="mt-6">
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Program Health Dashboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Health Score */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5 text-blue-600" />
+                    Program Health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className={`text-4xl font-bold ${health.color}`}>{health.score}%</div>
+                      <div className={`text-lg font-medium ${health.color}`}>{health.status}</div>
+                    </div>
+                    <Progress value={health.score} className="w-full" />
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>• {health.totalComponents} components tracked</p>
+                      <p>• {health.highRisks} high-severity risks</p>
+                      <p>• {health.overdueMilestones} overdue milestones</p>
+                      <p>• {health.blockedDependencies} blocked dependencies</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Component Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-purple-600" />
+                    Component Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <span className="text-sm">Risks</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{programRisks.length}</Badge>
+                        <Badge className="bg-red-100 text-red-800 text-xs">
+                          {programRisks.filter(r => r.severity === 'high' || r.severity === 'critical').length} high
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm">Milestones</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{programMilestones.length}</Badge>
+                        <Badge className="bg-green-100 text-green-800 text-xs">
+                          {programMilestones.filter(m => m.status === 'completed').length} done
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ChartGantt className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm">Dependencies</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{programDependencies.length}</Badge>
+                        <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                          {programDependencies.filter(d => d.status === 'blocked').length} blocked
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Stakeholders</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{programStakeholders.length}</Badge>
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">
+                          {programStakeholders.filter(s => s.influenceLevel >= 4).length} high influence
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Upcoming Items */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-orange-600" />
+                    Upcoming (30 days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {upcoming.upcomingMilestones.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">No upcoming milestones</p>
+                    ) : (
+                      upcoming.upcomingMilestones.slice(0, 4).map((milestone) => (
+                        <div key={milestone.id} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{milestone.title}</span>
+                            <Badge className="text-xs">{milestone.status}</Badge>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Due: {new Date(milestone.dueDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {upcoming.upcomingMilestones.length > 4 && (
+                      <p className="text-xs text-gray-500 text-center">
+                        +{upcoming.upcomingMilestones.length - 4} more milestones
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Program Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Program Overview</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  Executive Summary
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-red-50 rounded">
-                    <div className="text-2xl font-bold text-red-600">{programRisks.length}</div>
-                    <div className="text-sm text-gray-600">Risks</div>
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-gray-700 leading-relaxed">{generateProgramSummary()}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Critical Alerts */}
+            {(health.highRisks > 0 || health.overdueMilestones > 0 || health.blockedDependencies > 0) && (
+              <Card className="border-red-200 bg-red-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    Critical Issues Requiring Attention
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {health.highRisks > 0 && (
+                      <div className="flex items-center justify-between p-3 bg-white rounded border">
+                        <div>
+                          <h4 className="font-medium text-red-800">High-Severity Risks</h4>
+                          <p className="text-sm text-red-600">{health.highRisks} risks require immediate mitigation</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                          Review Risks
+                        </Button>
+                      </div>
+                    )}
+                    {health.overdueMilestones > 0 && (
+                      <div className="flex items-center justify-between p-3 bg-white rounded border">
+                        <div>
+                          <h4 className="font-medium text-red-800">Overdue Milestones</h4>
+                          <p className="text-sm text-red-600">{health.overdueMilestones} milestones past due date</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                          Review Timeline
+                        </Button>
+                      </div>
+                    )}
+                    {health.blockedDependencies > 0 && (
+                      <div className="flex items-center justify-between p-3 bg-white rounded border">
+                        <div>
+                          <h4 className="font-medium text-red-800">Blocked Dependencies</h4>
+                          <p className="text-sm text-red-600">{health.blockedDependencies} dependencies blocking progress</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                          Resolve Blocks
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-center p-4 bg-blue-50 rounded">
-                    <div className="text-2xl font-bold text-blue-600">{programMilestones.length}</div>
-                    <div className="text-sm text-gray-600">Milestones</div>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 rounded">
-                    <div className="text-2xl font-bold text-purple-600">{programDependencies.length}</div>
-                    <div className="text-sm text-gray-600">Dependencies</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 rounded">
-                    <div className="text-2xl font-bold text-green-600">{programAdopters.length}</div>
-                    <div className="text-sm text-gray-600">Teams</div>
-                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Next Steps Recommendations */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                  Recommended Next Steps
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {health.highRisks > 0 && (
+                    <div className="border-l-4 border-red-500 pl-4 py-2">
+                      <h4 className="font-medium text-gray-900">1. Address High-Severity Risks</h4>
+                      <p className="text-sm text-gray-600">Conduct risk mitigation workshops for {health.highRisks} critical risks</p>
+                      <span className="text-xs text-red-600 font-medium">Priority: Critical</span>
+                    </div>
+                  )}
+                  {health.overdueMilestones > 0 && (
+                    <div className="border-l-4 border-yellow-500 pl-4 py-2">
+                      <h4 className="font-medium text-gray-900">2. Reschedule Overdue Milestones</h4>
+                      <p className="text-sm text-gray-600">Review and update timeline for {health.overdueMilestones} overdue deliverables</p>
+                      <span className="text-xs text-yellow-600 font-medium">Priority: High</span>
+                    </div>
+                  )}
+                  {upcoming.upcomingMilestones.length > 0 && (
+                    <div className="border-l-4 border-blue-500 pl-4 py-2">
+                      <h4 className="font-medium text-gray-900">3. Prepare for Upcoming Deliverables</h4>
+                      <p className="text-sm text-gray-600">Focus on {upcoming.upcomingMilestones.length} milestones due in next 30 days</p>
+                      <span className="text-xs text-blue-600 font-medium">Priority: Medium</span>
+                    </div>
+                  )}
+                  {programStakeholders.filter(s => !s.leadershipStyle).length > 0 && (
+                    <div className="border-l-4 border-green-500 pl-4 py-2">
+                      <h4 className="font-medium text-gray-900">4. Complete Stakeholder Analysis</h4>
+                      <p className="text-sm text-gray-600">Profile {programStakeholders.filter(s => !s.leadershipStyle).length} stakeholders for better engagement</p>
+                      <span className="text-xs text-green-600 font-medium">Priority: Medium</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
