@@ -137,6 +137,7 @@ export default function AdopterSupport() {
         title="Adopter Support"
         subtitle="Track internal feature/API adopters with onboarding status and readiness scoring"
         onNewClick={handleNewAdopter}
+        newButtonText="Add Team"
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">

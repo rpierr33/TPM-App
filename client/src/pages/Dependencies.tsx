@@ -180,6 +180,7 @@ export default function Dependencies() {
         title="Dependencies"
         subtitle="Track cross-team dependencies and unblock critical paths"
         onNewClick={handleNewDependency}
+        newButtonText="Add Dependency"
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">

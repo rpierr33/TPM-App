@@ -181,6 +181,7 @@ export default function RiskManagement() {
         title="Risk Management"
         subtitle="Comprehensive risk tracking with AI-powered insights and JIRA integration"
         onNewClick={handleNewRisk}
+        newButtonText="Add Risk"
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">

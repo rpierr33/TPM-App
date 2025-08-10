@@ -124,6 +124,7 @@ export default function Programs() {
         title={getFilterTitle()}
         subtitle={getFilterSubtitle()}
         onNewClick={() => setLocation("/dashboard")}
+        newButtonText="New Program"
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
@@ -150,10 +151,7 @@ export default function Programs() {
               <option value="on_hold">On Hold</option>
               <option value="completed">Completed</option>
             </select>
-            <Button onClick={() => setLocation("/dashboard")} className="bg-primary-600 hover:bg-primary-700">
-              <Plus className="h-4 w-4 mr-2" />
-              New Program
-            </Button>
+
           </div>
 
           {filterParam && (

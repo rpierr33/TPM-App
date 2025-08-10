@@ -7,9 +7,10 @@ interface HeaderProps {
   subtitle: string;
   showNewButton?: boolean;
   onNewClick?: () => void;
+  newButtonText?: string;
 }
 
-export function Header({ title, subtitle, showNewButton = true, onNewClick }: HeaderProps) {
+export function Header({ title, subtitle, showNewButton = true, onNewClick, newButtonText = "New Program" }: HeaderProps) {
   const { isTestMode } = useMode();
 
   return (
@@ -33,7 +34,7 @@ export function Header({ title, subtitle, showNewButton = true, onNewClick }: He
               className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
             >
               <Plus size={16} />
-              <span>New Program</span>
+              <span>{newButtonText}</span>
             </Button>
           )}
         </div>

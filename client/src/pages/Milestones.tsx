@@ -211,6 +211,7 @@ export default function Milestones() {
         title="Milestone Management"
         subtitle="Track and manage program milestones with critical path visualization"
         onNewClick={handleNewMilestone}
+        newButtonText="Add Milestone"
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
