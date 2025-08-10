@@ -67,13 +67,19 @@ export default function Programs() {
                          program.description?.toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchesStatusFilter = true;
+    
+    // URL filter takes precedence over local filter
     if (filterParam === 'active') {
       matchesStatusFilter = program.status === 'active' || program.status === 'planning';
     } else if (filterParam === 'on_hold') {
       matchesStatusFilter = program.status === 'on_hold';
+    } else if (filterParam === 'completed') {
+      matchesStatusFilter = program.status === 'completed';
     } else if (statusFilter !== 'all') {
+      // Only apply local filter if no URL filter is present
       matchesStatusFilter = program.status === statusFilter;
     }
+    // If no filters, show all programs (when filterParam is null and statusFilter is 'all')
 
     return matchesSearch && matchesStatusFilter;
   });
@@ -101,14 +107,22 @@ export default function Programs() {
   const getFilterTitle = () => {
     if (filterParam === 'active') return 'Active Programs';
     if (filterParam === 'on_hold') return 'Programs on Hold';
+    if (filterParam === 'completed') return 'Completed Programs';
     return 'All Programs';
+  };
+
+  const getFilterSubtitle = () => {
+    if (filterParam === 'active') return `Active and planning programs (${filteredPrograms.length} programs)`;
+    if (filterParam === 'on_hold') return `Programs currently on hold (${filteredPrograms.length} programs)`;
+    if (filterParam === 'completed') return `Completed programs (${filteredPrograms.length} programs)`;
+    return `Manage and track all your programs (${filteredPrograms.length} programs)`;
   };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header
         title={getFilterTitle()}
-        subtitle={`Manage and track all your programs (${filteredPrograms.length} programs)`}
+        subtitle={getFilterSubtitle()}
         onNewClick={() => setLocation("/dashboard")}
       />
 
@@ -145,14 +159,14 @@ export default function Programs() {
           {filterParam && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Filter className="h-4 w-4" />
-              <span>Filtered by: {filterParam.replace('_', ' ')}</span>
+              <span>Showing: {filterParam.replace('_', ' ')} programs only</span>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setLocation("/programs")}
                 className="text-primary-600 hover:text-primary-700"
               >
-                Clear filter
+                Show all programs
               </Button>
             </div>
           )}
