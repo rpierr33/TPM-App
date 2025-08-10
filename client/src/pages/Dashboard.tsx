@@ -480,12 +480,30 @@ export default function Dashboard() {
                 );
                 const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
-                // Calculate program health score
+                // Check for missing essential components
+                const getMissingComponents = () => {
+                  const missing = [];
+                  if (!program.description || program.description.trim().length < 10) missing.push('Program Description');
+                  if (!program.ownerId) missing.push('Program Owner');
+                  if (!program.startDate) missing.push('Start Date');
+                  if (!program.endDate) missing.push('End Date');
+                  if (!program.objectives || !program.objectives.length) missing.push('Objectives');
+                  if (!program.kpis || !program.kpis.length) missing.push('KPIs');
+                  if (programMilestones.length === 0) missing.push('Milestones');
+                  if (programAdopters.length === 0) missing.push('Adopter Teams');
+                  return missing;
+                };
+
+                const missingComponents = getMissingComponents();
+                const totalMissingRisks = missingComponents.length;
+
+                // Calculate program health score (including missing components)
                 const getHealthScore = () => {
                   let score = 100;
                   score -= criticalRisks.length * 15;
                   score -= overdueMilestones.length * 10;
                   score -= blockedDependencies.length * 5;
+                  score -= totalMissingRisks * 8; // Missing components are significant risks
                   return Math.max(0, score);
                 };
 
@@ -539,11 +557,15 @@ export default function Dashboard() {
                         >
                           <div className="flex items-center justify-center mb-1">
                             <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
+                            <span className="text-lg font-semibold text-gray-900">{programRisks.length + totalMissingRisks}</span>
                           </div>
-                          <div className="text-xs text-gray-500">Risks</div>
-                          {criticalRisks.length > 0 && (
-                            <div className="text-xs text-red-600 font-medium">{criticalRisks.length} critical</div>
+                          <div className="text-xs text-gray-500">Total Risks</div>
+                          {(criticalRisks.length > 0 || totalMissingRisks > 0) && (
+                            <div className="text-xs text-red-600 font-medium">
+                              {criticalRisks.length > 0 && `${criticalRisks.length} critical`}
+                              {criticalRisks.length > 0 && totalMissingRisks > 0 && ', '}
+                              {totalMissingRisks > 0 && `${totalMissingRisks} missing`}
+                            </div>
                           )}
                         </button>
 
@@ -586,6 +608,21 @@ export default function Dashboard() {
                           )}
                         </button>
                       </div>
+
+                      {/* Missing Components Alert */}
+                      {missingComponents.length > 0 && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="text-sm font-medium text-red-800 mb-1">Missing Components</h4>
+                              <p className="text-xs text-red-700">
+                                This program is missing essential components: {missingComponents.join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Quick Actions */}
                       <div className="flex items-center justify-end pt-4 border-t border-gray-100">

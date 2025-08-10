@@ -224,12 +224,30 @@ export default function Programs() {
               );
               const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
-              // Calculate program health score
+              // Check for missing essential components
+              const getMissingComponents = () => {
+                const missing = [];
+                if (!program.description || program.description.trim().length < 10) missing.push('Description');
+                if (!program.ownerId) missing.push('Owner');
+                if (!program.startDate) missing.push('Start Date');
+                if (!program.endDate) missing.push('End Date');
+                if (!program.objectives || !program.objectives.length) missing.push('Objectives');
+                if (!program.kpis || !program.kpis.length) missing.push('KPIs');
+                if (programMilestones.length === 0) missing.push('Milestones');
+                if (programAdopters.length === 0) missing.push('Adopter Teams');
+                return missing;
+              };
+
+              const missingComponents = getMissingComponents();
+              const totalMissingRisks = missingComponents.length;
+
+              // Calculate program health score (including missing components)
               const getHealthScore = () => {
                 let score = 100;
                 score -= criticalRisks.length * 15;
                 score -= overdueMilestones.length * 10;
                 score -= blockedDependencies.length * 5;
+                score -= totalMissingRisks * 8; // Missing components are significant risks
                 return Math.max(0, score);
               };
 
@@ -278,11 +296,15 @@ export default function Programs() {
                       <div className="text-center p-2 rounded bg-gray-50">
                         <div className="flex items-center justify-center mb-1">
                           <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
+                          <span className="text-lg font-semibold text-gray-900">{programRisks.length + totalMissingRisks}</span>
                         </div>
-                        <div className="text-xs text-gray-500">Risks</div>
-                        {criticalRisks.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">{criticalRisks.length} critical</div>
+                        <div className="text-xs text-gray-500">Total Risks</div>
+                        {(criticalRisks.length > 0 || totalMissingRisks > 0) && (
+                          <div className="text-xs text-red-600 font-medium">
+                            {criticalRisks.length > 0 && `${criticalRisks.length} critical`}
+                            {criticalRisks.length > 0 && totalMissingRisks > 0 && ', '}
+                            {totalMissingRisks > 0 && `${totalMissingRisks} missing`}
+                          </div>
                         )}
                       </div>
 
