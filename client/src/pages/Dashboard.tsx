@@ -410,17 +410,17 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               onClick={() => setLocation("/programs")}
-              className="h-24 flex flex-col items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+              className="h-16 flex flex-col items-center justify-center gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
             >
-              <Eye className="h-5 w-5" />
-              <span className="text-sm">View All Programs</span>
+              <Eye className="h-4 w-4" />
+              <span className="text-xs">View All Programs</span>
             </Button>
             <Button 
               onClick={handleNewProgram}
-              className="h-24 flex flex-col items-center justify-center gap-2 bg-primary-600 text-white hover:bg-primary-700"
+              className="h-16 flex flex-col items-center justify-center gap-1 bg-primary-600 text-white hover:bg-primary-700"
             >
-              <Plus className="h-5 w-5" />
-              <span className="text-sm">New Program</span>
+              <Plus className="h-4 w-4" />
+              <span className="text-xs">New Program</span>
             </Button>
           </div>
         </div>
