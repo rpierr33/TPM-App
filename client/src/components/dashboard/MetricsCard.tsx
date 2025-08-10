@@ -51,20 +51,20 @@ export function MetricsCard({
       className={`border border-gray-200 ${(onClick || navigateTo) ? 'cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200' : ''}`}
       onClick={handleClick}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-600 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
+            <p className="text-xs text-gray-600 mb-0.5">{title}</p>
+            <p className="text-lg font-bold text-gray-900">{value}</p>
             {change && (
-              <p className={`text-sm mt-1 flex items-center gap-1 ${getTrendColor()}`}>
-                {TrendIcon && <TrendIcon size={14} />}
+              <p className={`text-xs mt-0.5 flex items-center gap-1 ${getTrendColor()}`}>
+                {TrendIcon && <TrendIcon size={10} />}
                 {change}
               </p>
             )}
           </div>
-          <div className={`w-12 h-12 ${iconColor} rounded-lg flex items-center justify-center`}>
-            <Icon size={24} className="text-white" />
+          <div className={`w-8 h-8 ${iconColor} rounded-md flex items-center justify-center`}>
+            <Icon size={16} className="text-white" />
           </div>
         </div>
       </CardContent>

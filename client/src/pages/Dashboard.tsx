@@ -348,20 +348,20 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {/* Program Snapshot Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Program Snapshot</h2>
-              <p className="text-sm text-gray-600">Overview of all programs across platforms and initiatives</p>
+              <h2 className="text-lg font-semibold text-gray-900">Program Snapshot</h2>
+              <p className="text-xs text-gray-600">Overview of all programs across platforms and initiatives</p>
             </div>
-            <div className="flex items-center gap-3">
-              <select className="text-sm border border-gray-300 rounded-md px-3 py-2 bg-white">
+            <div className="flex items-center gap-2">
+              <select className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
                 <option>All Platforms</option>
                 <option>Platform A</option>
                 <option>Platform B</option>
                 <option>Platform C</option>
               </select>
-              <select className="text-sm border border-gray-300 rounded-md px-3 py-2 bg-white">
+              <select className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
                 <option>All Initiatives</option>
                 <option>Digital Transformation</option>
                 <option>Cloud Migration</option>
@@ -370,7 +370,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
             <MetricsCard
               title="Active Programs"
               value={activePendingPrograms.length}
@@ -410,17 +410,17 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               onClick={() => setLocation("/programs")}
-              className="h-16 flex flex-col items-center justify-center gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+              className="h-12 flex flex-col items-center justify-center gap-0.5 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs"
             >
-              <Eye className="h-4 w-4" />
-              <span className="text-xs">View All Programs</span>
+              <Eye className="h-3 w-3" />
+              <span>View All</span>
             </Button>
             <Button 
               onClick={handleNewProgram}
-              className="h-16 flex flex-col items-center justify-center gap-1 bg-primary-600 text-white hover:bg-primary-700"
+              className="h-12 flex flex-col items-center justify-center gap-0.5 bg-primary-600 text-white hover:bg-primary-700 text-xs"
             >
-              <Plus className="h-4 w-4" />
-              <span className="text-xs">New Program</span>
+              <Plus className="h-3 w-3" />
+              <span>New</span>
             </Button>
           </div>
         </div>
