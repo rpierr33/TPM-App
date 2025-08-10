@@ -112,6 +112,47 @@ export default function Programs() {
     setLocation("/dashboard");
   };
 
+  // Handle navigation for missing components
+  const handleNavigateToComponent = (component: string, programId: string) => {
+    switch (component) {
+      case 'Milestones':
+        setLocation('/milestones');
+        break;
+      case 'Risks':
+        setLocation('/risk-management');
+        break;
+      case 'Dependencies':
+        setLocation('/dependencies');
+        break;
+      case 'Adopters':
+        setLocation('/adopter-support');
+        break;
+      case 'Epics':
+      case 'Business Epics':
+      case 'Stories':
+        // JIRA items - could navigate to a JIRA integration page
+        setLocation('/integrations');
+        break;
+      case 'Start Date':
+      case 'End Date':
+      case 'Description':
+        // These require editing the program - could open an edit modal
+        // For now, show a toast with instructions
+        toast({
+          title: `Add ${component}`,
+          description: `Navigate to program settings to add the ${component.toLowerCase()}`,
+          variant: "default",
+        });
+        break;
+      default:
+        toast({
+          title: "Feature Coming Soon",
+          description: `Navigation for ${component} will be available soon`,
+          variant: "default",
+        });
+    }
+  };
+
   // Helper function to calculate program completeness
   const getProgramCompleteness = (programId: string) => {
     const programRisks = risks.filter(r => r.programId === programId);
@@ -399,19 +440,31 @@ export default function Programs() {
 
                         {/* Component Stats */}
                         <div className="grid grid-cols-4 gap-3 mb-4">
-                          <div className="text-center p-2 bg-gray-50 rounded">
+                          <div 
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-red-50 transition-colors"
+                            onClick={() => handleNavigateToComponent('Risks', program.id)}
+                          >
                             <div className="text-lg font-semibold text-red-600">{completenessData.components.risks}</div>
                             <div className="text-xs text-gray-600">Risks</div>
                           </div>
-                          <div className="text-center p-2 bg-gray-50 rounded">
+                          <div 
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors"
+                            onClick={() => handleNavigateToComponent('Milestones', program.id)}
+                          >
                             <div className="text-lg font-semibold text-blue-600">{completenessData.components.milestones}</div>
                             <div className="text-xs text-gray-600">Milestones</div>
                           </div>
-                          <div className="text-center p-2 bg-gray-50 rounded">
+                          <div 
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-purple-50 transition-colors"
+                            onClick={() => handleNavigateToComponent('Dependencies', program.id)}
+                          >
                             <div className="text-lg font-semibold text-purple-600">{completenessData.components.dependencies}</div>
                             <div className="text-xs text-gray-600">Dependencies</div>
                           </div>
-                          <div className="text-center p-2 bg-gray-50 rounded">
+                          <div 
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-green-50 transition-colors"
+                            onClick={() => handleNavigateToComponent('Adopters', program.id)}
+                          >
                             <div className="text-lg font-semibold text-green-600">{completenessData.components.adopters}</div>
                             <div className="text-xs text-gray-600">Teams</div>
                           </div>
@@ -426,12 +479,28 @@ export default function Programs() {
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {completenessData.missing.slice(0, 5).map((component) => (
-                                <Badge key={component} variant="outline" className="text-xs border-yellow-300 text-yellow-800">
+                                <Badge 
+                                  key={component} 
+                                  variant="outline" 
+                                  className="text-xs border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  onClick={() => handleNavigateToComponent(component, program.id)}
+                                >
                                   {component}
                                 </Badge>
                               ))}
                               {completenessData.missing.length > 5 && (
-                                <Badge variant="outline" className="text-xs border-yellow-300 text-yellow-800">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  onClick={() => {
+                                    // Show all missing components in a modal or toast
+                                    toast({
+                                      title: "All Missing Components",
+                                      description: completenessData.missing.join(", "),
+                                      variant: "default",
+                                    });
+                                  }}
+                                >
                                   +{completenessData.missing.length - 5} more
                                 </Badge>
                               )}
