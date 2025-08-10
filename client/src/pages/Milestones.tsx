@@ -222,7 +222,9 @@ export default function Milestones() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">No milestones found</h3>
               <p className="text-gray-500 mb-4">
                 {filterStatus === "all" 
-                  ? "Get started by creating your first milestone."
+                  ? programs.length > 0 
+                    ? `Programs ${programs.map(p => `"${p.name}"`).join(", ")} are missing milestones. Get started by creating milestones to track progress.`
+                    : "Get started by creating your first milestone."
                   : `No milestones with status "${filterStatus.replace("_", " ")}" found.`
                 }
               </p>

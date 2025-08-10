@@ -436,6 +436,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        // Check for missing program details
+        if (!program.startDate) {
+          missingComponents.push("start_date");
+          riskAlerts.push({
+            type: "missing_detail",
+            severity: "medium",
+            title: "Missing Start Date",
+            description: `Program "${program.name}" has no start date defined.`,
+            recommendation: "Define a clear start date to establish timeline expectations."
+          });
+        }
+
+        if (!program.endDate) {
+          missingComponents.push("end_date");
+          riskAlerts.push({
+            type: "missing_detail",
+            severity: "medium",
+            title: "Missing End Date",
+            description: `Program "${program.name}" has no end date defined.`,
+            recommendation: "Define a target end date to establish completion timeline."
+          });
+        }
+
+        if (!program.ownerId) {
+          missingComponents.push("owner");
+          riskAlerts.push({
+            type: "missing_detail",
+            severity: "high",
+            title: "No Owner Assigned",
+            description: `Program "${program.name}" has no owner assigned.`,
+            recommendation: "Assign a program owner to ensure accountability and decision-making authority."
+          });
+        }
+
+        if (!program.description || program.description.trim().length < 10) {
+          missingComponents.push("description");
+          riskAlerts.push({
+            type: "missing_detail",
+            severity: "low",
+            title: "Insufficient Description",
+            description: `Program "${program.name}" lacks proper description or clarification.`,
+            recommendation: "Add comprehensive program description to clarify objectives and scope."
+          });
+        }
+
         results.push({
           programId: program.id,
           programName: program.name,
@@ -466,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced milestone routes with contextual data
+  // Enhanced contextual routes for all components
   app.get("/api/milestones/:id/context", async (req, res) => {
     try {
       const milestone = await storage.getMilestone(req.params.id);
@@ -493,11 +538,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         analytics: {
           riskCount: programRisks.length,
-          criticalRisks: programRisks.filter(r => r.severity === 'critical').length,
           dependencyCount: programDependencies.length,
-          blockedDependencies: programDependencies.filter(d => d.status === 'blocked').length,
           adopterCount: programAdopters.length,
-          readyAdopters: programAdopters.filter(a => a.status === 'ready').length,
+          milestoneCount: programMilestones.length - 1,
+          projectCount: programProjects.length,
+          healthScore: Math.round(((programRisks.filter(r => r.status === 'resolved').length / Math.max(programRisks.length, 1)) * 100))
         }
       });
     } catch (error) {
@@ -506,7 +551,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced risk routes with contextual data
   app.get("/api/risks/:id/context", async (req, res) => {
     try {
       const risk = await storage.getRisk(req.params.id);
@@ -515,25 +559,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const program = risk.programId ? await storage.getProgram(risk.programId) : null;
-      const programMilestones = program ? await storage.getMilestones(program.id) : [];
       const programRisks = program ? await storage.getRisks(program.id) : [];
+      const programMilestones = program ? await storage.getMilestones(program.id) : [];
       const programDependencies = program ? await storage.getDependencies(program.id) : [];
       const programAdopters = program ? await storage.getAdopters(program.id) : [];
+      const programProjects = program ? await storage.getProjects(program.id) : [];
 
       res.json({
         risk,
         program,
         relatedComponents: {
-          milestones: programMilestones,
           risks: programRisks.filter(r => r.id !== risk.id),
+          milestones: programMilestones,
           dependencies: programDependencies,
-          adopters: programAdopters
+          adopters: programAdopters,
+          projects: programProjects
         },
         analytics: {
+          riskCount: programRisks.length - 1,
           milestoneCount: programMilestones.length,
-          overdueMilestones: programMilestones.filter(m => m.dueDate && new Date(m.dueDate) < new Date()).length,
           dependencyCount: programDependencies.length,
           adopterCount: programAdopters.length,
+          projectCount: programProjects.length,
+          riskScore: (risk.impact || 3) * (risk.probability || 3),
+          programHealthScore: Math.round(((programRisks.filter(r => r.status === 'resolved').length / Math.max(programRisks.length, 1)) * 100))
         }
       });
     } catch (error) {
@@ -542,7 +591,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced dependency routes with contextual data
   app.get("/api/dependencies/:id/context", async (req, res) => {
     try {
       const dependency = await storage.getDependency(req.params.id);
@@ -551,24 +599,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const program = dependency.programId ? await storage.getProgram(dependency.programId) : null;
+      const programDependencies = program ? await storage.getDependencies(program.id) : [];
       const programMilestones = program ? await storage.getMilestones(program.id) : [];
       const programRisks = program ? await storage.getRisks(program.id) : [];
-      const programDependencies = program ? await storage.getDependencies(program.id) : [];
       const programAdopters = program ? await storage.getAdopters(program.id) : [];
+      const programProjects = program ? await storage.getProjects(program.id) : [];
 
       res.json({
         dependency,
         program,
         relatedComponents: {
+          dependencies: programDependencies.filter(d => d.id !== dependency.id),
           milestones: programMilestones,
           risks: programRisks,
-          dependencies: programDependencies.filter(d => d.id !== dependency.id),
-          adopters: programAdopters
+          adopters: programAdopters,
+          projects: programProjects
         },
         analytics: {
+          dependencyCount: programDependencies.length - 1,
           milestoneCount: programMilestones.length,
           riskCount: programRisks.length,
           adopterCount: programAdopters.length,
+          projectCount: programProjects.length,
+          blockedCount: programDependencies.filter(d => d.status === 'blocked').length,
+          programHealthScore: Math.round(((programDependencies.filter(d => d.status === 'resolved').length / Math.max(programDependencies.length, 1)) * 100))
         }
       });
     } catch (error) {
@@ -577,7 +631,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced adopter routes with contextual data
   app.get("/api/adopters/:id/context", async (req, res) => {
     try {
       const adopter = await storage.getAdopter(req.params.id);
@@ -586,24 +639,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const program = adopter.programId ? await storage.getProgram(adopter.programId) : null;
+      const programAdopters = program ? await storage.getAdopters(program.id) : [];
       const programMilestones = program ? await storage.getMilestones(program.id) : [];
       const programRisks = program ? await storage.getRisks(program.id) : [];
       const programDependencies = program ? await storage.getDependencies(program.id) : [];
-      const programAdopters = program ? await storage.getAdopters(program.id) : [];
+      const programProjects = program ? await storage.getProjects(program.id) : [];
 
       res.json({
         adopter,
         program,
         relatedComponents: {
+          adopters: programAdopters.filter(a => a.id !== adopter.id),
           milestones: programMilestones,
           risks: programRisks,
           dependencies: programDependencies,
-          adopters: programAdopters.filter(a => a.id !== adopter.id)
+          projects: programProjects
         },
         analytics: {
+          adopterCount: programAdopters.length - 1,
           milestoneCount: programMilestones.length,
           riskCount: programRisks.length,
           dependencyCount: programDependencies.length,
+          projectCount: programProjects.length,
+          readyCount: programAdopters.filter(a => a.readinessScore >= 75).length,
+          programHealthScore: Math.round((programAdopters.reduce((sum, a) => sum + (a.readinessScore || 50), 0) / Math.max(programAdopters.length, 1)))
         }
       });
     } catch (error) {

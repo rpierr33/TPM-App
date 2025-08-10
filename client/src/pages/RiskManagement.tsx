@@ -14,7 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Plus, Filter, ExternalLink, Brain, TrendingUp } from "lucide-react";
+import { AlertTriangle, Plus, Filter, ExternalLink, Brain, TrendingUp, Eye, Flag, Users, GitBranch } from "lucide-react";
+import { ComponentContextCard } from "@/components/layout/ComponentContextCard";
+import { ComponentAnalytics } from "@/components/layout/ComponentAnalytics";
+import { useLocation } from "wouter";
 import { useMode } from "@/hooks/useMode";
 import type { Risk, Program } from "@shared/schema";
 
@@ -22,6 +25,9 @@ export default function RiskManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterSeverity, setFilterSeverity] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
+  const [contextData, setContextData] = useState<any>(null);
+  const [showContextModal, setShowContextModal] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -39,6 +45,7 @@ export default function RiskManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isTestMode } = useMode();
+  const [, setLocation] = useLocation();
 
   const { data: risks = [], isLoading } = useQuery<Risk[]>({
     queryKey: ["/api/risks"],
@@ -65,6 +72,23 @@ export default function RiskManagement() {
       toast({
         title: "Error",
         description: "Failed to create risk",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const fetchContextMutation = useMutation({
+    mutationFn: async (riskId: string) => {
+      return await apiRequest(`/api/risks/${riskId}/context`, "GET");
+    },
+    onSuccess: (data: any) => {
+      setContextData(data);
+      setShowContextModal(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to load risk context",
         variant: "destructive",
       });
     },
@@ -120,6 +144,31 @@ export default function RiskManagement() {
 
   const handleNewRisk = () => {
     setShowCreateModal(true);
+  };
+
+  const handleViewRiskContext = (risk: Risk) => {
+    setSelectedRisk(risk);
+    fetchContextMutation.mutate(risk.id);
+  };
+
+  const handleViewComponent = (type: string, programId?: string) => {
+    switch (type) {
+      case 'milestones':
+        setLocation(`/milestones${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'dependencies':
+        setLocation(`/dependencies${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'adopters':
+        setLocation(`/adopter-support${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'programs':
+        setLocation(`/programs`);
+        break;
+      case 'projects':
+        setLocation(`/program-planning${programId ? `?programId=${programId}` : ''}`);
+        break;
+    }
   };
 
   const calculateRiskScore = (impact: number, probability: number) => {
@@ -214,7 +263,9 @@ export default function RiskManagement() {
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No risks found</h3>
                     <p className="text-gray-500 mb-4">
                       {filterSeverity === "all" && filterStatus === "all"
-                        ? "Start by identifying and documenting program risks."
+                        ? programs.length > 0 
+                          ? `Programs ${programs.map(p => `"${p.name}"`).join(", ")} are missing risk assessments. Get started by identifying and documenting risks.`
+                          : "Start by identifying and documenting program risks."
                         : "No risks match the selected filters."
                       }
                     </p>
@@ -288,7 +339,10 @@ export default function RiskManagement() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="sm">Edit</Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleViewRiskContext(risk)} className="text-blue-600 hover:text-blue-800">
+                                  <Eye size={14} className="mr-1" />
+                                  View Context
+                                </Button>
                                 {risk.jiraIssueKey && (
                                   <Button variant="ghost" size="sm" className="text-primary-500">
                                     <ExternalLink size={14} />
@@ -572,6 +626,41 @@ export default function RiskManagement() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Risk Context Modal */}
+      <Dialog open={showContextModal} onOpenChange={setShowContextModal}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-red-600" size={20} />
+              Risk Context: {selectedRisk?.title}
+            </DialogTitle>
+          </DialogHeader>
+
+          {contextData && (
+            <div className="space-y-6">
+              <ComponentContextCard 
+                program={contextData.program}
+                component={contextData.risk}
+                relatedComponents={contextData.relatedComponents}
+                onViewComponent={handleViewComponent}
+              />
+              
+              <ComponentAnalytics 
+                analytics={contextData.analytics}
+                componentType="risk"
+                onViewComponent={handleViewComponent}
+              />
+            </div>
+          )}
+
+          {fetchContextMutation.isPending && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
