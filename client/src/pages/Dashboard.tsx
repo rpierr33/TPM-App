@@ -40,6 +40,8 @@ export default function Dashboard() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
+  const [showPrioritiesModal, setShowPrioritiesModal] = useState(false);
+  const [showAIRecommendationsModal, setShowAIRecommendationsModal] = useState(false);
   const [newProgramForm, setNewProgramForm] = useState({
     name: "",
     description: "",
@@ -87,6 +89,155 @@ export default function Dashboard() {
   const activePendingPrograms = programs.filter(p => p.status === 'active' || p.status === 'planning');
   const completedPrograms = programs.filter(p => p.status === 'completed');
   const onHoldPrograms = programs.filter(p => p.status === 'on_hold');
+
+  // Generate today's priorities based on program health analysis
+  const generateTodaysPriorities = () => {
+    const priorities = [];
+    
+    // Critical risks that need immediate attention
+    const criticalRisks = risks.filter(r => r.severity === 'critical' || r.severity === 'high').slice(0, 3);
+    criticalRisks.forEach(risk => {
+      const program = programs.find(p => p.id === risk.programId);
+      priorities.push({
+        type: 'risk',
+        title: `Address ${risk.severity} risk in ${program?.name || 'Unknown Program'}`,
+        description: risk.title,
+        urgency: 'critical',
+        action: 'Review mitigation plan and assign owners'
+      });
+    });
+
+    // Overdue milestones
+    const overdueMilestones = milestones.filter(m => {
+      if (!m.dueDate) return false;
+      const dueDate = new Date(m.dueDate);
+      return dueDate < new Date() && m.status !== 'completed';
+    }).slice(0, 3);
+    
+    overdueMilestones.forEach(milestone => {
+      const program = programs.find(p => p.id === milestone.programId);
+      priorities.push({
+        type: 'milestone',
+        title: `Overdue milestone in ${program?.name || 'Unknown Program'}`,
+        description: milestone.title,
+        urgency: 'high',
+        action: 'Update timeline and communicate delays'
+      });
+    });
+
+    // Programs missing critical components
+    programs.forEach(program => {
+      const programRisks = risks.filter(r => r.programId === program.id);
+      const programMilestones = milestones.filter(m => m.programId === program.id);
+      const programAdopters = adopters.filter(a => a.programId === program.id);
+      
+      if (program.status === 'active' && (programRisks.length === 0 || programMilestones.length === 0)) {
+        priorities.push({
+          type: 'completeness',
+          title: `${program.name} missing critical components`,
+          description: `Missing: ${programRisks.length === 0 ? 'Risk Assessment' : ''} ${programMilestones.length === 0 ? 'Milestones' : ''}`.trim(),
+          urgency: 'medium',
+          action: 'Complete program setup to ensure proper tracking'
+        });
+      }
+    });
+
+    return priorities.slice(0, 8); // Top 8 priorities
+  };
+
+  // Generate PMI-based recommendations
+  const generatePMIRecommendations = () => {
+    const recommendations = [];
+    
+    // PMI Process Group Analysis
+    const activePrograms = programs.filter(p => p.status === 'active');
+    
+    activePrograms.forEach(program => {
+      const programRisks = risks.filter(r => r.programId === program.id);
+      const programMilestones = milestones.filter(m => m.programId === program.id);
+      const programDependencies = dependencies.filter(d => d.programId === program.id);
+      const programAdopters = adopters.filter(a => a.programId === program.id);
+      
+      // Initiating Process Group
+      if (!program.description || program.description.length < 50) {
+        recommendations.push({
+          category: 'Initiating',
+          title: `Develop Program Charter for ${program.name}`,
+          description: 'PMI recommends detailed program documentation to establish clear scope and objectives',
+          pmiReference: 'PMBOK 7th Edition - Project Charter',
+          priority: 'high'
+        });
+      }
+
+      // Planning Process Group
+      if (programMilestones.length < 3) {
+        recommendations.push({
+          category: 'Planning',
+          title: `Create Detailed Schedule for ${program.name}`,
+          description: 'Establish clear milestones and work breakdown structure following PMI scheduling practices',
+          pmiReference: 'PMBOK - Schedule Management',
+          priority: 'high'
+        });
+      }
+
+      if (programRisks.length === 0) {
+        recommendations.push({
+          category: 'Planning',
+          title: `Conduct Risk Assessment for ${program.name}`,
+          description: 'PMI emphasizes proactive risk identification and management planning',
+          pmiReference: 'PMBOK - Risk Management Process',
+          priority: 'medium'
+        });
+      }
+
+      // Executing Process Group
+      if (programAdopters.length === 0) {
+        recommendations.push({
+          category: 'Executing',
+          title: `Establish Stakeholder Engagement for ${program.name}`,
+          description: 'Identify and engage key stakeholders and adopter teams for successful delivery',
+          pmiReference: 'PMBOK - Stakeholder Management',
+          priority: 'medium'
+        });
+      }
+
+      // Monitoring & Controlling
+      const criticalRisks = programRisks.filter(r => r.severity === 'critical' || r.severity === 'high');
+      if (criticalRisks.length > 0) {
+        recommendations.push({
+          category: 'Monitoring',
+          title: `Implement Risk Response Plans for ${program.name}`,
+          description: 'High/critical risks require immediate response strategies and monitoring',
+          pmiReference: 'PMBOK - Risk Response Implementation',
+          priority: 'critical'
+        });
+      }
+
+      // Communication Management
+      if (programDependencies.filter(d => d.status === 'blocked').length > 0) {
+        recommendations.push({
+          category: 'Executing',
+          title: `Resolve Blocked Dependencies in ${program.name}`,
+          description: 'PMI emphasizes clear communication and escalation for dependency resolution',
+          pmiReference: 'PMBOK - Communications Management',
+          priority: 'high'
+        });
+      }
+    });
+
+    // General PMI Best Practices
+    if (programs.length > 3) {
+      recommendations.push({
+        category: 'Integration',
+        title: 'Consider Program Management Office (PMO) Structure',
+        description: 'With multiple active programs, PMI recommends PMO governance for consistency',
+        pmiReference: 'PMI - Program Management Standard',
+        priority: 'low'
+      });
+    }
+
+    return recommendations.slice(0, 10); // Top 10 recommendations
+  };
 
   const analyzeProgramMutation = useMutation({
     mutationFn: async (programId: string) => {
@@ -747,7 +898,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Today's Priorities */}
-            <Card className="border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setLocation("/ai-assistant")}>
+            <Card className="border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setShowPrioritiesModal(true)}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Today's Priorities</h3>
@@ -773,10 +924,10 @@ export default function Dashboard() {
             </Card>
 
             {/* AI Recommendations */}
-            <Card className="border border-gray-200 cursor-pointer hover:border-yellow-300 transition-colors" onClick={() => setLocation("/ai-assistant")}>
+            <Card className="border border-gray-200 cursor-pointer hover:border-yellow-300 transition-colors" onClick={() => setShowAIRecommendationsModal(true)}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">AI Suggestions</h3>
+                  <h3 className="text-sm font-medium text-gray-700">PMI Suggestions</h3>
                   <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   </div>
@@ -784,7 +935,7 @@ export default function Dashboard() {
                 <div className="text-3xl font-bold text-yellow-600 mb-1">
                   {Math.max(3, Math.floor(overallMetrics.totalPrograms * 0.5))}
                 </div>
-                <div className="text-sm text-gray-500">Recommendations</div>
+                <div className="text-sm text-gray-500">PMI Recommendations</div>
               </CardContent>
             </Card>
 
@@ -902,6 +1053,104 @@ export default function Dashboard() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Today's Priorities Modal */}
+      <Dialog open={showPrioritiesModal} onOpenChange={setShowPrioritiesModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-500" />
+              Today's Priorities
+            </DialogTitle>
+            <p className="text-sm text-gray-600">Critical items requiring immediate attention based on program health analysis</p>
+          </DialogHeader>
+          <div className="space-y-4">
+            {generateTodaysPriorities().map((priority, index) => (
+              <Card key={index} className="border border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {priority.type === 'risk' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                      {priority.type === 'milestone' && <Clock className="h-4 w-4 text-orange-500" />}
+                      {priority.type === 'completeness' && <CheckCircle className="h-4 w-4 text-blue-500" />}
+                      <h4 className="font-medium text-gray-900">{priority.title}</h4>
+                    </div>
+                    <Badge className={
+                      priority.urgency === 'critical' ? 'bg-red-100 text-red-800' :
+                      priority.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }>
+                      {priority.urgency}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">{priority.description}</p>
+                  <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    Action: {priority.action}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {generateTodaysPriorities().length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p>No critical priorities at this time. All programs are on track!</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PMI Recommendations Modal */}
+      <Dialog open={showAIRecommendationsModal} onOpenChange={setShowAIRecommendationsModal}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+              </div>
+              PMI-Based Recommendations
+            </DialogTitle>
+            <p className="text-sm text-gray-600">Suggestions based on Project Management Institute (PMI) best practices to improve program health</p>
+          </DialogHeader>
+          <div className="space-y-4">
+            {generatePMIRecommendations().map((rec, index) => (
+              <Card key={index} className="border border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-xs font-medium text-blue-600">{rec.category.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{rec.title}</h4>
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{rec.category} Process</span>
+                      </div>
+                    </div>
+                    <Badge className={
+                      rec.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                      rec.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                      rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }>
+                      {rec.priority}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
+                  <div className="text-xs text-gray-500 italic">
+                    PMI Reference: {rec.pmiReference}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {generatePMIRecommendations().length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <Target className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p>All programs are following PMI best practices!</p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
