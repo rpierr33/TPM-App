@@ -74,6 +74,56 @@ export const escalationStatusEnum = pgEnum("escalation_status", [
   "closed",
 ]);
 
+export const stepStatusEnum = pgEnum("step_status", [
+  "not_started",
+  "in_progress", 
+  "blocked",
+  "completed",
+  "cancelled",
+]);
+
+export const bepicStatusEnum = pgEnum("bepic_status", [
+  "new",
+  "in_progress",
+  "review",
+  "testing",
+  "done",
+  "cancelled",
+]);
+
+export const epicStatusEnum = pgEnum("epic_status", [
+  "new",
+  "in_progress", 
+  "review",
+  "testing",
+  "done",
+  "cancelled",
+]);
+
+export const storyStatusEnum = pgEnum("story_status", [
+  "new",
+  "in_progress",
+  "review", 
+  "testing",
+  "done",
+  "cancelled",
+]);
+
+export const projectPhaseEnum = pgEnum("project_phase", [
+  "initiation",
+  "planning",
+  "execution",
+  "monitoring_controlling",
+  "closure",
+]);
+
+export const phaseStageStatusEnum = pgEnum("phase_stage_status", [
+  "not_started",
+  "in_progress",
+  "completed",
+  "skipped",
+]);
+
 export const integrationStatusEnum = pgEnum("integration_status", [
   "connected",
   "limited",
@@ -169,6 +219,127 @@ export const milestones = pgTable("milestones", {
   completedDate: timestamp("completed_date"),
   jiraEpicKey: varchar("jira_epic_key"), // JIRA integration
   pmpPhase: varchar("pmp_phase"), // PMI PMP project phase (Initiating, Planning, Executing, Monitoring, Closing)
+  priority: integer("priority").default(1), // 1-5 priority level
+  progressPercentage: integer("progress_percentage").default(0), // 0-100
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Steps/Subcomponents within milestones
+export const milestoneSteps = pgTable("milestone_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  milestoneId: varchar("milestone_id").references(() => milestones.id),
+  status: stepStatusEnum("status").default("not_started"),
+  ownerId: varchar("owner_id").references(() => users.id),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  priority: integer("priority").default(1), // 1-5 priority level
+  progressPercentage: integer("progress_percentage").default(0), // 0-100
+  dependencies: jsonb("dependencies"), // Array of dependent step IDs
+  acceptanceCriteria: jsonb("acceptance_criteria"), // Array of acceptance criteria
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bepics within steps (JIRA integration)
+export const jiraBepics = pgTable("jira_bepics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  stepId: varchar("step_id").references(() => milestoneSteps.id),
+  jiraBepicKey: varchar("jira_bepic_key").unique(), // JIRA Bepic key
+  status: bepicStatusEnum("status").default("new"),
+  assigneeId: varchar("assignee_id").references(() => users.id),
+  priority: integer("priority").default(1), // 1-5 priority level
+  storyPoints: integer("story_points"),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  jiraUrl: varchar("jira_url"), // Direct link to JIRA
+  labels: jsonb("labels"), // Array of JIRA labels
+  components: jsonb("components"), // Array of JIRA components
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Epics within Bepics (JIRA integration)
+export const jiraEpics = pgTable("jira_epics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  bepicId: varchar("bepic_id").references(() => jiraBepics.id),
+  jiraEpicKey: varchar("jira_epic_key").unique(), // JIRA Epic key
+  status: epicStatusEnum("status").default("new"),
+  assigneeId: varchar("assignee_id").references(() => users.id),
+  priority: integer("priority").default(1), // 1-5 priority level
+  storyPoints: integer("story_points"),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  jiraUrl: varchar("jira_url"), // Direct link to JIRA
+  labels: jsonb("labels"), // Array of JIRA labels
+  components: jsonb("components"), // Array of JIRA components
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Stories within Epics (JIRA integration)
+export const jiraStories = pgTable("jira_stories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  epicId: varchar("epic_id").references(() => jiraEpics.id),
+  jiraStoryKey: varchar("jira_story_key").unique(), // JIRA Story key
+  status: storyStatusEnum("status").default("new"),
+  assigneeId: varchar("assignee_id").references(() => users.id),
+  priority: integer("priority").default(1), // 1-5 priority level
+  storyPoints: integer("story_points"),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  jiraUrl: varchar("jira_url"), // Direct link to JIRA
+  labels: jsonb("labels"), // Array of JIRA labels
+  components: jsonb("components"), // Array of JIRA components
+  acceptanceCriteria: jsonb("acceptance_criteria"), // Array of acceptance criteria
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Program Planning Phase Management
+export const programPhases = pgTable("program_phases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  phase: projectPhaseEnum("phase").notNull(),
+  status: phaseStageStatusEnum("status").default("not_started"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  completedDate: timestamp("completed_date"),
+  phaseGate: boolean("phase_gate").default(false), // Phase gate approval required
+  gateApprover: varchar("gate_approver").references(() => users.id),
+  gateApprovedDate: timestamp("gate_approved_date"),
+  deliverables: jsonb("deliverables"), // Array of phase deliverables
+  successCriteria: jsonb("success_criteria"), // Phase completion criteria
+  lessons: text("lessons"), // Lessons learned from this phase
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Individual stages within each project management phase
+export const phaseStages = pgTable("phase_stages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  programPhaseId: varchar("program_phase_id").references(() => programPhases.id),
+  stageName: varchar("stage_name").notNull(),
+  stageOrder: integer("stage_order").notNull(), // Order within the phase
+  description: text("description"),
+  status: phaseStageStatusEnum("status").default("not_started"),
+  requiredInputs: jsonb("required_inputs"), // What's needed to start this stage
+  expectedOutputs: jsonb("expected_outputs"), // What should be produced
+  templates: jsonb("templates"), // Available templates for this stage
+  bestPractices: jsonb("best_practices"), // Best practice recommendations
+  userInputs: jsonb("user_inputs"), // User-provided data for this stage
+  aiRecommendations: jsonb("ai_recommendations"), // AI-generated recommendations
+  completedDate: timestamp("completed_date"),
+  validationNotes: text("validation_notes"), // Validation notes before proceeding
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -526,6 +697,43 @@ export const insertPmpRecommendationSchema = createInsertSchema(pmpRecommendatio
   updatedAt: true,
 });
 
+// Insert schemas for new hierarchical entities
+export const insertMilestoneStepSchema = createInsertSchema(milestoneSteps).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertJiraBepicSchema = createInsertSchema(jiraBepics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertJiraEpicSchema = createInsertSchema(jiraEpics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertJiraStorySchema = createInsertSchema(jiraStories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProgramPhaseSchema = createInsertSchema(programPhases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPhaseStageSchema = createInsertSchema(phaseStages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types for new entities
 export type Initiative = typeof initiatives.$inferSelect;
 export type InsertInitiative = z.infer<typeof insertInitiativeSchema>;
@@ -537,6 +745,20 @@ export type StakeholderInteraction = typeof stakeholderInteractions.$inferSelect
 export type InsertStakeholderInteraction = z.infer<typeof insertStakeholderInteractionSchema>;
 export type PmpRecommendation = typeof pmpRecommendations.$inferSelect;
 export type InsertPmpRecommendation = z.infer<typeof insertPmpRecommendationSchema>;
+
+// Types for hierarchical entities
+export type MilestoneStep = typeof milestoneSteps.$inferSelect;
+export type InsertMilestoneStep = z.infer<typeof insertMilestoneStepSchema>;
+export type JiraBepic = typeof jiraBepics.$inferSelect;
+export type InsertJiraBepic = z.infer<typeof insertJiraBepicSchema>;
+export type JiraEpic = typeof jiraEpics.$inferSelect;
+export type InsertJiraEpic = z.infer<typeof insertJiraEpicSchema>;
+export type JiraStory = typeof jiraStories.$inferSelect;
+export type InsertJiraStory = z.infer<typeof insertJiraStorySchema>;
+export type ProgramPhase = typeof programPhases.$inferSelect;
+export type InsertProgramPhase = z.infer<typeof insertProgramPhaseSchema>;
+export type PhaseStage = typeof phaseStages.$inferSelect;
+export type InsertPhaseStage = z.infer<typeof insertPhaseStageSchema>;
 
 // Dashboard metrics type
 export type DashboardMetrics = {

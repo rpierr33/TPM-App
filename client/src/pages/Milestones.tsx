@@ -18,7 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Flag, Calendar, User, ExternalLink, Plus, Filter, AlertTriangle, Users, GitBranch, BarChart3, Eye } from "lucide-react";
 import { useMode } from "@/hooks/useMode";
-import type { Milestone, Program } from "@shared/schema";
+import type { Milestone, Program, MilestoneStep, JiraBepic, JiraEpic, JiraStory } from "@shared/schema";
+import { MilestoneHierarchy } from "@/components/milestones/MilestoneHierarchy";
 
 export default function Milestones() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,6 +48,22 @@ export default function Milestones() {
 
   const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
+  });
+
+  const { data: milestoneSteps = [] } = useQuery<MilestoneStep[]>({
+    queryKey: ["/api/milestone-steps"],
+  });
+
+  const { data: jiraBepics = [] } = useQuery<JiraBepic[]>({
+    queryKey: ["/api/jira-bepics"],
+  });
+
+  const { data: jiraEpics = [] } = useQuery<JiraEpic[]>({
+    queryKey: ["/api/jira-epics"],
+  });
+
+  const { data: jiraStories = [] } = useQuery<JiraStory[]>({
+    queryKey: ["/api/jira-stories"],
   });
 
   const createMilestoneMutation = useMutation({
@@ -98,6 +115,27 @@ export default function Milestones() {
       dueDate: "",
       pushToJira: false,
     });
+  };
+
+  // Handlers for hierarchical item creation
+  const handleAddStep = (milestoneId: string) => {
+    // TODO: Implement step creation modal
+    console.log("Add step to milestone:", milestoneId);
+  };
+
+  const handleAddBepic = (stepId: string) => {
+    // TODO: Implement bepic creation modal
+    console.log("Add bepic to step:", stepId);
+  };
+
+  const handleAddEpic = (bepicId: string) => {
+    // TODO: Implement epic creation modal
+    console.log("Add epic to bepic:", bepicId);
+  };
+
+  const handleAddStory = (epicId: string) => {
+    // TODO: Implement story creation modal
+    console.log("Add story to epic:", epicId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -199,8 +237,16 @@ export default function Milestones() {
           </div>
         </div>
 
-        {/* Milestones Grid */}
-        {isLoading ? (
+        {/* Milestones Content */}
+        <Tabs defaultValue="grid" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="grid">Grid View</TabsTrigger>
+            <TabsTrigger value="hierarchy">Hierarchical View</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="grid" className="space-y-6">
+            {/* Milestones Grid */}
+            {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="border border-gray-200">
@@ -334,6 +380,58 @@ export default function Milestones() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="hierarchy" className="space-y-6">
+            {/* Hierarchical View */}
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="border border-gray-200">
+                    <CardContent className="p-6">
+                      <div className="animate-pulse">
+                        <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredMilestones.length === 0 ? (
+              <Card className="border border-gray-200">
+                <CardContent className="p-12 text-center">
+                  <GitBranch size={48} className="mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No milestone hierarchy found</h3>
+                  <p className="text-gray-500 mb-4">
+                    Create milestones and add steps, bepics, epics, and stories to build your project hierarchy.
+                  </p>
+                  <Button onClick={handleNewMilestone} className="bg-primary-500 text-white hover:bg-primary-600">
+                    <Plus size={16} className="mr-2" />
+                    Create First Milestone
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {filteredMilestones.map((milestone: Milestone) => (
+                  <MilestoneHierarchy
+                    key={milestone.id}
+                    milestone={milestone}
+                    steps={milestoneSteps}
+                    bepics={jiraBepics}
+                    epics={jiraEpics}
+                    stories={jiraStories}
+                    onAddStep={handleAddStep}
+                    onAddBepic={handleAddBepic}
+                    onAddEpic={handleAddEpic}
+                    onAddStory={handleAddStory}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Create Milestone Modal */}

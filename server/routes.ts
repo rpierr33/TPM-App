@@ -4,6 +4,12 @@ import { storage } from "./storage";
 import { 
   insertProgramSchema,
   insertMilestoneSchema,
+  insertMilestoneStepSchema,
+  insertJiraBepicSchema,
+  insertJiraEpicSchema,
+  insertJiraStorySchema,
+  insertProgramPhaseSchema,
+  insertPhaseStageSchema,
   insertRiskSchema,
   insertDependencySchema,
   insertAdopterSchema,
@@ -115,6 +121,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating milestone:", error);
       res.status(400).json({ message: "Failed to create milestone" });
+    }
+  });
+
+  // Milestone Step routes
+  app.get("/api/milestone-steps", async (req, res) => {
+    try {
+      const { milestoneId } = req.query;
+      const steps = await storage.getMilestoneSteps(milestoneId as string);
+      res.json(steps);
+    } catch (error) {
+      console.error("Error fetching milestone steps:", error);
+      res.status(500).json({ message: "Failed to fetch milestone steps" });
+    }
+  });
+
+  app.post("/api/milestone-steps", async (req, res) => {
+    try {
+      const validatedData = insertMilestoneStepSchema.parse(req.body);
+      const step = await storage.createMilestoneStep(validatedData);
+      res.status(201).json(step);
+    } catch (error) {
+      console.error("Error creating milestone step:", error);
+      res.status(400).json({ message: "Failed to create milestone step" });
+    }
+  });
+
+  app.patch("/api/milestone-steps/:id", async (req, res) => {
+    try {
+      const validatedData = insertMilestoneStepSchema.partial().parse(req.body);
+      const step = await storage.updateMilestoneStep(req.params.id, validatedData);
+      res.json(step);
+    } catch (error) {
+      console.error("Error updating milestone step:", error);
+      res.status(400).json({ message: "Failed to update milestone step" });
+    }
+  });
+
+  app.delete("/api/milestone-steps/:id", async (req, res) => {
+    try {
+      await storage.deleteMilestoneStep(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting milestone step:", error);
+      res.status(500).json({ message: "Failed to delete milestone step" });
+    }
+  });
+
+  // JIRA Bepic routes
+  app.get("/api/jira-bepics", async (req, res) => {
+    try {
+      const { stepId } = req.query;
+      const bepics = await storage.getJiraBepics(stepId as string);
+      res.json(bepics);
+    } catch (error) {
+      console.error("Error fetching JIRA bepics:", error);
+      res.status(500).json({ message: "Failed to fetch JIRA bepics" });
+    }
+  });
+
+  app.post("/api/jira-bepics", async (req, res) => {
+    try {
+      const validatedData = insertJiraBepicSchema.parse(req.body);
+      const bepic = await storage.createJiraBepic(validatedData);
+      res.status(201).json(bepic);
+    } catch (error) {
+      console.error("Error creating JIRA bepic:", error);
+      res.status(400).json({ message: "Failed to create JIRA bepic" });
+    }
+  });
+
+  app.patch("/api/jira-bepics/:id", async (req, res) => {
+    try {
+      const validatedData = insertJiraBepicSchema.partial().parse(req.body);
+      const bepic = await storage.updateJiraBepic(req.params.id, validatedData);
+      res.json(bepic);
+    } catch (error) {
+      console.error("Error updating JIRA bepic:", error);
+      res.status(400).json({ message: "Failed to update JIRA bepic" });
+    }
+  });
+
+  // JIRA Epic routes
+  app.get("/api/jira-epics", async (req, res) => {
+    try {
+      const { bepicId } = req.query;
+      const epics = await storage.getJiraEpics(bepicId as string);
+      res.json(epics);
+    } catch (error) {
+      console.error("Error fetching JIRA epics:", error);
+      res.status(500).json({ message: "Failed to fetch JIRA epics" });
+    }
+  });
+
+  app.post("/api/jira-epics", async (req, res) => {
+    try {
+      const validatedData = insertJiraEpicSchema.parse(req.body);
+      const epic = await storage.createJiraEpic(validatedData);
+      res.status(201).json(epic);
+    } catch (error) {
+      console.error("Error creating JIRA epic:", error);
+      res.status(400).json({ message: "Failed to create JIRA epic" });
+    }
+  });
+
+  app.patch("/api/jira-epics/:id", async (req, res) => {
+    try {
+      const validatedData = insertJiraEpicSchema.partial().parse(req.body);
+      const epic = await storage.updateJiraEpic(req.params.id, validatedData);
+      res.json(epic);
+    } catch (error) {
+      console.error("Error updating JIRA epic:", error);
+      res.status(400).json({ message: "Failed to update JIRA epic" });
+    }
+  });
+
+  // JIRA Story routes
+  app.get("/api/jira-stories", async (req, res) => {
+    try {
+      const { epicId } = req.query;
+      const stories = await storage.getJiraStories(epicId as string);
+      res.json(stories);
+    } catch (error) {
+      console.error("Error fetching JIRA stories:", error);
+      res.status(500).json({ message: "Failed to fetch JIRA stories" });
+    }
+  });
+
+  app.post("/api/jira-stories", async (req, res) => {
+    try {
+      const validatedData = insertJiraStorySchema.parse(req.body);
+      const story = await storage.createJiraStory(validatedData);
+      res.status(201).json(story);
+    } catch (error) {
+      console.error("Error creating JIRA story:", error);
+      res.status(400).json({ message: "Failed to create JIRA story" });
+    }
+  });
+
+  app.patch("/api/jira-stories/:id", async (req, res) => {
+    try {
+      const validatedData = insertJiraStorySchema.partial().parse(req.body);
+      const story = await storage.updateJiraStory(req.params.id, validatedData);
+      res.json(story);
+    } catch (error) {
+      console.error("Error updating JIRA story:", error);
+      res.status(400).json({ message: "Failed to update JIRA story" });
+    }
+  });
+
+  // Program Phase routes
+  app.get("/api/program-phases", async (req, res) => {
+    try {
+      const { programId, projectId } = req.query;
+      const phases = await storage.getProgramPhases(programId as string, projectId as string);
+      res.json(phases);
+    } catch (error) {
+      console.error("Error fetching program phases:", error);
+      res.status(500).json({ message: "Failed to fetch program phases" });
+    }
+  });
+
+  app.post("/api/program-phases", async (req, res) => {
+    try {
+      const validatedData = insertProgramPhaseSchema.parse(req.body);
+      const phase = await storage.createProgramPhase(validatedData);
+      res.status(201).json(phase);
+    } catch (error) {
+      console.error("Error creating program phase:", error);
+      res.status(400).json({ message: "Failed to create program phase" });
+    }
+  });
+
+  app.patch("/api/program-phases/:id", async (req, res) => {
+    try {
+      const validatedData = insertProgramPhaseSchema.partial().parse(req.body);
+      const phase = await storage.updateProgramPhase(req.params.id, validatedData);
+      res.json(phase);
+    } catch (error) {
+      console.error("Error updating program phase:", error);
+      res.status(400).json({ message: "Failed to update program phase" });
+    }
+  });
+
+  // Phase Stage routes
+  app.get("/api/phase-stages", async (req, res) => {
+    try {
+      const { programPhaseId } = req.query;
+      const stages = await storage.getPhaseStages(programPhaseId as string);
+      res.json(stages);
+    } catch (error) {
+      console.error("Error fetching phase stages:", error);
+      res.status(500).json({ message: "Failed to fetch phase stages" });
+    }
+  });
+
+  app.post("/api/phase-stages", async (req, res) => {
+    try {
+      const validatedData = insertPhaseStageSchema.parse(req.body);
+      const stage = await storage.createPhaseStage(validatedData);
+      res.status(201).json(stage);
+    } catch (error) {
+      console.error("Error creating phase stage:", error);
+      res.status(400).json({ message: "Failed to create phase stage" });
+    }
+  });
+
+  app.patch("/api/phase-stages/:id", async (req, res) => {
+    try {
+      const validatedData = insertPhaseStageSchema.partial().parse(req.body);
+      const stage = await storage.updatePhaseStage(req.params.id, validatedData);
+      res.json(stage);
+    } catch (error) {
+      console.error("Error updating phase stage:", error);
+      res.status(400).json({ message: "Failed to update phase stage" });
     }
   });
 

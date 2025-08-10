@@ -4,6 +4,12 @@ import {
   projects,
   initiatives,
   milestones,
+  milestoneSteps,
+  jiraBepics,
+  jiraEpics,
+  jiraStories,
+  programPhases,
+  phaseStages,
   risks,
   dependencies,
   adopters,
@@ -23,6 +29,18 @@ import {
   type InsertInitiative,
   type Milestone,
   type InsertMilestone,
+  type MilestoneStep,
+  type InsertMilestoneStep,
+  type JiraBepic,
+  type InsertJiraBepic,
+  type JiraEpic,
+  type InsertJiraEpic,
+  type JiraStory,
+  type InsertJiraStory,
+  type ProgramPhase,
+  type InsertProgramPhase,
+  type PhaseStage,
+  type InsertPhaseStage,
   type Risk,
   type InsertRisk,
   type Dependency,
@@ -63,6 +81,48 @@ export interface IStorage {
   createMilestone(milestone: InsertMilestone): Promise<Milestone>;
   updateMilestone(id: string, milestone: Partial<InsertMilestone>): Promise<Milestone>;
   deleteMilestone(id: string): Promise<void>;
+  
+  // Milestone Step operations
+  getMilestoneSteps(milestoneId?: string): Promise<MilestoneStep[]>;
+  getMilestoneStep(id: string): Promise<MilestoneStep | undefined>;
+  createMilestoneStep(step: InsertMilestoneStep): Promise<MilestoneStep>;
+  updateMilestoneStep(id: string, step: Partial<InsertMilestoneStep>): Promise<MilestoneStep>;
+  deleteMilestoneStep(id: string): Promise<void>;
+  
+  // JIRA Bepic operations
+  getJiraBepics(stepId?: string): Promise<JiraBepic[]>;
+  getJiraBepic(id: string): Promise<JiraBepic | undefined>;
+  createJiraBepic(bepic: InsertJiraBepic): Promise<JiraBepic>;
+  updateJiraBepic(id: string, bepic: Partial<InsertJiraBepic>): Promise<JiraBepic>;
+  deleteJiraBepic(id: string): Promise<void>;
+  
+  // JIRA Epic operations
+  getJiraEpics(bepicId?: string): Promise<JiraEpic[]>;
+  getJiraEpic(id: string): Promise<JiraEpic | undefined>;
+  createJiraEpic(epic: InsertJiraEpic): Promise<JiraEpic>;
+  updateJiraEpic(id: string, epic: Partial<InsertJiraEpic>): Promise<JiraEpic>;
+  deleteJiraEpic(id: string): Promise<void>;
+  
+  // JIRA Story operations
+  getJiraStories(epicId?: string): Promise<JiraStory[]>;
+  getJiraStory(id: string): Promise<JiraStory | undefined>;
+  createJiraStory(story: InsertJiraStory): Promise<JiraStory>;
+  updateJiraStory(id: string, story: Partial<InsertJiraStory>): Promise<JiraStory>;
+  deleteJiraStory(id: string): Promise<void>;
+  
+  // Program Phase operations
+  getProgramPhases(programId?: string, projectId?: string): Promise<ProgramPhase[]>;
+  getProgramPhase(id: string): Promise<ProgramPhase | undefined>;
+  createProgramPhase(phase: InsertProgramPhase): Promise<ProgramPhase>;
+  updateProgramPhase(id: string, phase: Partial<InsertProgramPhase>): Promise<ProgramPhase>;
+  deleteProgramPhase(id: string): Promise<void>;
+  
+  // Phase Stage operations
+  getPhaseStages(programPhaseId?: string): Promise<PhaseStage[]>;
+  getPhaseStage(id: string): Promise<PhaseStage | undefined>;
+  createPhaseStage(stage: InsertPhaseStage): Promise<PhaseStage>;
+  updatePhaseStage(id: string, stage: Partial<InsertPhaseStage>): Promise<PhaseStage>;
+  deletePhaseStage(id: string): Promise<void>;
   
   // Risk operations
   getRisks(programId?: string): Promise<Risk[]>;
@@ -212,6 +272,195 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMilestone(id: string): Promise<void> {
     await db.delete(milestones).where(eq(milestones.id, id));
+  }
+
+  // Milestone Step operations
+  async getMilestoneSteps(milestoneId?: string): Promise<MilestoneStep[]> {
+    if (milestoneId) {
+      return await db.select().from(milestoneSteps).where(eq(milestoneSteps.milestoneId, milestoneId));
+    }
+    return await db.select().from(milestoneSteps).orderBy(desc(milestoneSteps.dueDate));
+  }
+
+  async getMilestoneStep(id: string): Promise<MilestoneStep | undefined> {
+    const [step] = await db.select().from(milestoneSteps).where(eq(milestoneSteps.id, id));
+    return step;
+  }
+
+  async createMilestoneStep(stepData: InsertMilestoneStep): Promise<MilestoneStep> {
+    const [step] = await db.insert(milestoneSteps).values(stepData).returning();
+    return step;
+  }
+
+  async updateMilestoneStep(id: string, stepData: Partial<InsertMilestoneStep>): Promise<MilestoneStep> {
+    const [step] = await db
+      .update(milestoneSteps)
+      .set({ ...stepData, updatedAt: new Date() })
+      .where(eq(milestoneSteps.id, id))
+      .returning();
+    return step;
+  }
+
+  async deleteMilestoneStep(id: string): Promise<void> {
+    await db.delete(milestoneSteps).where(eq(milestoneSteps.id, id));
+  }
+
+  // JIRA Bepic operations
+  async getJiraBepics(stepId?: string): Promise<JiraBepic[]> {
+    if (stepId) {
+      return await db.select().from(jiraBepics).where(eq(jiraBepics.stepId, stepId));
+    }
+    return await db.select().from(jiraBepics).orderBy(desc(jiraBepics.dueDate));
+  }
+
+  async getJiraBepic(id: string): Promise<JiraBepic | undefined> {
+    const [bepic] = await db.select().from(jiraBepics).where(eq(jiraBepics.id, id));
+    return bepic;
+  }
+
+  async createJiraBepic(bepicData: InsertJiraBepic): Promise<JiraBepic> {
+    const [bepic] = await db.insert(jiraBepics).values(bepicData).returning();
+    return bepic;
+  }
+
+  async updateJiraBepic(id: string, bepicData: Partial<InsertJiraBepic>): Promise<JiraBepic> {
+    const [bepic] = await db
+      .update(jiraBepics)
+      .set({ ...bepicData, updatedAt: new Date() })
+      .where(eq(jiraBepics.id, id))
+      .returning();
+    return bepic;
+  }
+
+  async deleteJiraBepic(id: string): Promise<void> {
+    await db.delete(jiraBepics).where(eq(jiraBepics.id, id));
+  }
+
+  // JIRA Epic operations
+  async getJiraEpics(bepicId?: string): Promise<JiraEpic[]> {
+    if (bepicId) {
+      return await db.select().from(jiraEpics).where(eq(jiraEpics.bepicId, bepicId));
+    }
+    return await db.select().from(jiraEpics).orderBy(desc(jiraEpics.dueDate));
+  }
+
+  async getJiraEpic(id: string): Promise<JiraEpic | undefined> {
+    const [epic] = await db.select().from(jiraEpics).where(eq(jiraEpics.id, id));
+    return epic;
+  }
+
+  async createJiraEpic(epicData: InsertJiraEpic): Promise<JiraEpic> {
+    const [epic] = await db.insert(jiraEpics).values(epicData).returning();
+    return epic;
+  }
+
+  async updateJiraEpic(id: string, epicData: Partial<InsertJiraEpic>): Promise<JiraEpic> {
+    const [epic] = await db
+      .update(jiraEpics)
+      .set({ ...epicData, updatedAt: new Date() })
+      .where(eq(jiraEpics.id, id))
+      .returning();
+    return epic;
+  }
+
+  async deleteJiraEpic(id: string): Promise<void> {
+    await db.delete(jiraEpics).where(eq(jiraEpics.id, id));
+  }
+
+  // JIRA Story operations
+  async getJiraStories(epicId?: string): Promise<JiraStory[]> {
+    if (epicId) {
+      return await db.select().from(jiraStories).where(eq(jiraStories.epicId, epicId));
+    }
+    return await db.select().from(jiraStories).orderBy(desc(jiraStories.dueDate));
+  }
+
+  async getJiraStory(id: string): Promise<JiraStory | undefined> {
+    const [story] = await db.select().from(jiraStories).where(eq(jiraStories.id, id));
+    return story;
+  }
+
+  async createJiraStory(storyData: InsertJiraStory): Promise<JiraStory> {
+    const [story] = await db.insert(jiraStories).values(storyData).returning();
+    return story;
+  }
+
+  async updateJiraStory(id: string, storyData: Partial<InsertJiraStory>): Promise<JiraStory> {
+    const [story] = await db
+      .update(jiraStories)
+      .set({ ...storyData, updatedAt: new Date() })
+      .where(eq(jiraStories.id, id))
+      .returning();
+    return story;
+  }
+
+  async deleteJiraStory(id: string): Promise<void> {
+    await db.delete(jiraStories).where(eq(jiraStories.id, id));
+  }
+
+  // Program Phase operations
+  async getProgramPhases(programId?: string, projectId?: string): Promise<ProgramPhase[]> {
+    if (programId) {
+      return await db.select().from(programPhases).where(eq(programPhases.programId, programId));
+    }
+    if (projectId) {
+      return await db.select().from(programPhases).where(eq(programPhases.projectId, projectId));
+    }
+    return await db.select().from(programPhases).orderBy(desc(programPhases.createdAt));
+  }
+
+  async getProgramPhase(id: string): Promise<ProgramPhase | undefined> {
+    const [phase] = await db.select().from(programPhases).where(eq(programPhases.id, id));
+    return phase;
+  }
+
+  async createProgramPhase(phaseData: InsertProgramPhase): Promise<ProgramPhase> {
+    const [phase] = await db.insert(programPhases).values(phaseData).returning();
+    return phase;
+  }
+
+  async updateProgramPhase(id: string, phaseData: Partial<InsertProgramPhase>): Promise<ProgramPhase> {
+    const [phase] = await db
+      .update(programPhases)
+      .set({ ...phaseData, updatedAt: new Date() })
+      .where(eq(programPhases.id, id))
+      .returning();
+    return phase;
+  }
+
+  async deleteProgramPhase(id: string): Promise<void> {
+    await db.delete(programPhases).where(eq(programPhases.id, id));
+  }
+
+  // Phase Stage operations
+  async getPhaseStages(programPhaseId?: string): Promise<PhaseStage[]> {
+    if (programPhaseId) {
+      return await db.select().from(phaseStages).where(eq(phaseStages.programPhaseId, programPhaseId));
+    }
+    return await db.select().from(phaseStages).orderBy(desc(phaseStages.createdAt));
+  }
+
+  async getPhaseStage(id: string): Promise<PhaseStage | undefined> {
+    const [stage] = await db.select().from(phaseStages).where(eq(phaseStages.id, id));
+    return stage;
+  }
+
+  async createPhaseStage(stageData: InsertPhaseStage): Promise<PhaseStage> {
+    const [stage] = await db.insert(phaseStages).values(stageData).returning();
+    return stage;
+  }
+
+  async updatePhaseStage(id: string, stageData: Partial<InsertPhaseStage>): Promise<PhaseStage> {
+    const [stage] = await db
+      .update(phaseStages)
+      .set({ ...stageData, updatedAt: new Date() })
+      .where(eq(phaseStages.id, id))
+      .returning();
+    return stage;
+  }
+
+  async deletePhaseStage(id: string): Promise<void> {
+    await db.delete(phaseStages).where(eq(phaseStages.id, id));
   }
 
   // Risk operations
