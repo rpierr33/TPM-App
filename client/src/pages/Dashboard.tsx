@@ -347,44 +347,82 @@ export default function Dashboard() {
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        {/* Key Metrics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MetricsCard
-            title="Active Programs"
-            value={activePendingPrograms.length}
-            change={`${programs.length} total`}
-            changeType="neutral"
-            icon={ChartGantt}
-            iconColor="bg-primary-100"
-            navigateTo="/dashboard"
-          />
-          <MetricsCard
-            title="All Risks"
-            value={risks.length}
-            change="across all programs"
-            changeType="neutral"
-            icon={AlertTriangle}
-            iconColor="bg-red-100"
-            navigateTo="/risk-management"
-          />
-          <MetricsCard
-            title="All Milestones"
-            value={milestones.length}
-            change="across all programs"
-            changeType="neutral"
-            icon={Flag}
-            iconColor="bg-yellow-100"
-            navigateTo="/milestones"
-          />
-          <MetricsCard
-            title="All Teams"
-            value={adopters.length}
-            change="being tracked"
-            changeType="neutral"
-            icon={Users}
-            iconColor="bg-blue-100"
-            navigateTo="/adopter-support"
-          />
+        {/* Program Snapshot Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Program Snapshot</h2>
+              <p className="text-sm text-gray-600">Overview of all programs across platforms and initiatives</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <select className="text-sm border border-gray-300 rounded-md px-3 py-2 bg-white">
+                <option>All Platforms</option>
+                <option>Platform A</option>
+                <option>Platform B</option>
+                <option>Platform C</option>
+              </select>
+              <select className="text-sm border border-gray-300 rounded-md px-3 py-2 bg-white">
+                <option>All Initiatives</option>
+                <option>Digital Transformation</option>
+                <option>Cloud Migration</option>
+                <option>Customer Experience</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            <MetricsCard
+              title="Active Programs"
+              value={activePendingPrograms.length}
+              change={`${programs.length} total`}
+              changeType="neutral"
+              icon={ChartGantt}
+              iconColor="bg-green-100"
+              navigateTo="/dashboard"
+            />
+            <MetricsCard
+              title="Programs on Hold"
+              value={onHoldPrograms.length}
+              change="currently paused"
+              changeType="neutral"
+              icon={AlertTriangle}
+              iconColor="bg-yellow-100"
+              navigateTo="/dashboard"
+            />
+            <MetricsCard
+              title="All Risks"
+              value={risks.length}
+              change="across programs"
+              changeType="neutral"
+              icon={AlertTriangle}
+              iconColor="bg-red-100"
+              navigateTo="/risk-management"
+            />
+            <MetricsCard
+              title="Dependencies"
+              value={dependencies.length}
+              change="cross-program"
+              changeType="neutral"
+              icon={GitBranch}
+              iconColor="bg-purple-100"
+              navigateTo="/dependencies"
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation("/dashboard")}
+              className="h-24 flex flex-col items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <Eye className="h-5 w-5" />
+              <span className="text-sm">View All Programs</span>
+            </Button>
+            <Button 
+              onClick={handleNewProgram}
+              className="h-24 flex flex-col items-center justify-center gap-2 bg-primary-600 text-white hover:bg-primary-700"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="text-sm">New Program</span>
+            </Button>
+          </div>
         </div>
 
         {/* All Programs Management Section */}
