@@ -116,38 +116,83 @@ export default function Programs() {
   const handleNavigateToComponent = (component: string, programId: string) => {
     switch (component) {
       case 'Milestones':
+        toast({
+          title: "No Milestones Found",
+          description: "This program has no milestones. Navigate to Milestones page to add some.",
+          variant: "default",
+        });
         setLocation('/milestones');
         break;
       case 'Risks':
+        toast({
+          title: "No Additional Risks Found", 
+          description: "Navigate to Risk Management to add more risks for this program.",
+          variant: "default",
+        });
         setLocation('/risk-management');
         break;
       case 'Dependencies':
+        toast({
+          title: "No Dependencies Found",
+          description: "This program has no dependencies. Navigate to Dependencies page to add some.",
+          variant: "default",
+        });
         setLocation('/dependencies');
         break;
       case 'Adopters':
+        toast({
+          title: "No Adopter Teams Found",
+          description: "This program has no adopter teams. Navigate to Adopter Support to add some.",
+          variant: "default",
+        });
         setLocation('/adopter-support');
         break;
       case 'Epics':
+        toast({
+          title: "No Epics Linked from JIRA",
+          description: "This program has no JIRA epics. Check your JIRA integration or add milestones first.",
+          variant: "default",
+        });
+        break;
       case 'Business Epics':
+        toast({
+          title: "No Business Epics Linked from JIRA",
+          description: "This program has no JIRA business epics. Check your JIRA integration or add milestone steps first.",
+          variant: "default",
+        });
+        break;
       case 'Stories':
-        // JIRA items - could navigate to a JIRA integration page
-        setLocation('/integrations');
+        toast({
+          title: "No Stories Linked from JIRA",
+          description: "This program has no JIRA stories. Check your JIRA integration or add epics first.",
+          variant: "default",
+        });
         break;
       case 'Start Date':
-      case 'End Date':
-      case 'Description':
-        // These require editing the program - could open an edit modal
-        // For now, show a toast with instructions
         toast({
-          title: `Add ${component}`,
-          description: `Navigate to program settings to add the ${component.toLowerCase()}`,
+          title: "Missing Start Date",
+          description: "This program needs a start date. Edit the program to add this important information.",
+          variant: "default",
+        });
+        break;
+      case 'End Date':
+        toast({
+          title: "Missing End Date", 
+          description: "This program needs an end date. Edit the program to add this important information.",
+          variant: "default",
+        });
+        break;
+      case 'Description':
+        toast({
+          title: "Missing Description",
+          description: "This program needs a description. Edit the program to add this important information.",
           variant: "default",
         });
         break;
       default:
         toast({
-          title: "Feature Coming Soon",
-          description: `Navigation for ${component} will be available soon`,
+          title: `Missing ${component}`,
+          description: `This program is missing ${component}. This component needs to be added for completeness.`,
           variant: "default",
         });
     }
@@ -472,17 +517,17 @@ export default function Programs() {
 
                         {/* Missing Components Alert */}
                         {completenessData.missing.length > 0 && (
-                          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                            <div className="flex items-center gap-2 mb-1">
+                          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-center gap-2 mb-3">
                               <AlertTriangle className="h-4 w-4 text-yellow-600" />
                               <span className="text-sm font-medium text-yellow-800">Missing Components</span>
                             </div>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-2">
                               {completenessData.missing.slice(0, 5).map((component) => (
                                 <Badge 
                                   key={component} 
                                   variant="outline" 
-                                  className="text-xs border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  className="text-sm px-3 py-1 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
                                   onClick={() => handleNavigateToComponent(component, program.id)}
                                 >
                                   {component}
@@ -491,7 +536,7 @@ export default function Programs() {
                               {completenessData.missing.length > 5 && (
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
+                                  className="text-sm px-3 py-1 border-yellow-300 text-yellow-800 cursor-pointer hover:bg-yellow-100 transition-colors"
                                   onClick={() => {
                                     // Show all missing components in a modal or toast
                                     toast({
