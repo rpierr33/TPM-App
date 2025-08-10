@@ -775,67 +775,78 @@ export default function Dashboard() {
 
         {/* AI Insights Section */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Insights & Recommendations</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">AI Insights & Recommendations</h2>
+              <p className="text-sm text-gray-600">AI-powered analysis and prioritized actions</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Priorities Today */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/")}>
+            {/* Today's Priorities */}
+            <Card className="border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setLocation("/ai-assistant")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">Priorities Today</h3>
+                  <h3 className="text-sm font-medium text-gray-700">Today's Priorities</h3>
                   <Calendar className="h-5 w-5 text-blue-500" />
                 </div>
-                <div className="text-3xl font-bold text-blue-600 mb-1">3</div>
-                <div className="text-sm text-gray-500">Action items</div>
+                <div className="text-3xl font-bold text-blue-600 mb-1">
+                  {overallMetrics.overdueMilestones + overallMetrics.criticalRisks}
+                </div>
+                <div className="text-sm text-gray-500">Critical items</div>
               </CardContent>
             </Card>
 
-            {/* Critical Alerts */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/risk-management")}>
+            {/* Risk Alerts */}
+            <Card className="border border-gray-200 cursor-pointer hover:border-red-300 transition-colors" onClick={() => setLocation("/risk-management")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">Critical Alerts</h3>
+                  <h3 className="text-sm font-medium text-gray-700">Risk Alerts</h3>
                   <AlertTriangle className="h-5 w-5 text-red-500" />
                 </div>
-                <div className="text-3xl font-bold text-red-600 mb-1">1</div>
-                <div className="text-sm text-gray-500">Need attention</div>
+                <div className="text-3xl font-bold text-red-600 mb-1">{overallMetrics.criticalRisks}</div>
+                <div className="text-sm text-gray-500">Critical risks</div>
               </CardContent>
             </Card>
 
             {/* AI Recommendations */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/")}>
+            <Card className="border border-gray-200 cursor-pointer hover:border-yellow-300 transition-colors" onClick={() => setLocation("/ai-assistant")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">Recommendations</h3>
+                  <h3 className="text-sm font-medium text-gray-700">AI Suggestions</h3>
                   <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-yellow-600 mb-1">3</div>
-                <div className="text-sm text-gray-500">AI suggestions</div>
+                <div className="text-3xl font-bold text-yellow-600 mb-1">
+                  {Math.max(3, Math.floor(overallMetrics.totalPrograms * 0.5))}
+                </div>
+                <div className="text-sm text-gray-500">Recommendations</div>
               </CardContent>
             </Card>
 
-            {/* Program Health */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/dashboard")}>
+            {/* Program Health Overview */}
+            <Card className="border border-gray-200 cursor-pointer hover:border-green-300 transition-colors" onClick={() => setLocation("/programs")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-gray-700">Program Health</h3>
+                  <h3 className="text-sm font-medium text-gray-700">Health Overview</h3>
                   <Users className="h-5 w-5 text-green-500" />
                 </div>
                 <div className="mb-2">
-                  <Badge className="bg-blue-100 text-blue-800">Good</Badge>
+                  <Badge className={
+                    overallMetrics.criticalRisks === 0 && overallMetrics.overdueMilestones === 0 
+                      ? "bg-green-100 text-green-800" 
+                      : overallMetrics.criticalRisks < 3 
+                        ? "bg-yellow-100 text-yellow-800" 
+                        : "bg-red-100 text-red-800"
+                  }>
+                    {overallMetrics.criticalRisks === 0 && overallMetrics.overdueMilestones === 0 
+                      ? "Excellent" 
+                      : overallMetrics.criticalRisks < 3 
+                        ? "Fair" 
+                        : "At Risk"}
+                  </Badge>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="w-full text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation("/");
-                  }}
-                >
-                  Quick Analysis
-                </Button>
+                <div className="text-sm text-gray-500">{overallMetrics.activePrograms} active programs</div>
               </CardContent>
             </Card>
           </div>
