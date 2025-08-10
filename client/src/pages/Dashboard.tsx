@@ -348,8 +348,8 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {/* Program Snapshot Section */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Program Snapshot</h2>
               <p className="text-xs text-gray-600">Overview of all programs across platforms and initiatives</p>
@@ -370,7 +370,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 mb-3">
             <MetricsCard
               title="Active Programs"
               value={activePendingPrograms.length}
@@ -410,14 +410,14 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               onClick={() => setLocation("/programs")}
-              className="h-12 flex flex-col items-center justify-center gap-0.5 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs"
+              className="h-10 flex flex-col items-center justify-center gap-0.5 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs px-2"
             >
               <Eye className="h-3 w-3" />
               <span>View All</span>
             </Button>
             <Button 
               onClick={handleNewProgram}
-              className="h-12 flex flex-col items-center justify-center gap-0.5 bg-primary-600 text-white hover:bg-primary-700 text-xs"
+              className="h-10 flex flex-col items-center justify-center gap-0.5 bg-primary-600 text-white hover:bg-primary-700 text-xs px-2"
             >
               <Plus className="h-3 w-3" />
               <span>New</span>
