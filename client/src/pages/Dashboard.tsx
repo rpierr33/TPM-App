@@ -276,31 +276,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Quick Actions */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div className="flex gap-2">
-                          {criticalRisks.length > 0 && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                              onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
-                            >
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              View Critical Risks
-                            </Button>
-                          )}
-                          {overdueMilestones.length > 0 && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="text-orange-600 border-orange-200 hover:bg-orange-50"
-                              onClick={() => setLocation(`/milestones?programId=${program.id}`)}
-                            >
-                              <Clock className="h-3 w-3 mr-1" />
-                              View Overdue Items
-                            </Button>
-                          )}
-                        </div>
+                      <div className="flex items-center justify-end pt-4 border-t border-gray-100">
                         <Button 
                           size="sm" 
                           variant="ghost" 
