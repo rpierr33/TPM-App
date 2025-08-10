@@ -367,7 +367,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2 mb-3">
             <MetricsCard
               title="Active Programs"
               value={activePendingPrograms.length}
@@ -403,6 +403,15 @@ export default function Dashboard() {
               icon={GitBranch}
               iconColor="bg-purple-100"
               navigateTo="/dependencies"
+            />
+            <MetricsCard
+              title="Team Adoption"
+              value={adopters.length}
+              change="teams onboarding"
+              changeType="neutral"
+              icon={Users}
+              iconColor="bg-blue-100"
+              navigateTo="/adopter-support"
             />
             <Button 
               variant="outline" 
@@ -487,6 +496,7 @@ export default function Dashboard() {
                   if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
                   if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
                   if (programMilestones.length === 0) missing.push('Milestones');
+                  if (programAdopters.length === 0) missing.push('Adopter Teams');
 
                   return missing;
                 };
@@ -553,7 +563,7 @@ export default function Dashboard() {
 
 
                       {/* Program Components Summary */}
-                      <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="grid grid-cols-4 gap-4 mb-4">
                         <button
                           className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
                           onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
@@ -583,6 +593,22 @@ export default function Dashboard() {
                           <div className="text-xs text-gray-500">Milestones</div>
                           {overdueMilestones.length > 0 && (
                             <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
+                          )}
+                        </button>
+
+                        <button
+                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
+                          onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
+                        >
+                          <div className="flex items-center justify-center mb-1">
+                            <Users className="h-4 w-4 text-blue-500 mr-1" />
+                            <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">Adopters</div>
+                          {programAdopters.filter(a => a.status === 'blocked' || a.status === 'not_started').length > 0 && (
+                            <div className="text-xs text-red-600 font-medium">
+                              {programAdopters.filter(a => a.status === 'blocked' || a.status === 'not_started').length} need help
+                            </div>
                           )}
                         </button>
 
@@ -791,7 +817,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Navigation to Components */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Button 
             variant="outline" 
             onClick={() => setLocation("/risk-management")}
@@ -808,6 +834,15 @@ export default function Dashboard() {
           >
             <Flag className="h-5 w-5" />
             <span className="text-sm">All Milestones</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => setLocation("/adopter-support")}
+            className="h-16 flex flex-col items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-sm">Team Adoption</span>
           </Button>
           
           <Button 

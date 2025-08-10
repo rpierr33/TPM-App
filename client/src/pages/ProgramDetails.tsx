@@ -287,11 +287,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Program Snapshot</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
             <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
+            <TabsTrigger value="adopters">Team Adoption</TabsTrigger>
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
           </TabsList>
 
@@ -569,6 +570,290 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="adopters" className="space-y-6 mt-6">
+            {/* Team Adoption Dashboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Adoption Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-blue-600" />
+                    Adoption Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-600">{programAdopters.length}</div>
+                      <div className="text-sm text-gray-600">Teams Adopting</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Not Started</span>
+                        <span className="font-medium text-gray-600">
+                          {programAdopters.filter(a => a.status === 'not_started').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>In Progress</span>
+                        <span className="font-medium text-blue-600">
+                          {programAdopters.filter(a => a.status === 'in_progress').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Completed</span>
+                        <span className="font-medium text-green-600">
+                          {programAdopters.filter(a => a.status === 'completed').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Blocked</span>
+                        <span className="font-medium text-red-600">
+                          {programAdopters.filter(a => a.status === 'blocked').length}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="text-sm text-gray-600">
+                        <strong>Overall Progress:</strong> {programAdopters.length > 0 ? Math.round((programAdopters.filter(a => a.status === 'completed').length / programAdopters.length) * 100) : 0}%
+                      </div>
+                      <Progress 
+                        value={programAdopters.length > 0 ? (programAdopters.filter(a => a.status === 'completed').length / programAdopters.length) * 100 : 0} 
+                        className="w-full mt-2" 
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Adoption Readiness */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    Readiness Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">High Readiness</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-sm font-medium">
+                            {programAdopters.filter(a => a.readinessLevel === 'high').length}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Medium Readiness</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                          <span className="text-sm font-medium">
+                            {programAdopters.filter(a => a.readinessLevel === 'medium').length}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Low Readiness</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span className="text-sm font-medium">
+                            {programAdopters.filter(a => a.readinessLevel === 'low').length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {programAdopters.filter(a => a.readinessLevel === 'low' || a.status === 'blocked').length > 0 && (
+                      <div className="pt-2 border-t">
+                        <div className="text-sm text-red-600 font-medium">
+                          ⚠️ {programAdopters.filter(a => a.readinessLevel === 'low' || a.status === 'blocked').length} teams need attention
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Next Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-purple-600" />
+                    Next Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {programAdopters.filter(a => a.status === 'not_started').length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium">• Initiate Onboarding:</span>
+                        <br />
+                        {programAdopters.filter(a => a.status === 'not_started').length} teams ready to start
+                      </div>
+                    )}
+                    {programAdopters.filter(a => a.status === 'blocked').length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium text-red-600">• Resolve Blockers:</span>
+                        <br />
+                        {programAdopters.filter(a => a.status === 'blocked').length} teams need unblocking
+                      </div>
+                    )}
+                    {programAdopters.filter(a => a.readinessLevel === 'low').length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium text-yellow-600">• Readiness Support:</span>
+                        <br />
+                        {programAdopters.filter(a => a.readinessLevel === 'low').length} teams need preparation
+                      </div>
+                    )}
+                    {programAdopters.filter(a => a.status === 'in_progress').length > 0 && (
+                      <div className="text-sm">
+                        <span className="font-medium text-blue-600">• Monitor Progress:</span>
+                        <br />
+                        {programAdopters.filter(a => a.status === 'in_progress').length} teams in progress
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Detailed Team List */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5 text-blue-600" />
+                  Team Details & Onboarding Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {programAdopters.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Adopter Teams</h3>
+                    <p className="text-gray-500 mb-4">Add teams that will be adopting this program to track their onboarding progress.</p>
+                    <Button onClick={() => {
+                      toast({
+                        title: "Feature Coming Soon",
+                        description: "Add adopter team functionality will be available shortly.",
+                      });
+                    }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Adopter Team
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {programAdopters.map((adopter) => {
+                      const getStatusColor = (status: string) => {
+                        switch (status) {
+                          case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+                          case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+                          case 'blocked': return 'bg-red-100 text-red-800 border-red-200';
+                          default: return 'bg-gray-100 text-gray-800 border-gray-200';
+                        }
+                      };
+
+                      const getReadinessColor = (level: string) => {
+                        switch (level) {
+                          case 'high': return 'text-green-600';
+                          case 'medium': return 'text-yellow-600';
+                          case 'low': return 'text-red-600';
+                          default: return 'text-gray-600';
+                        }
+                      };
+
+                      return (
+                        <div key={adopter.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{adopter.teamName}</h4>
+                                  <p className="text-sm text-gray-600">{adopter.department}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                                <div>
+                                  <span className="text-xs text-gray-500">Current Status</span>
+                                  <div className="mt-1">
+                                    <Badge className={getStatusColor(adopter.status)}>
+                                      {adopter.status?.replace('_', ' ') || 'not started'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-500">Readiness Level</span>
+                                  <p className={`text-sm font-medium mt-1 ${getReadinessColor(adopter.readinessLevel)}`}>
+                                    {adopter.readinessLevel || 'not assessed'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-500">Team Size</span>
+                                  <p className="text-sm font-medium mt-1">{adopter.teamSize || 'N/A'} members</p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-500">Target Date</span>
+                                  <p className="text-sm font-medium mt-1">
+                                    {adopter.targetDate ? new Date(adopter.targetDate).toLocaleDateString() : 'Not set'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {adopter.blockers && adopter.blockers.length > 0 && (
+                                <div className="mb-3">
+                                  <span className="text-xs text-gray-500">Current Blockers</span>
+                                  <div className="mt-1 space-y-1">
+                                    {adopter.blockers.map((blocker, index) => (
+                                      <div key={index} className="text-sm text-red-600 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        {blocker}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {adopter.notes && (
+                                <div className="mb-3">
+                                  <span className="text-xs text-gray-500">Notes</span>
+                                  <p className="text-sm text-gray-700 mt-1">{adopter.notes}</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  toast({
+                                    title: "Feature Coming Soon",
+                                    description: "Adopter detail view will be available shortly.",
+                                  });
+                                }}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  toast({
+                                    title: "Feature Coming Soon",
+                                    description: "Edit adopter functionality will be available shortly.",
+                                  });
+                                }}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-6 mt-6">
