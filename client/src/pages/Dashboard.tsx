@@ -198,15 +198,15 @@ export default function Dashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            {getStatusIcon(program.status)}
+                            {getStatusIcon(program.status || 'active')}
                             <h3 className="text-lg font-semibold text-gray-900">{program.name}</h3>
-                            <Badge className={getStatusColor(program.status)}>
+                            <Badge className={getStatusColor(program.status || 'active')}>
                               {program.status?.replace('_', ' ') || 'active'}
                             </Badge>
                           </div>
                           <p className="text-sm text-gray-600 mb-3">{program.description}</p>
                           <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Owner: {program.owner || 'Unassigned'}</span>
+                            <span>Owner: {program.ownerId || 'Unassigned'}</span>
                             {program.startDate && (
                               <span>Started: {new Date(program.startDate).toLocaleDateString()}</span>
                             )}
@@ -376,6 +376,71 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* AI Insights Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Insights & Recommendations</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Priorities Today */}
+            <Card className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-700">Priorities Today</h3>
+                  <Calendar className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="text-3xl font-bold text-blue-600 mb-1">3</div>
+                <div className="text-sm text-gray-500">Action items</div>
+              </CardContent>
+            </Card>
+
+            {/* Critical Alerts */}
+            <Card className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-700">Critical Alerts</h3>
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="text-3xl font-bold text-red-600 mb-1">1</div>
+                <div className="text-sm text-gray-500">Need attention</div>
+              </CardContent>
+            </Card>
+
+            {/* AI Recommendations */}
+            <Card className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-700">Recommendations</h3>
+                  <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-yellow-600 mb-1">3</div>
+                <div className="text-sm text-gray-500">AI suggestions</div>
+              </CardContent>
+            </Card>
+
+            {/* Program Health */}
+            <Card className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-700">Program Health</h3>
+                  <Users className="h-5 w-5 text-green-500" />
+                </div>
+                <div className="mb-2">
+                  <Badge className="bg-blue-100 text-blue-800">Good</Badge>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full text-xs"
+                  onClick={() => setLocation("/ai-assistant")}
+                >
+                  Quick Analysis
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Quick Navigation to Components */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
