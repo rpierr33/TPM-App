@@ -15,7 +15,11 @@ import {
   ArrowRight,
   Eye,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Target,
+  FileText,
+  Play,
+  ChevronRight
 } from "lucide-react";
 import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
 
@@ -75,6 +79,57 @@ export default function Dashboard() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Helper function to determine current PMP phase based on program status
+  const getProgramPhase = (program: Program) => {
+    switch (program.status?.toLowerCase()) {
+      case 'planning': return { 
+        name: 'Planning', 
+        icon: <FileText size={16} />, 
+        color: 'text-blue-600',
+        completedPhases: ['initiation'],
+        nextStep: 'Complete scope definition and work breakdown structure'
+      };
+      case 'active': return { 
+        name: 'Executing', 
+        icon: <Play size={16} />, 
+        color: 'text-green-600',
+        completedPhases: ['initiation', 'planning'],
+        nextStep: 'Monitor team performance and deliverable quality'
+      };
+      case 'completed': return { 
+        name: 'Closed', 
+        icon: <CheckCircle size={16} />, 
+        color: 'text-gray-600',
+        completedPhases: ['initiation', 'planning', 'executing', 'monitoring_controlling'],
+        nextStep: 'Archive project documents and capture lessons learned'
+      };
+      case 'on_hold': return { 
+        name: 'Monitoring & Controlling', 
+        icon: <Clock size={16} />, 
+        color: 'text-yellow-600',
+        completedPhases: ['initiation', 'planning'],
+        nextStep: 'Review hold reasons and develop resumption plan'
+      };
+      default: return { 
+        name: 'Initiation', 
+        icon: <Target size={16} />, 
+        color: 'text-purple-600',
+        completedPhases: [],
+        nextStep: 'Develop project charter and identify stakeholders'
+      };
+    }
+  };
+
+  // Group programs by their current PMP phase
+  const programsByPhase = programs.reduce((acc, program) => {
+    const phase = getProgramPhase(program);
+    if (!acc[phase.name]) {
+      acc[phase.name] = { phase, programs: [] };
+    }
+    acc[phase.name].programs.push(program);
+    return acc;
+  }, {} as Record<string, { phase: any; programs: Program[] }>);
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -361,6 +416,97 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Program Phase Management Section */}
+        {programs.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Program Phase Management</h2>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setLocation("/program-planning")}
+                className="text-primary-600"
+              >
+                View All Phase Details
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Object.entries(programsByPhase).map(([phaseName, { phase, programs: phasePrograms }]) => (
+                <Card key={phaseName} className="border border-gray-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className={`flex items-center gap-2 text-base ${phase.color}`}>
+                      {phase.icon}
+                      {phaseName} ({phasePrograms.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {phasePrograms.slice(0, 3).map(program => (
+                        <div key={program.id} className="border border-gray-100 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <button 
+                              className="text-sm font-medium text-gray-900 hover:text-primary-600 transition-colors text-left truncate flex-1 mr-2"
+                              onClick={() => setLocation(`/programs?programId=${program.id}`)}
+                            >
+                              {program.name}
+                            </button>
+                            <Badge className={getStatusColor(program.status || 'active')} size="sm">
+                              {program.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="text-xs text-gray-600 mb-2">
+                            <strong>Next Step:</strong> {phase.nextStep}
+                          </div>
+                          
+                          <div className="text-xs text-gray-500">
+                            <strong>Completed:</strong> {phase.completedPhases.length > 0 ? 
+                              phase.completedPhases.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(", ") : 
+                              "None"
+                            }
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                            <Button 
+                              size="xs" 
+                              variant="ghost" 
+                              onClick={() => setLocation(`/programs?programId=${program.id}`)}
+                              className="text-primary-600 hover:text-primary-700 p-0 h-auto"
+                            >
+                              View Program
+                            </Button>
+                            <Button 
+                              size="xs" 
+                              variant="outline" 
+                              onClick={() => setLocation("/program-planning")}
+                              className="text-xs px-2 py-1"
+                            >
+                              Manage Phase
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {phasePrograms.length > 3 && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => setLocation("/programs")}
+                          className="w-full text-primary-600"
+                        >
+                          View All {phaseName} Programs ({phasePrograms.length - 3} more)
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         )}
