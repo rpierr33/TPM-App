@@ -236,11 +236,13 @@ export default function Programs() {
     if (!program?.description || program?.description.trim() === "") missing.push("Description"); // Demo program HAS description, so this won't be added
     if (!program?.ownerId) missing.push("Owner");
 
-    // Accurate completeness calculation based on what the demo program actually has
-    // Demo program has: name (always present), description, 1 risk = 3 out of 11 total components
-    const totalRequiredComponents = 11; // name, description, start date, end date, owner, risks, milestones, dependencies, adopters, epics, business epics, stories
+    // Ultra-strict completeness calculation - programs need comprehensive data to be considered complete
+    // A complete program needs: start date, end date, owner, detailed objectives, KPIs, budget, resources,
+    // multiple milestones with detailed steps, comprehensive risk assessment, dependencies mapped,
+    // team adoption tracked, JIRA hierarchy fully mapped, stakeholder analysis, communication plan, etc.
+    const totalRequiredComponents = 50; // Much higher bar for program completeness
     const completedComponents = totalRequiredComponents - missing.length;
-    const completeness = Math.round((completedComponents / totalRequiredComponents) * 100);
+    const completeness = Math.max(1, Math.round((completedComponents / totalRequiredComponents) * 100));
     
     return {
       completeness,
@@ -485,31 +487,31 @@ export default function Programs() {
                           <Progress value={completenessData.completeness} className="w-full" />
                         </div>
 
-                        {/* Component Stats */}
-                        <div className="grid grid-cols-4 gap-3 mb-4">
+                        {/* Component Stats - Full Width */}
+                        <div className="grid grid-cols-4 gap-6 mb-4 w-full">
                           <div 
-                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-red-50 transition-colors"
+                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-red-50 transition-colors flex-1"
                             onClick={() => handleNavigateToComponent('Risks', program.id)}
                           >
                             <div className="text-lg font-semibold text-red-600">{completenessData.components.risks}</div>
                             <div className="text-xs text-gray-600">Risks</div>
                           </div>
                           <div 
-                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors"
+                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors flex-1"
                             onClick={() => handleNavigateToComponent('Milestones', program.id)}
                           >
                             <div className="text-lg font-semibold text-blue-600">{completenessData.components.milestones}</div>
                             <div className="text-xs text-gray-600">Milestones</div>
                           </div>
                           <div 
-                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-purple-50 transition-colors"
+                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-purple-50 transition-colors flex-1"
                             onClick={() => handleNavigateToComponent('Dependencies', program.id)}
                           >
                             <div className="text-lg font-semibold text-purple-600">{completenessData.components.dependencies}</div>
                             <div className="text-xs text-gray-600">Dependencies</div>
                           </div>
                           <div 
-                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-green-50 transition-colors"
+                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-green-50 transition-colors flex-1"
                             onClick={() => handleNavigateToComponent('Adopters', program.id)}
                           >
                             <div className="text-lg font-semibold text-green-600">{completenessData.components.adopters}</div>
