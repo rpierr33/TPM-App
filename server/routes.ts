@@ -842,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           adopterCount: programAdopters.length,
           projectCount: programProjects.length,
           blockedCount: programDependencies.filter(d => d.status === 'blocked').length,
-          programHealthScore: Math.round(((programDependencies.filter(d => d.status === 'resolved').length / Math.max(programDependencies.length, 1)) * 100))
+          programHealthScore: Math.round(((programDependencies.filter(d => d.status === 'completed').length / Math.max(programDependencies.length, 1)) * 100))
         }
       });
     } catch (error) {
@@ -881,8 +881,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           riskCount: programRisks.length,
           dependencyCount: programDependencies.length,
           projectCount: programProjects.length,
-          readyCount: programAdopters.filter(a => a.readinessScore >= 75).length,
-          programHealthScore: Math.round((programAdopters.reduce((sum, a) => sum + (a.readinessScore || 50), 0) / Math.max(programAdopters.length, 1)))
+          readyCount: programAdopters.filter(a => (a.readinessScore ?? 0) >= 75).length,
+          programHealthScore: Math.round((programAdopters.reduce((sum, a) => sum + (a.readinessScore ?? 50), 0) / Math.max(programAdopters.length, 1)))
         }
       });
     } catch (error) {
