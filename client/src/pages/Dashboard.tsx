@@ -490,7 +490,7 @@ export default function Dashboard() {
                   if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
                   if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
                   if (programMilestones.length === 0) missing.push('Milestones');
-                  if (programAdopters.length === 0) missing.push('Adopter Teams');
+
                   return missing;
                 };
 
@@ -550,7 +550,7 @@ export default function Dashboard() {
 
 
                       {/* Program Components Summary */}
-                      <div className="grid grid-cols-4 gap-4 mb-4">
+                      <div className="grid grid-cols-3 gap-4 mb-4">
                         <button
                           className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
                           onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
@@ -581,17 +581,6 @@ export default function Dashboard() {
                           {overdueMilestones.length > 0 && (
                             <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
                           )}
-                        </button>
-
-                        <button
-                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
-                          onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
-                        >
-                          <div className="flex items-center justify-center mb-1">
-                            <Users className="h-4 w-4 text-blue-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Teams</div>
                         </button>
 
                         <button
