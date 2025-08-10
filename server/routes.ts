@@ -466,6 +466,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced milestone routes with contextual data
+  app.get("/api/milestones/:id/context", async (req, res) => {
+    try {
+      const milestone = await storage.getMilestone(req.params.id);
+      if (!milestone) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+
+      const program = milestone.programId ? await storage.getProgram(milestone.programId) : null;
+      const programRisks = program ? await storage.getRisks(program.id) : [];
+      const programDependencies = program ? await storage.getDependencies(program.id) : [];
+      const programAdopters = program ? await storage.getAdopters(program.id) : [];
+      const programMilestones = program ? await storage.getMilestones(program.id) : [];
+      const programProjects = program ? await storage.getProjects(program.id) : [];
+
+      res.json({
+        milestone,
+        program,
+        relatedComponents: {
+          risks: programRisks,
+          dependencies: programDependencies,
+          adopters: programAdopters,
+          milestones: programMilestones.filter(m => m.id !== milestone.id),
+          projects: programProjects
+        },
+        analytics: {
+          riskCount: programRisks.length,
+          criticalRisks: programRisks.filter(r => r.severity === 'critical').length,
+          dependencyCount: programDependencies.length,
+          blockedDependencies: programDependencies.filter(d => d.status === 'blocked').length,
+          adopterCount: programAdopters.length,
+          readyAdopters: programAdopters.filter(a => a.status === 'ready').length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching milestone context:", error);
+      res.status(500).json({ message: "Failed to fetch milestone context" });
+    }
+  });
+
+  // Enhanced risk routes with contextual data
+  app.get("/api/risks/:id/context", async (req, res) => {
+    try {
+      const risk = await storage.getRisk(req.params.id);
+      if (!risk) {
+        return res.status(404).json({ message: "Risk not found" });
+      }
+
+      const program = risk.programId ? await storage.getProgram(risk.programId) : null;
+      const programMilestones = program ? await storage.getMilestones(program.id) : [];
+      const programRisks = program ? await storage.getRisks(program.id) : [];
+      const programDependencies = program ? await storage.getDependencies(program.id) : [];
+      const programAdopters = program ? await storage.getAdopters(program.id) : [];
+
+      res.json({
+        risk,
+        program,
+        relatedComponents: {
+          milestones: programMilestones,
+          risks: programRisks.filter(r => r.id !== risk.id),
+          dependencies: programDependencies,
+          adopters: programAdopters
+        },
+        analytics: {
+          milestoneCount: programMilestones.length,
+          overdueMilestones: programMilestones.filter(m => m.dueDate && new Date(m.dueDate) < new Date()).length,
+          dependencyCount: programDependencies.length,
+          adopterCount: programAdopters.length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching risk context:", error);
+      res.status(500).json({ message: "Failed to fetch risk context" });
+    }
+  });
+
+  // Enhanced dependency routes with contextual data
+  app.get("/api/dependencies/:id/context", async (req, res) => {
+    try {
+      const dependency = await storage.getDependency(req.params.id);
+      if (!dependency) {
+        return res.status(404).json({ message: "Dependency not found" });
+      }
+
+      const program = dependency.programId ? await storage.getProgram(dependency.programId) : null;
+      const programMilestones = program ? await storage.getMilestones(program.id) : [];
+      const programRisks = program ? await storage.getRisks(program.id) : [];
+      const programDependencies = program ? await storage.getDependencies(program.id) : [];
+      const programAdopters = program ? await storage.getAdopters(program.id) : [];
+
+      res.json({
+        dependency,
+        program,
+        relatedComponents: {
+          milestones: programMilestones,
+          risks: programRisks,
+          dependencies: programDependencies.filter(d => d.id !== dependency.id),
+          adopters: programAdopters
+        },
+        analytics: {
+          milestoneCount: programMilestones.length,
+          riskCount: programRisks.length,
+          adopterCount: programAdopters.length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching dependency context:", error);
+      res.status(500).json({ message: "Failed to fetch dependency context" });
+    }
+  });
+
+  // Enhanced adopter routes with contextual data
+  app.get("/api/adopters/:id/context", async (req, res) => {
+    try {
+      const adopter = await storage.getAdopter(req.params.id);
+      if (!adopter) {
+        return res.status(404).json({ message: "Adopter not found" });
+      }
+
+      const program = adopter.programId ? await storage.getProgram(adopter.programId) : null;
+      const programMilestones = program ? await storage.getMilestones(program.id) : [];
+      const programRisks = program ? await storage.getRisks(program.id) : [];
+      const programDependencies = program ? await storage.getDependencies(program.id) : [];
+      const programAdopters = program ? await storage.getAdopters(program.id) : [];
+
+      res.json({
+        adopter,
+        program,
+        relatedComponents: {
+          milestones: programMilestones,
+          risks: programRisks,
+          dependencies: programDependencies,
+          adopters: programAdopters.filter(a => a.id !== adopter.id)
+        },
+        analytics: {
+          milestoneCount: programMilestones.length,
+          riskCount: programRisks.length,
+          dependencyCount: programDependencies.length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching adopter context:", error);
+      res.status(500).json({ message: "Failed to fetch adopter context" });
+    }
+  });
+
   // Initiative routes
   app.get("/api/initiatives", async (req, res) => {
     try {

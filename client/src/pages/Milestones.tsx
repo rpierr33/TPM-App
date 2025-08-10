@@ -10,15 +10,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ComponentContextCard } from "@/components/layout/ComponentContextCard";
+import { ComponentAnalytics } from "@/components/layout/ComponentAnalytics";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Flag, Calendar, User, ExternalLink, Plus, Filter } from "lucide-react";
+import { useLocation } from "wouter";
+import { Flag, Calendar, User, ExternalLink, Plus, Filter, AlertTriangle, Users, GitBranch, BarChart3, Eye } from "lucide-react";
 import { useMode } from "@/hooks/useMode";
 import type { Milestone, Program } from "@shared/schema";
 
 export default function Milestones() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
+  const [contextData, setContextData] = useState<any>(null);
+  const [showContextModal, setShowContextModal] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -32,6 +39,7 @@ export default function Milestones() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isTestMode } = useMode();
+  const [, setLocation] = useLocation();
 
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/milestones"],
@@ -58,6 +66,23 @@ export default function Milestones() {
       toast({
         title: "Error",
         description: "Failed to create milestone",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const fetchContextMutation = useMutation({
+    mutationFn: async (milestoneId: string) => {
+      return await apiRequest(`/api/milestones/${milestoneId}/context`, "GET");
+    },
+    onSuccess: (data: any) => {
+      setContextData(data);
+      setShowContextModal(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to load milestone context",
         variant: "destructive",
       });
     },
@@ -105,6 +130,41 @@ export default function Milestones() {
 
   const handleNewMilestone = () => {
     setShowCreateModal(true);
+  };
+
+  const handleViewMilestoneContext = (milestone: Milestone) => {
+    setSelectedMilestone(milestone);
+    fetchContextMutation.mutate(milestone.id);
+  };
+
+  const handleViewComponent = (type: string, programId?: string) => {
+    switch (type) {
+      case 'risks':
+        setLocation(`/risk-management${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'dependencies':
+        setLocation(`/dependencies${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'adopters':
+        setLocation(`/adopter-support${programId ? `?programId=${programId}` : ''}`);
+        break;
+      case 'programs':
+        setLocation(`/programs`);
+        break;
+      case 'projects':
+        setLocation(`/program-planning${programId ? `?programId=${programId}` : ''}`);
+        break;
+    }
+  };
+
+  const formatMilestoneDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "No date";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
   };
 
   return (
@@ -205,7 +265,7 @@ export default function Milestones() {
                       <span className="text-sm text-gray-500">Due Date:</span>
                       <div className="flex items-center gap-1 text-sm text-gray-900">
                         <Calendar size={14} />
-                        {formatDate(milestone.dueDate)}
+                        {formatMilestoneDate(milestone.dueDate)}
                       </div>
                     </div>
 
@@ -234,8 +294,15 @@ export default function Milestones() {
                       <Button variant="outline" size="sm" className="flex-1">
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
-                        View Details
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleViewMilestoneContext(milestone)}
+                        disabled={fetchContextMutation.isPending}
+                      >
+                        <Eye size={14} className="mr-1" />
+                        {fetchContextMutation.isPending ? "Loading..." : "View Context"}
                       </Button>
                     </div>
                   </div>
@@ -346,6 +413,183 @@ export default function Milestones() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Context Modal */}
+      <Dialog open={showContextModal} onOpenChange={setShowContextModal}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flag className="h-5 w-5" />
+              {selectedMilestone?.title} - Contextual View
+            </DialogTitle>
+          </DialogHeader>
+
+          {contextData && (
+            <div className="space-y-6">
+              {/* Milestone Details & Program Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Milestone Details</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Status:</span>
+                        <Badge className={getStatusColor(contextData.milestone.status)}>
+                          {contextData.milestone.status?.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Due Date:</span>
+                        <span className="text-sm">{formatMilestoneDate(contextData.milestone.dueDate)}</span>
+                      </div>
+                      {contextData.milestone.description && (
+                        <div className="pt-2 border-t">
+                          <span className="text-sm text-gray-500">Description:</span>
+                          <p className="text-sm mt-1">{contextData.milestone.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {contextData.program && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Program Context</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div>
+                          <h4 className="font-medium">{contextData.program.name}</h4>
+                          <p className="text-sm text-gray-600">{contextData.program.description || "No description"}</p>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Status:</span>
+                          <Badge className={getStatusColor(contextData.program.status)}>
+                            {contextData.program.status}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewComponent('programs')}
+                          className="w-full mt-2"
+                        >
+                          View Program Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Analytics Overview */}
+              {contextData.analytics && (
+                <ComponentAnalytics 
+                  title="Program"
+                  data={contextData.analytics}
+                />
+              )}
+
+              {/* Related Components */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+                <ComponentContextCard
+                  title="Risks"
+                  type="risks"
+                  items={contextData.relatedComponents.risks || []}
+                  onViewAll={() => handleViewComponent('risks', contextData.program?.id)}
+                  onViewItem={(item) => console.log('View risk:', item)}
+                  analytics={{
+                    total: contextData.relatedComponents.risks?.length || 0,
+                    critical: contextData.analytics?.criticalRisks || 0
+                  }}
+                />
+
+                <ComponentContextCard
+                  title="Dependencies"
+                  type="dependencies"
+                  items={contextData.relatedComponents.dependencies || []}
+                  onViewAll={() => handleViewComponent('dependencies', contextData.program?.id)}
+                  onViewItem={(item) => console.log('View dependency:', item)}
+                  analytics={{
+                    total: contextData.relatedComponents.dependencies?.length || 0,
+                    blocked: contextData.analytics?.blockedDependencies || 0
+                  }}
+                />
+
+                <ComponentContextCard
+                  title="Adopters"
+                  type="adopters"
+                  items={contextData.relatedComponents.adopters || []}
+                  onViewAll={() => handleViewComponent('adopters', contextData.program?.id)}
+                  onViewItem={(item) => console.log('View adopter:', item)}
+                  analytics={{
+                    total: contextData.relatedComponents.adopters?.length || 0,
+                    ready: contextData.analytics?.readyAdopters || 0
+                  }}
+                />
+
+                <ComponentContextCard
+                  title="Other Milestones"
+                  type="milestones"
+                  items={contextData.relatedComponents.milestones || []}
+                  onViewAll={() => handleViewComponent('milestones', contextData.program?.id)}
+                  onViewItem={(item) => console.log('View milestone:', item)}
+                  analytics={{
+                    total: contextData.relatedComponents.milestones?.length || 0,
+                    overdue: 0 // Calculate based on due dates
+                  }}
+                />
+              </div>
+
+              {/* Projects if available */}
+              {contextData.relatedComponents.projects && contextData.relatedComponents.projects.length > 0 && (
+                <ComponentContextCard
+                  title="Related Projects"
+                  type="projects"
+                  items={contextData.relatedComponents.projects}
+                  onViewAll={() => handleViewComponent('projects', contextData.program?.id)}
+                  onViewItem={(item) => console.log('View project:', item)}
+                  analytics={{
+                    total: contextData.relatedComponents.projects.length
+                  }}
+                />
+              )}
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleViewComponent('risks', contextData.program?.id)}>
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      View All Risks
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleViewComponent('dependencies', contextData.program?.id)}>
+                      <GitBranch className="h-4 w-4 mr-1" />
+                      View All Dependencies
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleViewComponent('adopters', contextData.program?.id)}>
+                      <Users className="h-4 w-4 mr-1" />
+                      View All Adopters
+                    </Button>
+                    {contextData.program && (
+                      <Button size="sm" variant="outline" onClick={() => handleViewComponent('programs')}>
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        Go to Program
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

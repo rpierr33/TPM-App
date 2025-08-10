@@ -373,6 +373,9 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  dueDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
+  completedDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
 });
 
 export const insertRiskSchema = createInsertSchema(risks).omit({

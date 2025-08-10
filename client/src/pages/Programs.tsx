@@ -293,11 +293,11 @@ export default function Programs() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div className="flex items-center gap-2 text-gray-500">
                           <Calendar className="h-4 w-4" />
-                          <span>Start: {formatDate(program.startDate)}</span>
+                          <span>Start: {formatDate(program.startDate || null)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-500">
                           <Calendar className="h-4 w-4" />
-                          <span>End: {formatDate(program.endDate)}</span>
+                          <span>End: {formatDate(program.endDate || null)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-500">
                           <Users className="h-4 w-4" />
