@@ -230,7 +230,14 @@ export default function Milestones() {
                           {programs.map(program => (
                             <li key={program.id} className="flex items-center gap-2 text-sm bg-yellow-50 px-3 py-2 rounded border-l-4 border-yellow-400">
                               <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                              <span className="font-medium">Program "{program.name}"</span>
+                              <span className="font-medium">Program "</span>
+                              <button 
+                                className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                                onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                              >
+                                {program.name}
+                              </button>
+                              <span className="font-medium">"</span>
                               <span className="text-gray-600">has no milestones defined</span>
                             </li>
                           ))}

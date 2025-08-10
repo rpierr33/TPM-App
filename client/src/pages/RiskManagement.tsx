@@ -271,7 +271,14 @@ export default function RiskManagement() {
                                 {programs.map(program => (
                                   <li key={program.id} className="flex items-center gap-2 text-sm bg-red-50 px-3 py-2 rounded border-l-4 border-red-400">
                                     <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                                    <span className="font-medium">Program "{program.name}"</span>
+                                    <span className="font-medium">Program "</span>
+                                    <button 
+                                      className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                                      onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                                    >
+                                      {program.name}
+                                    </button>
+                                    <span className="font-medium">"</span>
                                     <span className="text-gray-600">has no risks identified</span>
                                   </li>
                                 ))}
@@ -656,16 +663,24 @@ export default function RiskManagement() {
           {contextData && (
             <div className="space-y-6">
               <ComponentContextCard 
-                program={contextData.program}
-                component={contextData.risk}
-                relatedComponents={contextData.relatedComponents}
-                onViewComponent={handleViewComponent}
+                title="Related Milestones"
+                items={contextData.relatedComponents.milestones || []}
+                type="milestones"
+                onViewAll={() => handleViewComponent('milestones', contextData.program?.id)}
               />
               
-              <ComponentAnalytics 
-                analytics={contextData.analytics}
-                componentType="risk"
-                onViewComponent={handleViewComponent}
+              <ComponentContextCard 
+                title="Related Dependencies"
+                items={contextData.relatedComponents.dependencies || []}
+                type="dependencies"
+                onViewAll={() => handleViewComponent('dependencies', contextData.program?.id)}
+              />
+              
+              <ComponentContextCard 
+                title="Related Adopters"
+                items={contextData.relatedComponents.adopters || []}
+                type="adopters"
+                onViewAll={() => handleViewComponent('adopters', contextData.program?.id)}
               />
             </div>
           )}
