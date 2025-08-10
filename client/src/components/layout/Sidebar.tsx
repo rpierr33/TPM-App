@@ -16,7 +16,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navigationItems = [
   { path: "/", icon: Brain, label: "AI Assistant" },
@@ -32,7 +32,16 @@ const navigationItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const { mode, toggleMode, isTestMode } = useMode();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Check localStorage for saved collapse state
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // Save collapse state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
+  }, [isCollapsed]);
 
   const { data: integrations } = useQuery({
     queryKey: ["/api/integrations"],

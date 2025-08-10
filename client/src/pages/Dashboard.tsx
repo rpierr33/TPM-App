@@ -356,7 +356,7 @@ export default function Dashboard() {
             changeType="neutral"
             icon={ChartGantt}
             iconColor="bg-primary-100"
-            navigateTo="/programs"
+            navigateTo="/dashboard"
           />
           <MetricsCard
             title="All Risks"
@@ -688,14 +688,9 @@ export default function Dashboard() {
                       ))}
                       
                       {phasePrograms.length > 3 && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setLocation("/programs")}
-                          className="w-full text-primary-600"
-                        >
-                          View All {phaseName} Programs ({phasePrograms.length - 3} more)
-                        </Button>
+                        <p className="text-xs text-gray-500 text-center py-2">
+                          {phasePrograms.length - 3} more {phaseName.toLowerCase()} programs
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -710,7 +705,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold text-gray-900 mb-6">AI Insights & Recommendations</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Priorities Today */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/ai-assistant")}>
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Priorities Today</h3>
@@ -734,7 +729,7 @@ export default function Dashboard() {
             </Card>
 
             {/* AI Recommendations */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/ai-assistant")}>
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Recommendations</h3>
@@ -748,7 +743,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Program Health */}
-            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/programs")}>
+            <Card className="border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setLocation("/dashboard")}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-gray-700">Program Health</h3>
@@ -763,7 +758,7 @@ export default function Dashboard() {
                   className="w-full text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setLocation("/ai-assistant");
+                    setLocation("/");
                   }}
                 >
                   Quick Analysis
