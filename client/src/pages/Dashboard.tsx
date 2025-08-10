@@ -425,29 +425,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* All Programs Management Section */}
+        {/* Recently Visited Programs Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Program Management</h2>
-            <div className="flex items-center gap-3">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => setLocation("/dashboard")}
-                className="text-primary-600"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Refresh Dashboard
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={handleNewProgram}
-                className="bg-primary-600 text-white border-primary-600 hover:bg-primary-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Program
-              </Button>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Recently Visited Programs</h2>
+              <p className="text-sm text-gray-600">Your most recently created and updated programs</p>
             </div>
           </div>
 
@@ -470,11 +453,11 @@ export default function Dashboard() {
                 </Card>
               ))}
             </div>
-          ) : activePendingPrograms.length === 0 ? (
+          ) : programs.length === 0 ? (
             <Card className="border border-gray-200">
               <CardContent className="p-12 text-center">
                 <ChartGantt size={48} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No active programs</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No programs found</h3>
                 <p className="text-gray-500 mb-4">Create your first program to start tracking progress and managing initiatives.</p>
                 <Button onClick={handleNewProgram} className="bg-primary-500 text-white hover:bg-primary-600">
                   Create First Program
@@ -482,8 +465,10 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {activePendingPrograms.map((program) => {
+            <div className="max-h-96 overflow-y-auto space-y-4 custom-scrollbar">
+              {programs
+                .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+                .map((program) => {
                 const programRisks = getProgramRisks(program.id);
                 const programMilestones = getProgramMilestones(program.id);
                 const programAdopters = getProgramAdopters(program.id);
@@ -495,10 +480,29 @@ export default function Dashboard() {
                 );
                 const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
+                // Calculate program health score
+                const getHealthScore = () => {
+                  let score = 100;
+                  score -= criticalRisks.length * 15;
+                  score -= overdueMilestones.length * 10;
+                  score -= blockedDependencies.length * 5;
+                  return Math.max(0, score);
+                };
+
+                const getHealthBadge = (score: number) => {
+                  if (score >= 80) return { label: "Excellent", color: "bg-green-100 text-green-800" };
+                  if (score >= 60) return { label: "Good", color: "bg-blue-100 text-blue-800" };
+                  if (score >= 40) return { label: "Fair", color: "bg-yellow-100 text-yellow-800" };
+                  return { label: "At Risk", color: "bg-red-100 text-red-800" };
+                };
+
+                const healthScore = getHealthScore();
+                const healthBadge = getHealthBadge(healthScore);
+
                 return (
                   <Card key={program.id} className="border border-gray-200 hover:border-primary-300 transition-colors">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             {getStatusIcon(program.status || 'active')}
@@ -518,10 +522,15 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500 mb-1">Program Health</div>
+                          <Badge className={healthBadge.color}>
+                            {healthBadge.label} ({healthScore}%)
+                          </Badge>
+                        </div>
                       </div>
-                    </CardHeader>
 
-                    <CardContent className="pt-0">
+
                       {/* Program Components Summary */}
                       <div className="grid grid-cols-4 gap-4 mb-4">
                         <button
