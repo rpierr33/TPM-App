@@ -429,7 +429,7 @@ export default function Dashboard() {
         <div className="mb-8" id="active-programs">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Recently Visited Programs</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Recent Programs</h2>
               <p className="text-sm text-gray-600">Recently updated programs</p>
             </div>
           </div>
@@ -487,8 +487,8 @@ export default function Dashboard() {
                   if (!program.ownerId) missing.push('Program Owner');
                   if (!program.startDate) missing.push('Start Date');
                   if (!program.endDate) missing.push('End Date');
-                  if (!program.objectives || !program.objectives.length) missing.push('Objectives');
-                  if (!program.kpis || !program.kpis.length) missing.push('KPIs');
+                  if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
+                  if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
                   if (programMilestones.length === 0) missing.push('Milestones');
                   if (programAdopters.length === 0) missing.push('Adopter Teams');
                   return missing;
