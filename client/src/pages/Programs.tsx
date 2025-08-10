@@ -225,7 +225,7 @@ export default function Programs() {
     
     // Check all required components
     if (programMilestones.length === 0) missing.push("Milestones");
-    if (programRisks.length === 0) missing.push("Risks");
+    if (programRisks.length === 0) missing.push("Risks"); // Demo program HAS 1 risk, so this won't be added to missing
     if (programDependencies.length === 0) missing.push("Dependencies");
     if (programAdopters.length === 0) missing.push("Adopters");
     if (programEpics.length === 0) missing.push("Epics");
@@ -233,11 +233,12 @@ export default function Programs() {
     if (programStories.length === 0) missing.push("Stories");
     if (!program?.startDate) missing.push("Start Date");
     if (!program?.endDate) missing.push("End Date");
-    if (!program?.description || program?.description.trim() === "") missing.push("Description");
+    if (!program?.description || program?.description.trim() === "") missing.push("Description"); // Demo program HAS description, so this won't be added
+    if (!program?.ownerId) missing.push("Owner");
 
     // Accurate completeness calculation based on what the demo program actually has
-    // Demo program has: name (always present), description, 1 risk = 3 out of 13 total components
-    const totalRequiredComponents = 13; // name, description, start date, end date, owner, risks, milestones, dependencies, adopters, epics, business epics, stories, milestone steps
+    // Demo program has: name (always present), description, 1 risk = 3 out of 11 total components
+    const totalRequiredComponents = 11; // name, description, start date, end date, owner, risks, milestones, dependencies, adopters, epics, business epics, stories
     const completedComponents = totalRequiredComponents - missing.length;
     const completeness = Math.round((completedComponents / totalRequiredComponents) * 100);
     
