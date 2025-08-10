@@ -149,34 +149,62 @@ export default function Dashboard() {
   const generatePMIRecommendations = () => {
     const recommendations = [];
     
-    // PMI Process Group Analysis
-    const activePrograms = programs.filter(p => p.status === 'active');
-    
-    activePrograms.forEach(program => {
+    // Analyze ALL programs (not just active ones) for completeness
+    programs.forEach(program => {
       const programRisks = risks.filter(r => r.programId === program.id);
       const programMilestones = milestones.filter(m => m.programId === program.id);
       const programDependencies = dependencies.filter(d => d.programId === program.id);
       const programAdopters = adopters.filter(a => a.programId === program.id);
       
-      // Initiating Process Group
+      // Initiating Process Group - Program Charter & Documentation
       if (!program.description || program.description.length < 50) {
         recommendations.push({
           category: 'Initiating',
           title: `Develop Program Charter for ${program.name}`,
-          description: 'PMI recommends detailed program documentation to establish clear scope and objectives',
-          pmiReference: 'PMBOK 7th Edition - Project Charter',
+          description: 'PMI requires comprehensive program charter with clear scope, objectives, and success criteria',
+          pmiReference: 'PMBOK 7th Edition - Project Charter Development',
           priority: 'high'
         });
       }
 
-      // Planning Process Group
-      if (programMilestones.length < 3) {
+      if (!program.ownerId) {
+        recommendations.push({
+          category: 'Initiating',
+          title: `Assign Program Manager for ${program.name}`,
+          description: 'PMI mandates clear ownership and accountability through designated program leadership',
+          pmiReference: 'PMBOK - Project Manager Role Definition',
+          priority: 'high'
+        });
+      }
+
+      if (!program.startDate) {
+        recommendations.push({
+          category: 'Initiating',
+          title: `Define Start Date for ${program.name}`,
+          description: 'PMI requires clear timeline boundaries for proper program initiation',
+          pmiReference: 'PMBOK - Schedule Management Planning',
+          priority: 'medium'
+        });
+      }
+
+      if (!program.endDate) {
+        recommendations.push({
+          category: 'Initiating',
+          title: `Establish End Date for ${program.name}`,
+          description: 'PMI emphasizes time-bound objectives for successful program closure',
+          pmiReference: 'PMBOK - Schedule Management Planning',
+          priority: 'medium'
+        });
+      }
+
+      // Planning Process Group - Work Breakdown & Risk Management
+      if (programMilestones.length === 0) {
         recommendations.push({
           category: 'Planning',
-          title: `Create Detailed Schedule for ${program.name}`,
-          description: 'Establish clear milestones and work breakdown structure following PMI scheduling practices',
-          pmiReference: 'PMBOK - Schedule Management',
-          priority: 'high'
+          title: `Create Work Breakdown Structure for ${program.name}`,
+          description: 'PMI requires detailed milestone planning and work decomposition',
+          pmiReference: 'PMBOK - Work Breakdown Structure',
+          priority: 'critical'
         });
       }
 
@@ -184,59 +212,122 @@ export default function Dashboard() {
         recommendations.push({
           category: 'Planning',
           title: `Conduct Risk Assessment for ${program.name}`,
-          description: 'PMI emphasizes proactive risk identification and management planning',
+          description: 'PMI mandates proactive risk identification and management planning',
           pmiReference: 'PMBOK - Risk Management Process',
+          priority: 'high'
+        });
+      }
+
+      if (!program.objectives || (Array.isArray(program.objectives) && program.objectives.length === 0)) {
+        recommendations.push({
+          category: 'Planning',
+          title: `Define SMART Objectives for ${program.name}`,
+          description: 'PMI requires specific, measurable, achievable, relevant, time-bound objectives',
+          pmiReference: 'PMBOK - Scope Management',
+          priority: 'high'
+        });
+      }
+
+      if (!program.kpis || (Array.isArray(program.kpis) && program.kpis.length === 0)) {
+        recommendations.push({
+          category: 'Planning',
+          title: `Establish KPIs for ${program.name}`,
+          description: 'PMI emphasizes measurable success criteria and performance indicators',
+          pmiReference: 'PMBOK - Quality Management',
           priority: 'medium'
         });
       }
 
-      // Executing Process Group
+      // Executing Process Group - Stakeholder & Resource Management
       if (programAdopters.length === 0) {
         recommendations.push({
           category: 'Executing',
-          title: `Establish Stakeholder Engagement for ${program.name}`,
-          description: 'Identify and engage key stakeholders and adopter teams for successful delivery',
+          title: `Identify Stakeholders for ${program.name}`,
+          description: 'PMI requires comprehensive stakeholder identification and engagement planning',
           pmiReference: 'PMBOK - Stakeholder Management',
+          priority: 'high'
+        });
+      }
+
+      if (programDependencies.length === 0) {
+        recommendations.push({
+          category: 'Planning',
+          title: `Map Dependencies for ${program.name}`,
+          description: 'PMI emphasizes dependency identification for critical path management',
+          pmiReference: 'PMBOK - Schedule Management',
           priority: 'medium'
         });
       }
 
-      // Monitoring & Controlling
+      // Monitoring & Controlling - Active Risk Management
       const criticalRisks = programRisks.filter(r => r.severity === 'critical' || r.severity === 'high');
       if (criticalRisks.length > 0) {
         recommendations.push({
           category: 'Monitoring',
           title: `Implement Risk Response Plans for ${program.name}`,
-          description: 'High/critical risks require immediate response strategies and monitoring',
+          description: 'PMI requires immediate response strategies for high-impact risks',
           pmiReference: 'PMBOK - Risk Response Implementation',
           priority: 'critical'
         });
       }
 
       // Communication Management
-      if (programDependencies.filter(d => d.status === 'blocked').length > 0) {
+      const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
+      if (blockedDependencies.length > 0) {
         recommendations.push({
           category: 'Executing',
           title: `Resolve Blocked Dependencies in ${program.name}`,
           description: 'PMI emphasizes clear communication and escalation for dependency resolution',
           pmiReference: 'PMBOK - Communications Management',
-          priority: 'high'
+          priority: 'critical'
         });
       }
     });
 
-    // General PMI Best Practices
-    if (programs.length > 3) {
+    // Portfolio-Level PMI Recommendations
+    if (programs.length > 2) {
       recommendations.push({
         category: 'Integration',
-        title: 'Consider Program Management Office (PMO) Structure',
-        description: 'With multiple active programs, PMI recommends PMO governance for consistency',
+        title: 'Establish Program Management Office (PMO)',
+        description: 'PMI recommends PMO governance for portfolio consistency and standardization',
         pmiReference: 'PMI - Program Management Standard',
-        priority: 'low'
+        priority: 'medium'
       });
     }
 
-    return recommendations.slice(0, 10); // Top 10 recommendations
+    // Quality Assurance
+    const programsWithoutProperDocumentation = programs.filter(p => 
+      !p.description || p.description.length < 50 || !p.objectives || !p.kpis
+    );
+    
+    if (programsWithoutProperDocumentation.length > 0) {
+      recommendations.push({
+        category: 'Quality',
+        title: 'Standardize Program Documentation',
+        description: 'PMI requires consistent documentation standards across all programs',
+        pmiReference: 'PMBOK - Quality Management',
+        priority: 'medium'
+      });
+    }
+
+    // Risk Management Portfolio View
+    const totalRisks = risks.length;
+    const totalPrograms = programs.length;
+    if (totalPrograms > 0 && (totalRisks / totalPrograms) < 2) {
+      recommendations.push({
+        category: 'Planning',
+        title: 'Enhance Portfolio Risk Assessment',
+        description: 'PMI recommends comprehensive risk identification across all programs',
+        pmiReference: 'PMBOK - Portfolio Risk Management',
+        priority: 'high'
+      });
+    }
+
+    // Sort by priority and return top recommendations
+    const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+    return recommendations
+      .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+      .slice(0, 15); // Top 15 recommendations
   };
 
   const analyzeProgramMutation = useMutation({
