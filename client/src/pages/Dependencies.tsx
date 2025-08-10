@@ -249,14 +249,28 @@ export default function Dependencies() {
                   <div className="p-12 text-center">
                     <GitBranch size={48} className="mx-auto text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No dependencies found</h3>
-                    <p className="text-gray-500 mb-4">
+                    <div className="text-gray-500 mb-4">
                       {filterStatus === "all" && filterType === "all"
                         ? programs.length > 0 
-                          ? `Programs ${programs.map(p => `"${p.name}"`).join(", ")} are missing dependency tracking. Get started by documenting cross-team dependencies.`
-                          : "Start by documenting cross-team dependencies."
-                        : "No dependencies match the selected filters."
+                          ? (
+                            <div>
+                              <p className="mb-3">The following programs are missing dependency tracking:</p>
+                              <ul className="space-y-2 mb-4">
+                                {programs.map(program => (
+                                  <li key={program.id} className="flex items-center gap-2 text-sm bg-blue-50 px-3 py-2 rounded border-l-4 border-blue-400">
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                    <span className="font-medium">Program "{program.name}"</span>
+                                    <span className="text-gray-600">has no dependencies documented</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p>Get started by documenting cross-team dependencies to prevent blockers.</p>
+                            </div>
+                          )
+                          : <p>Start by documenting cross-team dependencies.</p>
+                        : <p>No dependencies match the selected filters.</p>
                       }
-                    </p>
+                    </div>
                     <Button onClick={handleNewDependency} className="bg-primary-500 text-white hover:bg-primary-600">
                       <Plus size={16} className="mr-2" />
                       Create Dependency
@@ -544,16 +558,24 @@ export default function Dependencies() {
           {contextData && (
             <div className="space-y-6">
               <ComponentContextCard 
-                program={contextData.program}
-                component={contextData.dependency}
-                relatedComponents={contextData.relatedComponents}
-                onViewComponent={handleViewComponent}
+                title="Related Milestones"
+                items={contextData.relatedComponents.milestones || []}
+                type="milestones"
+                onViewAll={() => handleViewComponent('milestones', contextData.program?.id)}
               />
               
-              <ComponentAnalytics 
-                analytics={contextData.analytics}
-                componentType="dependency"
-                onViewComponent={handleViewComponent}
+              <ComponentContextCard 
+                title="Related Risks"
+                items={contextData.relatedComponents.risks || []}
+                type="risks"
+                onViewAll={() => handleViewComponent('risks', contextData.program?.id)}
+              />
+              
+              <ComponentContextCard 
+                title="Related Adopters"
+                items={contextData.relatedComponents.adopters || []}
+                type="adopters"
+                onViewAll={() => handleViewComponent('adopters', contextData.program?.id)}
               />
             </div>
           )}

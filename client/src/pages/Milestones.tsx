@@ -220,14 +220,28 @@ export default function Milestones() {
             <CardContent className="p-12 text-center">
               <Flag size={48} className="mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No milestones found</h3>
-              <p className="text-gray-500 mb-4">
+              <div className="text-gray-500 mb-4">
                 {filterStatus === "all" 
                   ? programs.length > 0 
-                    ? `Programs ${programs.map(p => `"${p.name}"`).join(", ")} are missing milestones. Get started by creating milestones to track progress.`
-                    : "Get started by creating your first milestone."
-                  : `No milestones with status "${filterStatus.replace("_", " ")}" found.`
+                    ? (
+                      <div>
+                        <p className="mb-3">The following programs are missing milestones:</p>
+                        <ul className="space-y-2 mb-4">
+                          {programs.map(program => (
+                            <li key={program.id} className="flex items-center gap-2 text-sm bg-yellow-50 px-3 py-2 rounded border-l-4 border-yellow-400">
+                              <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                              <span className="font-medium">Program "{program.name}"</span>
+                              <span className="text-gray-600">has no milestones defined</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p>Get started by creating milestones to track progress and deadlines.</p>
+                      </div>
+                    )
+                    : <p>Get started by creating your first milestone.</p>
+                  : <p>No milestones with status "{filterStatus.replace("_", " ")}" found.</p>
                 }
-              </p>
+              </div>
               <Button onClick={handleNewMilestone} className="bg-primary-500 text-white hover:bg-primary-600">
                 <Plus size={16} className="mr-2" />
                 Create Milestone

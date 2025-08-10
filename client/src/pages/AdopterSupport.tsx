@@ -278,12 +278,28 @@ export default function AdopterSupport() {
                 <CardContent className="p-12 text-center">
                   <Users size={48} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No adopter teams found</h3>
-                  <p className="text-gray-500 mb-4">
+                  <div className="text-gray-500 mb-4">
                     {filterStatus === "all" 
-                      ? "Get started by adding adopter teams to track their onboarding progress."
-                      : `No teams with status "${filterStatus.replace("_", " ")}" found.`
+                      ? programs.length > 0 
+                        ? (
+                          <div>
+                            <p className="mb-3">The following programs are missing adopter tracking:</p>
+                            <ul className="space-y-2 mb-4">
+                              {programs.map(program => (
+                                <li key={program.id} className="flex items-center gap-2 text-sm bg-green-50 px-3 py-2 rounded border-l-4 border-green-400">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                  <span className="font-medium">Program "{program.name}"</span>
+                                  <span className="text-gray-600">has no teams tracked</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <p>Get started by adding teams and tracking their adoption readiness.</p>
+                          </div>
+                        )
+                        : <p>Get started by adding adopter teams to track their onboarding progress.</p>
+                      : <p>No teams with status "{filterStatus.replace("_", " ")}" found.</p>
                     }
-                  </p>
+                  </div>
                   <Button onClick={handleNewAdopter} className="bg-primary-500 text-white hover:bg-primary-600">
                     <Plus size={16} className="mr-2" />
                     Add Adopter Team

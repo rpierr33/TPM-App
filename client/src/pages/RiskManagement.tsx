@@ -261,14 +261,28 @@ export default function RiskManagement() {
                   <div className="p-12 text-center">
                     <AlertTriangle size={48} className="mx-auto text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No risks found</h3>
-                    <p className="text-gray-500 mb-4">
+                    <div className="text-gray-500 mb-4">
                       {filterSeverity === "all" && filterStatus === "all"
                         ? programs.length > 0 
-                          ? `Programs ${programs.map(p => `"${p.name}"`).join(", ")} are missing risk assessments. Get started by identifying and documenting risks.`
-                          : "Start by identifying and documenting program risks."
-                        : "No risks match the selected filters."
+                          ? (
+                            <div>
+                              <p className="mb-3">The following programs are missing risk assessments:</p>
+                              <ul className="space-y-2 mb-4">
+                                {programs.map(program => (
+                                  <li key={program.id} className="flex items-center gap-2 text-sm bg-red-50 px-3 py-2 rounded border-l-4 border-red-400">
+                                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    <span className="font-medium">Program "{program.name}"</span>
+                                    <span className="text-gray-600">has no risks identified</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p>Get started by identifying and documenting risks to prevent issues.</p>
+                            </div>
+                          )
+                          : <p>Start by identifying and documenting program risks.</p>
+                        : <p>No risks match the selected filters.</p>
                       }
-                    </p>
+                    </div>
                     <Button onClick={handleNewRisk} className="bg-primary-500 text-white hover:bg-primary-600">
                       <Plus size={16} className="mr-2" />
                       Create Risk
