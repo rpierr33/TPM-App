@@ -791,7 +791,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Navigation to Components */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Button 
             variant="outline" 
             onClick={() => setLocation("/risk-management")}
@@ -817,15 +817,6 @@ export default function Dashboard() {
           >
             <GitBranch className="h-5 w-5" />
             <span className="text-sm">Dependencies</span>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation("/adopter-support")}
-            className="h-16 flex flex-col items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
-          >
-            <Users className="h-5 w-5" />
-            <span className="text-sm">Team Adoption</span>
           </Button>
         </div>
       </main>

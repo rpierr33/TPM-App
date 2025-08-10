@@ -7,11 +7,11 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
-- **Fixed Critical Program Completeness Validation** - Programs now properly flag missing essential components (Description, Owner, Start/End Dates, Objectives, KPIs, Milestones) as risks affecting health scores
-- **Enhanced AI Insights Section** - Made cards clickable with real data integration and dynamic health assessment based on actual program metrics
-- **Removed Program Phase Management Section** - Eliminated PMI phase management from dashboard per user directive, cleaned up related code and variables
-- **Improved Risk Detection** - Total risk counts now include both actual risks and missing component risks for accurate program health assessment
-- **Streamlined Dashboard Layout** - Removed Teams/Adopter components from Recent Programs section, changed to 3-column grid (Risks, Milestones, Dependencies)
+- **Integrated Program Phase Management** - Moved PMI phase management into individual program cards showing Current Phase and Next PMI Steps rather than separate section
+- **Fixed Critical Program Completeness Validation** - Programs now properly flag missing essential components as risks affecting health scores  
+- **Enhanced AI Insights Section** - Made cards clickable with real data integration and dynamic health assessment
+- **Streamlined Navigation** - Removed Teams/Adopter components throughout dashboard (Recent Programs + Quick Navigation), focused on core components (Risks, Milestones, Dependencies)
+- **Improved Program Health Display** - Each program card shows health score, current PMI phase, next steps guidance, and missing component alerts
 
 ## System Architecture
 
