@@ -506,35 +506,35 @@ export default function Programs() {
                           <Progress value={completenessData.completeness} className="w-full" />
                         </div>
 
-                        {/* Component Stats - Full Width */}
-                        <div className="grid grid-cols-4 gap-6 mb-4 w-full">
+                        {/* Component Stats - Full Width with Responsive Text */}
+                        <div className="grid grid-cols-4 gap-2 mb-4 w-full">
                           <div 
-                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-red-50 transition-colors flex-1"
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-red-50 transition-colors flex flex-col items-center justify-center"
                             onClick={() => handleNavigateToComponent('Risks', program.id)}
                           >
                             <div className="text-lg font-semibold text-red-600">{completenessData.components.risks}</div>
-                            <div className="text-xs text-gray-600">Risks</div>
+                            <div className="text-[10px] sm:text-xs text-gray-600 leading-tight">Risks</div>
                           </div>
                           <div 
-                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors flex-1"
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors flex flex-col items-center justify-center"
                             onClick={() => handleNavigateToComponent('Milestones', program.id)}
                           >
                             <div className="text-lg font-semibold text-blue-600">{completenessData.components.milestones}</div>
-                            <div className="text-xs text-gray-600">Milestones</div>
+                            <div className="text-[10px] sm:text-xs text-gray-600 leading-tight">Milestones</div>
                           </div>
                           <div 
-                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-purple-50 transition-colors flex-1"
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-purple-50 transition-colors flex flex-col items-center justify-center"
                             onClick={() => handleNavigateToComponent('Dependencies', program.id)}
                           >
                             <div className="text-lg font-semibold text-purple-600">{completenessData.components.dependencies}</div>
-                            <div className="text-xs text-gray-600">Dependencies</div>
+                            <div className="text-[10px] sm:text-xs text-gray-600 leading-tight">Dependencies</div>
                           </div>
                           <div 
-                            className="text-center p-4 bg-gray-50 rounded cursor-pointer hover:bg-green-50 transition-colors flex-1"
+                            className="text-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-green-50 transition-colors flex flex-col items-center justify-center"
                             onClick={() => handleNavigateToComponent('Adopters', program.id)}
                           >
                             <div className="text-lg font-semibold text-green-600">{completenessData.components.adopters}</div>
-                            <div className="text-xs text-gray-600">Teams</div>
+                            <div className="text-[10px] sm:text-xs text-gray-600 leading-tight">Teams</div>
                           </div>
                         </div>
 
