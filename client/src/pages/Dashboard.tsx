@@ -8,8 +8,12 @@ import { MissingComponentsModal } from "@/components/modals/MissingComponentsMod
 import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   ChartGantt, 
   AlertTriangle, 
@@ -35,6 +39,12 @@ export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
+  const [showNewProgramModal, setShowNewProgramModal] = useState(false);
+  const [newProgramForm, setNewProgramForm] = useState({
+    name: "",
+    description: "",
+    status: "planning" as const
+  });
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -106,8 +116,44 @@ export default function Dashboard() {
     }
   });
 
+  const createProgramMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("/api/programs", "POST", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Program created successfully",
+      });
+      setShowNewProgramModal(false);
+      setNewProgramForm({ name: "", description: "", status: "planning" });
+      // Refresh programs list
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create program",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleNewProgram = () => {
-    console.log("Create new program");
+    setShowNewProgramModal(true);
+  };
+
+  const handleCreateProgram = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProgramForm.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Program name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createProgramMutation.mutate(newProgramForm);
   };
 
   const handleCheckRisks = (programId: string) => {
@@ -349,11 +395,11 @@ export default function Dashboard() {
               <Button 
                 size="sm" 
                 variant="outline" 
-                onClick={() => setLocation("/programs-view")}
+                onClick={() => setLocation("/dashboard")}
                 className="text-primary-600"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                View All Programs
+                Refresh Dashboard
               </Button>
               <Button 
                 size="sm" 
@@ -536,14 +582,9 @@ export default function Dashboard() {
                         </div>
                       ))}
                       {completedPrograms.length > 3 && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setLocation("/programs")}
-                          className="w-full text-primary-600"
-                        >
-                          View All Completed ({completedPrograms.length - 3} more)
-                        </Button>
+                        <p className="text-xs text-gray-500 text-center py-2">
+                          {completedPrograms.length - 3} more completed programs
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -567,14 +608,9 @@ export default function Dashboard() {
                         </div>
                       ))}
                       {onHoldPrograms.length > 3 && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setLocation("/programs")}
-                          className="w-full text-primary-600"
-                        >
-                          View All On Hold ({onHoldPrograms.length - 3} more)
-                        </Button>
+                        <p className="text-xs text-gray-500 text-center py-2">
+                          {onHoldPrograms.length - 3} more on hold programs
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -589,15 +625,9 @@ export default function Dashboard() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Program Phase Management</h2>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => setLocation("/program-planning")}
-                className="text-primary-600"
-              >
-                View All Phase Details
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              <p className="text-sm text-gray-600">
+                PMI-based program phases and next steps
+              </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -616,7 +646,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-2">
                             <button 
                               className="text-sm font-medium text-gray-900 hover:text-primary-600 transition-colors text-left truncate flex-1 mr-2"
-                              onClick={() => setLocation(`/programs?programId=${program.id}`)}
+                              onClick={() => setLocation(`/programs/${program.id}`)}
                             >
                               {program.name}
                             </button>
@@ -790,9 +820,47 @@ export default function Dashboard() {
           onClose={() => setShowMissingComponentsModal(false)}
           program={selectedProgram}
           analysis={analysisData}
-          onNavigate={handleNavigateToComponent}
         />
       )}
+
+      {/* New Program Modal */}
+      <Dialog open={showNewProgramModal} onOpenChange={setShowNewProgramModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Program</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateProgram} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Program Name</Label>
+              <Input
+                id="name"
+                value={newProgramForm.name}
+                onChange={(e) => setNewProgramForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter program name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={newProgramForm.description}
+                onChange={(e) => setNewProgramForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter program description"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setShowNewProgramModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createProgramMutation.isPending}>
+                {createProgramMutation.isPending ? "Creating..." : "Create Program"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

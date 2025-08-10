@@ -11,9 +11,12 @@ import {
   BarChart3,
   Settings,
   Activity,
-  Brain
+  Brain,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 const navigationItems = [
   { path: "/", icon: Brain, label: "AI Assistant" },
@@ -29,6 +32,7 @@ const navigationItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const { mode, toggleMode, isTestMode } = useMode();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const { data: integrations } = useQuery({
     queryKey: ["/api/integrations"],
@@ -62,53 +66,69 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-white shadow-lg flex flex-col h-full">
+    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg flex flex-col h-full transition-all duration-300 relative`}>
+      {/* Collapse Toggle Button */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-shadow"
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-3 w-3 text-gray-600" />
+        ) : (
+          <ChevronLeft className="h-3 w-3 text-gray-600" />
+        )}
+      </button>
+
       {/* Logo and Mode Toggle */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
+      <div className={`${isCollapsed ? 'p-3' : 'p-6'} border-b border-gray-200`}>
+        <div className={`flex items-center gap-3 mb-4 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
             <ChartGantt className="text-white text-lg" size={20} />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">TPM Platform</h1>
-            <p className="text-sm text-gray-500">Program Management</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">TPM Platform</h1>
+              <p className="text-sm text-gray-500">Program Management</p>
+            </div>
+          )}
         </div>
         
         {/* Mode Toggle */}
-        <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
-          <span className="text-sm font-medium text-gray-700">Mode:</span>
-          <div className="flex bg-white rounded-md p-1">
-            <Button
-              variant={isTestMode ? "default" : "ghost"}
-              size="sm"
-              onClick={() => !isTestMode && toggleMode()}
-              className={`px-3 py-1 text-sm font-medium ${
-                isTestMode 
-                  ? "bg-primary-500 text-white" 
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Test
-            </Button>
-            <Button
-              variant={!isTestMode ? "default" : "ghost"}
-              size="sm"
-              onClick={() => isTestMode && toggleMode()}
-              className={`px-3 py-1 text-sm font-medium ${
-                !isTestMode 
-                  ? "bg-primary-500 text-white" 
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Live
-            </Button>
+        {!isCollapsed && (
+          <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
+            <span className="text-sm font-medium text-gray-700">Mode:</span>
+            <div className="flex bg-white rounded-md p-1">
+              <Button
+                variant={isTestMode ? "default" : "ghost"}
+                size="sm"
+                onClick={() => !isTestMode && toggleMode()}
+                className={`px-3 py-1 text-sm font-medium ${
+                  isTestMode 
+                    ? "bg-primary-500 text-white" 
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Test
+              </Button>
+              <Button
+                variant={!isTestMode ? "default" : "ghost"}
+                size="sm"
+                onClick={() => isTestMode && toggleMode()}
+                className={`px-3 py-1 text-sm font-medium ${
+                  !isTestMode 
+                    ? "bg-primary-500 text-white" 
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Live
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4">
+      <nav className={`flex-1 ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <ul className="space-y-2">
           {navigationItems.map((item) => {
             const isActive = location === item.path;
@@ -116,14 +136,17 @@ export function Sidebar() {
               <li key={item.path}>
                 <Link
                   href={item.path}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2'} rounded-lg transition-colors ${
                     isActive
                       ? "bg-primary-50 text-primary-600"
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <item.icon size={20} />
-                  <span className={isActive ? "font-medium" : ""}>{item.label}</span>
+                  {!isCollapsed && (
+                    <span className={isActive ? "font-medium" : ""}>{item.label}</span>
+                  )}
                 </Link>
               </li>
             );
@@ -131,20 +154,22 @@ export function Sidebar() {
         </ul>
 
         {/* Integration Status */}
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Integration Status</h3>
-          <div className="space-y-2">
-            {["jira", "smartsheet", "confluence", "slack", "teams"].map((integration) => (
-              <div key={integration} className="flex items-center justify-between">
-                <span className="text-xs text-gray-600 capitalize">{integration}</span>
-                <span 
-                  className={`w-2 h-2 rounded-full ${getStatusColor(getIntegrationStatus(integration))}`}
-                  title={getIntegrationStatus(integration)}
-                />
-              </div>
-            ))}
+        {!isCollapsed && (
+          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Integration Status</h3>
+            <div className="space-y-2">
+              {["jira", "smartsheet", "confluence", "slack", "teams"].map((integration) => (
+                <div key={integration} className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600 capitalize">{integration}</span>
+                  <span 
+                    className={`w-2 h-2 rounded-full ${getStatusColor(getIntegrationStatus(integration))}`}
+                    title={getIntegrationStatus(integration)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </nav>
 
       {/* User Profile */}
