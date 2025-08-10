@@ -289,6 +289,42 @@ export default function Dashboard() {
     }
   };
 
+  // Helper function to determine current PMP phase and next steps
+  const getProgramPhase = (program: Program) => {
+    switch (program.status?.toLowerCase()) {
+      case 'planning': return { 
+        name: 'Planning', 
+        icon: <FileText size={16} />, 
+        color: 'text-blue-600',
+        nextStep: 'Complete scope definition and work breakdown structure'
+      };
+      case 'active': return { 
+        name: 'Executing', 
+        icon: <Play size={16} />, 
+        color: 'text-green-600',
+        nextStep: 'Monitor team performance and deliverable quality'
+      };
+      case 'completed': return { 
+        name: 'Closed', 
+        icon: <CheckCircle size={16} />, 
+        color: 'text-gray-600',
+        nextStep: 'Archive project documents and capture lessons learned'
+      };
+      case 'on_hold': return { 
+        name: 'On Hold', 
+        icon: <Clock size={16} />, 
+        color: 'text-yellow-600',
+        nextStep: 'Review hold reasons and develop resumption plan'
+      };
+      default: return { 
+        name: 'Initiation', 
+        icon: <Target size={16} />, 
+        color: 'text-purple-600',
+        nextStep: 'Develop project charter and identify stakeholders'
+      };
+    }
+  };
+
   // Calculate overall metrics for AI Insights section
   const overallMetrics = {
     totalPrograms: programs.length,
@@ -506,6 +542,12 @@ export default function Dashboard() {
                           <Badge className={healthBadge.color}>
                             {healthBadge.label} ({healthScore}%)
                           </Badge>
+                          <div className="mt-2">
+                            <div className="text-xs text-gray-500 mb-1">Current Phase</div>
+                            <div className={`text-xs font-medium ${getProgramPhase(program).color}`}>
+                              {getProgramPhase(program).name}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -557,6 +599,19 @@ export default function Dashboard() {
                             <div className="text-xs text-red-600 font-medium">{blockedDependencies.length} blocked</div>
                           )}
                         </button>
+                      </div>
+
+                      {/* PMI Phase Next Steps */}
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          {getProgramPhase(program).icon}
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800 mb-1">Next PMI Step</h4>
+                            <p className="text-xs text-blue-700">
+                              {getProgramPhase(program).nextStep}
+                            </p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Missing Components Alert */}
