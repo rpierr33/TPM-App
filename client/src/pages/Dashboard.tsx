@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ChartGantt, 
   AlertTriangle, 
@@ -45,7 +46,9 @@ export default function Dashboard() {
   const [newProgramForm, setNewProgramForm] = useState({
     name: "",
     description: "",
-    status: "planning" as const
+    status: "planning" as const,
+    platform: "",
+    initiative: ""
   });
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -368,7 +371,7 @@ export default function Dashboard() {
         description: "Program created successfully",
       });
       setShowNewProgramModal(false);
-      setNewProgramForm({ name: "", description: "", status: "planning" });
+      setNewProgramForm({ name: "", description: "", status: "planning", platform: "", initiative: "" });
       // Refresh programs list
       queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
     },
@@ -1090,6 +1093,39 @@ export default function Dashboard() {
                 placeholder="Enter program description"
                 rows={3}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="platform">Platform</Label>
+                <Select value={newProgramForm.platform} onValueChange={(value) => setNewProgramForm(prev => ({ ...prev, platform: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Platforms</SelectItem>
+                    <SelectItem value="Platform A">Platform A</SelectItem>
+                    <SelectItem value="Platform B">Platform B</SelectItem>
+                    <SelectItem value="Platform C">Platform C</SelectItem>
+                    <SelectItem value="Platform D">Platform D</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="initiative">Initiative</Label>
+                <Select value={newProgramForm.initiative} onValueChange={(value) => setNewProgramForm(prev => ({ ...prev, initiative: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select initiative" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Initiatives</SelectItem>
+                    <SelectItem value="Digital Transformation">Digital Transformation</SelectItem>
+                    <SelectItem value="Cloud Migration">Cloud Migration</SelectItem>
+                    <SelectItem value="Customer Experience">Customer Experience</SelectItem>
+                    <SelectItem value="AI/ML Integration">AI/ML Integration</SelectItem>
+                    <SelectItem value="Security Enhancement">Security Enhancement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setShowNewProgramModal(false)}>
