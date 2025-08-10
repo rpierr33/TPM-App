@@ -1,10 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MissingComponentsModal } from "@/components/modals/MissingComponentsModal";
+import { Progress } from "@/components/ui/progress";
+import { useState } from "react";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ChartGantt, 
   AlertTriangle, 
@@ -19,12 +24,19 @@ import {
   Target,
   FileText,
   Play,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  Pause,
+  ExternalLink
 } from "lucide-react";
-import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
+import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory } from "@shared/schema";
 
 export default function Dashboard() {
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
@@ -46,12 +58,103 @@ export default function Dashboard() {
     queryKey: ["/api/dependencies"],
   });
 
+  const { data: jiraEpics = [] } = useQuery<JiraEpic[]>({
+    queryKey: ["/api/jira-epics"],
+  });
+
+  const { data: jiraBepics = [] } = useQuery<JiraBepic[]>({
+    queryKey: ["/api/jira-bepics"],
+  });
+
+  const { data: jiraStories = [] } = useQuery<JiraStory[]>({
+    queryKey: ["/api/jira-stories"],
+  });
+
+  const { data: milestoneSteps = [] } = useQuery<any[]>({
+    queryKey: ["/api/milestone-steps"],
+  });
+
   const activePendingPrograms = programs.filter(p => p.status === 'active' || p.status === 'planning');
   const completedPrograms = programs.filter(p => p.status === 'completed');
   const onHoldPrograms = programs.filter(p => p.status === 'on_hold');
 
+  const analyzeProgramMutation = useMutation({
+    mutationFn: async (programId: string) => {
+      return await apiRequest("/api/analyze-program", "POST", { programId });
+    },
+    onSuccess: (data: any, programId: string) => {
+      const program = programs.find(p => p.id === programId);
+      const analysis = data.analysis?.[0];
+      if (analysis && program) {
+        setSelectedProgram(program);
+        setAnalysisData(analysis);
+        setShowMissingComponentsModal(true);
+        
+        toast({
+          title: `${program.name} Analysis Complete`,
+          description: `Found ${analysis.riskAlerts?.length || 0} missing components. Opening detailed view...`,
+          variant: analysis.riskAlerts?.length > 0 ? "destructive" : "default",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Analysis Failed",
+        description: "Unable to analyze program at this time",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleNewProgram = () => {
-    setLocation("/programs");
+    console.log("Create new program");
+  };
+
+  const handleCheckRisks = (programId: string) => {
+    analyzeProgramMutation.mutate(programId);
+  };
+
+  const handleNavigateToComponent = (component: string, programId: string) => {
+    switch (component) {
+      case 'Milestones':
+        toast({
+          title: "No Milestones Found",
+          description: "This program has no milestones. Navigate to Milestones page to add some.",
+          variant: "default",
+        });
+        setLocation('/milestones');
+        break;
+      case 'Risks':
+        toast({
+          title: "No Additional Risks Found", 
+          description: "Navigate to Risk Management to add more risks for this program.",
+          variant: "default",
+        });
+        setLocation('/risk-management');
+        break;
+      case 'Dependencies':
+        toast({
+          title: "No Dependencies Found",
+          description: "This program has no dependencies. Navigate to Dependencies page to add some.",
+          variant: "default",
+        });
+        setLocation('/dependencies');
+        break;
+      case 'Adopters':
+        toast({
+          title: "No Adopter Teams Found",
+          description: "This program has no adopter teams. Navigate to Adopter Support to add some.",
+          variant: "default",
+        });
+        setLocation('/adopter-support');
+        break;
+      default:
+        toast({
+          title: `Missing ${component}`,
+          description: `This program is missing ${component}. This component needs to be added for completeness.`,
+          variant: "default",
+        });
+    }
   };
 
   const getProgramRisks = (programId: string) => {
@@ -68,6 +171,54 @@ export default function Dashboard() {
 
   const getProgramDependencies = (programId: string) => {
     return dependencies.filter(d => d.programId === programId);
+  };
+
+  // Helper function to calculate program completeness
+  const getProgramCompleteness = (programId: string) => {
+    const programRisks = risks.filter(r => r.programId === programId);
+    const programMilestones = milestones.filter(m => m.programId === programId);
+    const programDependencies = dependencies.filter(d => d.programId === programId);
+    const programAdopters = adopters.filter(a => a.programId === programId);
+    
+    const programMilestoneIds = programMilestones.map(m => m.id);
+    const programStepIds = milestoneSteps.filter(s => 
+      programMilestoneIds.includes(s.milestoneId || "")
+    ).map(s => s.id);
+    
+    const programBepics = jiraBepics.filter(b => programStepIds.includes(b.stepId || ""));
+    const programBepicIds = programBepics.map(b => b.id);
+    const programEpics = jiraEpics.filter(e => programBepicIds.includes(e.bepicId || ""));
+    const programEpicIds = programEpics.map(e => e.id);
+    const programStories = jiraStories.filter(s => programEpicIds.includes(s.epicId || ""));
+    
+    const program = programs.find(p => p.id === programId);
+    
+    const requiredComponents = [
+      { name: 'Description', exists: !!program?.description },
+      { name: 'Start Date', exists: !!program?.startDate },
+      { name: 'End Date', exists: !!program?.endDate },
+      { name: 'Milestones', exists: programMilestones.length > 0 },
+      { name: 'Risks', exists: programRisks.length > 0 },
+      { name: 'Dependencies', exists: programDependencies.length > 0 },
+      { name: 'Adopters', exists: programAdopters.length > 0 },
+      { name: 'Business Epics', exists: programBepics.length > 0 },
+      { name: 'Epics', exists: programEpics.length > 0 },
+      { name: 'Stories', exists: programStories.length > 0 }
+    ];
+    
+    const completed = requiredComponents.filter(c => c.exists).length;
+    const total = requiredComponents.length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    const missing = requiredComponents.filter(c => !c.exists);
+    
+    return {
+      percentage,
+      completed,
+      total,
+      missing,
+      requiredComponents
+    };
   };
 
   const getStatusColor = (status: string) => {
@@ -190,17 +341,30 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Active/Pending Programs - Main Focus */}
+        {/* All Programs Management Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Active & Planning Programs</h2>
-            <Button 
-              variant="outline" 
-              onClick={() => setLocation("/programs")}
-              className="text-primary-600 border-primary-200 hover:bg-primary-50"
-            >
-              View All Programs <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <h2 className="text-xl font-semibold text-gray-900">Program Management</h2>
+            <div className="flex items-center gap-3">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setLocation("/programs-view")}
+                className="text-primary-600"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View All Programs
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleNewProgram}
+                className="bg-primary-600 text-white border-primary-600 hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Program
+              </Button>
+            </div>
           </div>
 
           {programsLoading ? (
@@ -335,7 +499,7 @@ export default function Dashboard() {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          onClick={() => setLocation(`/program/${program.id}`)}
+                          onClick={() => setLocation(`/programs/${program.id}`)}
                           className="text-primary-600 hover:text-primary-700"
                         >
                           <Eye className="h-3 w-3 mr-1" />
@@ -456,7 +620,7 @@ export default function Dashboard() {
                             >
                               {program.name}
                             </button>
-                            <Badge className={getStatusColor(program.status || 'active')} size="sm">
+                            <Badge className={getStatusColor(program.status || 'active')}>
                               {program.status}
                             </Badge>
                           </div>
@@ -467,22 +631,22 @@ export default function Dashboard() {
                           
                           <div className="text-xs text-gray-500">
                             <strong>Completed:</strong> {phase.completedPhases.length > 0 ? 
-                              phase.completedPhases.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(", ") : 
+                              phase.completedPhases.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(", ") : 
                               "None"
                             }
                           </div>
                           
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                             <Button 
-                              size="xs" 
+                              size="sm" 
                               variant="ghost" 
-                              onClick={() => setLocation(`/programs?programId=${program.id}`)}
+                              onClick={() => setLocation(`/programs/${program.id}`)}
                               className="text-primary-600 hover:text-primary-700 p-0 h-auto"
                             >
                               View Program
                             </Button>
                             <Button 
-                              size="xs" 
+                              size="sm" 
                               variant="outline" 
                               onClick={() => setLocation("/program-planning")}
                               className="text-xs px-2 py-1"
@@ -618,6 +782,17 @@ export default function Dashboard() {
           </Button>
         </div>
       </main>
+
+      {/* Missing Components Modal */}
+      {showMissingComponentsModal && selectedProgram && analysisData && (
+        <MissingComponentsModal
+          open={showMissingComponentsModal}
+          onClose={() => setShowMissingComponentsModal(false)}
+          program={selectedProgram}
+          analysis={analysisData}
+          onNavigate={handleNavigateToComponent}
+        />
+      )}
     </div>
   );
 }

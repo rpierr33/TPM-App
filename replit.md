@@ -6,6 +6,13 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+- Consolidated Programs component functionality into Dashboard component
+- Eliminated redundant Programs page - all program management now happens through Dashboard
+- Added comprehensive program management section with scrollable container for large program lists
+- Created "View All Programs" link for when programs exceed dashboard display capacity
+- Updated navigation to remove separate Programs menu item - all program access through Dashboard
+
 ## System Architecture
 
 ### AI-First Design Philosophy

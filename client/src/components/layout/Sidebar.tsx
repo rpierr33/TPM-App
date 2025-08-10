@@ -18,7 +18,6 @@ import { useQuery } from "@tanstack/react-query";
 const navigationItems = [
   { path: "/", icon: Brain, label: "AI Assistant" },
   { path: "/dashboard", icon: Activity, label: "Dashboard" },
-  { path: "/programs", icon: ClipboardList, label: "Programs" },
   { path: "/milestones", icon: Flag, label: "Milestones" },
   { path: "/risk-management", icon: AlertTriangle, label: "Risk Management" },
   { path: "/dependencies", icon: ChartGantt, label: "Dependencies" },
