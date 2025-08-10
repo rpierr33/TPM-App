@@ -304,6 +304,9 @@ export default function RiskManagement() {
                             Risk
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Program
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Severity
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -324,21 +327,33 @@ export default function RiskManagement() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredRisks.map((risk: any) => (
-                          <tr key={risk.id}>
-                            <td className="px-6 py-4">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{risk.title}</div>
-                                <div className="text-sm text-gray-500 max-w-xs truncate">
-                                  {risk.description}
+                        {filteredRisks.map((risk: any) => {
+                          const program = programs.find(p => p.id === risk.programId);
+                          return (
+                            <tr key={risk.id}>
+                              <td className="px-6 py-4">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{risk.title}</div>
+                                  <div className="text-sm text-gray-500 max-w-xs truncate">
+                                    {risk.description}
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Badge className={`${getSeverityColor(risk.severity)} font-semibold capitalize`}>
-                                {risk.severity || "medium"}
-                              </Badge>
-                            </td>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <button 
+                                  className="text-primary-600 hover:text-primary-700 hover:underline font-medium"
+                                  onClick={() => setLocation(`/program-planning?id=${program?.id}`)}
+                                >
+                                  <Badge variant="outline" className="text-xs">
+                                    {program?.name || "N/A"}
+                                  </Badge>
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Badge className={`${getSeverityColor(risk.severity)} font-semibold capitalize`}>
+                                  {risk.severity || "medium"}
+                                </Badge>
+                              </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {risk.impact || 3} / {risk.probability || 3}
                             </td>
@@ -372,7 +387,8 @@ export default function RiskManagement() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

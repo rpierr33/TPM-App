@@ -146,6 +146,17 @@ The application is designed to be highly modular and extensible, with clear sepa
 
 ## Recent Changes
 
+### August 10, 2025
+- ✅ **Enhanced Program-Centric Navigation**: Made all program names clickable across ALL component pages
+  - Program names in empty state messages now navigate directly to program details
+  - Applied to Milestones, Risk Management, Dependencies, and Adopter Support pages
+  - Added hover effects and consistent styling for better user experience
+- ✅ **Risk Management Program Linkage**: Fixed critical isolation issue in Risk Management page
+  - Added dedicated "Program" column to risks table showing clear program association
+  - Each risk now displays its linked program/project in clickable badge format
+  - Consistent with Dependencies page structure for program relationship visibility
+  - Addresses JIRA epic/bepic integration requirements with proper program linking
+
 ### January 30, 2025
 - ✅ **Complete Program-Centric Dashboard**: Rebuilt dashboard to focus on programs/projects as primary entities
   - Dashboard now centers on active/pending programs as main content
