@@ -65,6 +65,10 @@ export default function Programs() {
     queryKey: ["/api/jira-stories"],
   });
 
+  const { data: milestoneSteps = [] } = useQuery<any[]>({
+    queryKey: ["/api/milestone-steps"],
+  });
+
   const analyzeProgramMutation = useMutation({
     mutationFn: async (programId: string) => {
       return await apiRequest("/api/analyze-program", "POST", { programId });
@@ -115,21 +119,40 @@ export default function Programs() {
     const programDependencies = dependencies.filter(d => d.programId === programId);
     const programAdopters = adopters.filter(a => a.programId === programId);
     
+    // JIRA items are connected through: Programs → Milestones → Steps → Bepics → Epics → Stories  
+    // Get all milestone step IDs for this program's milestones
+    const programMilestoneIds = programMilestones.map(m => m.id);
+    const programStepIds = milestoneSteps.filter(s => 
+      programMilestoneIds.includes(s.milestoneId || "")
+    ).map(s => s.id);
+    
+    // Filter JIRA items connected to this program through the hierarchy
+    const programBepics = jiraBepics.filter(b => programStepIds.includes(b.stepId || ""));
+    const programBepicIds = programBepics.map(b => b.id);
+    const programEpics = jiraEpics.filter(e => programBepicIds.includes(e.bepicId || ""));
+    const programEpicIds = programEpics.map(e => e.id);
+    const programStories = jiraStories.filter(s => programEpicIds.includes(s.epicId || ""));
+    
     const program = programs.find(p => p.id === programId);
     
     const missing = [];
+    
+    // Check all required components
     if (programMilestones.length === 0) missing.push("Milestones");
     if (programRisks.length === 0) missing.push("Risks");
     if (programDependencies.length === 0) missing.push("Dependencies");
     if (programAdopters.length === 0) missing.push("Adopters");
-    if (jiraEpics.length === 0) missing.push("Epics");
-    if (jiraBepics.length === 0) missing.push("Business Epics");
-    if (jiraStories.length === 0) missing.push("Stories");
+    if (programEpics.length === 0) missing.push("Epics");
+    if (programBepics.length === 0) missing.push("Business Epics");
+    if (programStories.length === 0) missing.push("Stories");
     if (!program?.startDate) missing.push("Start Date");
     if (!program?.endDate) missing.push("End Date");
     if (!program?.description || program?.description.trim() === "") missing.push("Description");
 
-    const completeness = Math.round(((10 - missing.length) / 10) * 100);
+    // More realistic completeness calculation - if everything is missing, it should be very low
+    const totalRequiredComponents = 10;
+    const completedComponents = totalRequiredComponents - missing.length;
+    const completeness = Math.round((completedComponents / totalRequiredComponents) * 100);
     
     return {
       completeness,
@@ -139,9 +162,9 @@ export default function Programs() {
         milestones: programMilestones.length,
         dependencies: programDependencies.length,
         adopters: programAdopters.length,
-        epics: jiraEpics.length,
-        bepics: jiraBepics.length,
-        stories: jiraStories.length
+        epics: programEpics.length,
+        bepics: programBepics.length,
+        stories: programStories.length
       }
     };
   };
