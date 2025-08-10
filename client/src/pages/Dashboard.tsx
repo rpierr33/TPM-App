@@ -378,9 +378,7 @@ export default function Dashboard() {
               changeType="neutral"
               icon={ChartGantt}
               iconColor="bg-green-100"
-              onClick={() => {
-                document.getElementById('active-programs')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+              navigateTo="/programs?filter=active"
             />
             <MetricsCard
               title="Programs on Hold"
@@ -389,9 +387,7 @@ export default function Dashboard() {
               changeType="neutral"
               icon={AlertTriangle}
               iconColor="bg-yellow-100"
-              onClick={() => {
-                document.getElementById('active-programs')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+              navigateTo="/programs?filter=on_hold"
             />
             <MetricsCard
               title="All Risks"
@@ -413,7 +409,7 @@ export default function Dashboard() {
             />
             <Button 
               variant="outline" 
-              onClick={() => setLocation("/dashboard")}
+              onClick={() => setLocation("/programs")}
               className="h-24 flex flex-col items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
             >
               <Eye className="h-5 w-5" />
