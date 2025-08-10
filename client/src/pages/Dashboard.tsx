@@ -378,7 +378,9 @@ export default function Dashboard() {
               changeType="neutral"
               icon={ChartGantt}
               iconColor="bg-green-100"
-              navigateTo="/dashboard"
+              onClick={() => {
+                document.getElementById('active-programs')?.scrollIntoView({ behavior: 'smooth' });
+              }}
             />
             <MetricsCard
               title="Programs on Hold"
@@ -387,7 +389,9 @@ export default function Dashboard() {
               changeType="neutral"
               icon={AlertTriangle}
               iconColor="bg-yellow-100"
-              navigateTo="/dashboard"
+              onClick={() => {
+                document.getElementById('active-programs')?.scrollIntoView({ behavior: 'smooth' });
+              }}
             />
             <MetricsCard
               title="All Risks"
@@ -426,7 +430,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recently Visited Programs Section */}
-        <div className="mb-8">
+        <div className="mb-8" id="active-programs">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Recently Visited Programs</h2>
