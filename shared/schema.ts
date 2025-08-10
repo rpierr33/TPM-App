@@ -619,6 +619,8 @@ export const stakeholders = pgTable("stakeholders", {
   email: varchar("email"),
   role: varchar("role"),
   department: varchar("department"),
+  programId: varchar("program_id").references(() => programs.id),
+  projectId: varchar("project_id").references(() => projects.id),
   leadershipStyle: varchar("leadership_style"), // Autocratic, Democratic, Laissez-faire, Transformational, etc.
   communicationStyle: varchar("communication_style"), // Direct, Analytical, Expressive, Amiable
   decisionMakingStyle: varchar("decision_making_style"), // Data-driven, Intuitive, Consensus-seeking, Quick

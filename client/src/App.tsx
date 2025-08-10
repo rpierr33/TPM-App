@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import Dashboard from "@/pages/Dashboard";
 import Programs from "@/pages/Programs";
 import AIAssistant from "@/pages/AIAssistant";
-// import ProgramDetails from "@/pages/ProgramDetails";
+import ProgramDetails from "@/pages/ProgramDetails";
 import Milestones from "@/pages/Milestones";
 import RiskManagement from "@/pages/RiskManagement";
 import Dependencies from "@/pages/Dependencies";
@@ -25,7 +25,9 @@ function Router() {
           <Route path="/" component={AIAssistant} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/programs" component={Programs} />
-          {/* <Route path="/program/:id" component={ProgramDetails} /> */}
+          <Route path="/program/:id">
+            {(params) => <ProgramDetails programId={params.id} />}
+          </Route>
           <Route path="/milestones" component={Milestones} />
           <Route path="/risk-management" component={RiskManagement} />
           <Route path="/dependencies" component={Dependencies} />
