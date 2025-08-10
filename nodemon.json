@@ -1,0 +1,9 @@
+{
+  "watch": ["server", "shared", "client/src"],
+  "ext": "ts,tsx,js,jsx",
+  "ignore": ["node_modules", "dist", ".git"],
+  "exec": "NODE_ENV=development tsx server/index.ts",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
