@@ -430,7 +430,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Recently Visited Programs</h2>
-              <p className="text-sm text-gray-600">Your most recently created and updated programs</p>
+              <p className="text-sm text-gray-600">Recently updated programs</p>
             </div>
           </div>
 
