@@ -34,6 +34,7 @@ import {
   Pause,
   ExternalLink
 } from "lucide-react";
+import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
 import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory } from "@shared/schema";
 
 export default function Dashboard() {
@@ -738,27 +739,16 @@ export default function Dashboard() {
                 };
 
                 const missingComponents = getMissingComponents();
-                const totalMissingRisks = missingComponents.length;
 
-                // Calculate program health score (including missing components)
-                const getHealthScore = () => {
-                  let score = 100;
-                  score -= criticalRisks.length * 15;
-                  score -= overdueMilestones.length * 10;
-                  score -= blockedDependencies.length * 5;
-                  score -= totalMissingRisks * 8; // Missing components are significant risks
-                  return Math.max(0, score);
-                };
+                // Calculate program health using centralized utility
+                const healthMetrics = calculateProgramHealth({
+                  risks: programRisks,
+                  milestones: programMilestones,
+                  dependencies: programDependencies,
+                  missingComponents: missingComponents.length
+                });
 
-                const getHealthBadge = (score: number) => {
-                  if (score >= 80) return { label: "Excellent", color: "bg-green-100 text-green-800" };
-                  if (score >= 60) return { label: "Good", color: "bg-blue-100 text-blue-800" };
-                  if (score >= 40) return { label: "Fair", color: "bg-yellow-100 text-yellow-800" };
-                  return { label: "At Risk", color: "bg-red-100 text-red-800" };
-                };
-
-                const healthScore = getHealthScore();
-                const healthBadge = getHealthBadge(healthScore);
+                const healthBadge = getHealthBadge(healthMetrics.score);
 
                 return (
                   <Card key={program.id} className="border border-gray-200 hover:border-primary-300 transition-colors">
@@ -786,7 +776,7 @@ export default function Dashboard() {
                         <div className="text-right">
                           <div className="text-xs text-gray-500 mb-1">Program Health</div>
                           <Badge className={healthBadge.color}>
-                            {healthBadge.label} ({healthScore}%)
+                            {healthBadge.label} ({healthMetrics.score}%)
                           </Badge>
                           <div className="mt-2">
                             <div className="text-xs text-gray-500 mb-1">Current Phase</div>

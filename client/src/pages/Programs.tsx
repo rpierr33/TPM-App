@@ -17,6 +17,7 @@ import {
   Filter,
   Plus
 } from "lucide-react";
+import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
 import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
 
 export default function Programs() {
@@ -237,27 +238,16 @@ export default function Programs() {
               };
 
               const missingComponents = getMissingComponents();
-              const totalMissingRisks = missingComponents.length;
 
-              // Calculate program health score (including missing components)
-              const getHealthScore = () => {
-                let score = 100;
-                score -= criticalRisks.length * 15;
-                score -= overdueMilestones.length * 10;
-                score -= blockedDependencies.length * 5;
-                score -= totalMissingRisks * 8; // Missing components are significant risks
-                return Math.max(0, score);
-              };
+              // Calculate program health using centralized utility
+              const healthMetrics = calculateProgramHealth({
+                risks: programRisks,
+                milestones: programMilestones,
+                dependencies: programDependencies,
+                missingComponents: missingComponents.length
+              });
 
-              const getHealthBadge = (score: number) => {
-                if (score >= 80) return { label: "Excellent", color: "bg-green-100 text-green-800" };
-                if (score >= 60) return { label: "Good", color: "bg-blue-100 text-blue-800" };
-                if (score >= 40) return { label: "Fair", color: "bg-yellow-100 text-yellow-800" };
-                return { label: "At Risk", color: "bg-red-100 text-red-800" };
-              };
-
-              const healthScore = getHealthScore();
-              const healthBadge = getHealthBadge(healthScore);
+              const healthBadge = getHealthBadge(healthMetrics.score);
 
               return (
                 <Card key={program.id} className="border border-gray-200 hover:border-primary-300 transition-colors">

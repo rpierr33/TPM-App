@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { calculateProgramHealth, getHealthBadge, getHealthProgressColor } from "@/lib/healthCalculation";
 import {
   ArrowLeft,
   Users,
@@ -75,40 +76,26 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const programDependencies = dependencies.filter(d => d.programId === programId);
   const programAdopters = adopters.filter(a => a.programId === programId);
 
-  // Calculate program health and status
-  const getProgramHealth = () => {
-    const totalComponents = programRisks.length + programMilestones.length + programDependencies.length + programStakeholders.length;
-    
-    // Risk analysis
-    const highRisks = programRisks.filter(r => r.severity === 'high' || r.severity === 'critical').length;
-    const overdueMilestones = programMilestones.filter(m => {
-      if (!m.dueDate) return false;
-      const dueDate = new Date(m.dueDate);
-      const today = new Date();
-      return dueDate < today && m.status !== 'completed';
-    }).length;
-    const blockedDependencies = programDependencies.filter(d => d.status === 'blocked').length;
-
-    let healthScore = 100;
-    healthScore -= highRisks * 15;
-    healthScore -= overdueMilestones * 20;
-    healthScore -= blockedDependencies * 10;
-    healthScore = Math.max(0, healthScore);
-
-    let status = 'Healthy';
-    let color = 'text-green-600';
-    if (healthScore < 50) {
-      status = 'Critical';
-      color = 'text-red-600';
-    } else if (healthScore < 70) {
-      status = 'At Risk';
-      color = 'text-yellow-600';
-    }
-
-    return { score: healthScore, status, color, totalComponents, highRisks, overdueMilestones, blockedDependencies };
+  // Calculate missing components for health scoring
+  const getMissingComponents = () => {
+    const missing = [];
+    if (!program.description || program.description.trim().length < 10) missing.push('Description');
+    if (!program.ownerId) missing.push('Owner');
+    if (!program.startDate) missing.push('Start Date');
+    if (!program.endDate) missing.push('End Date');
+    if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
+    if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
+    if (programMilestones.length === 0) missing.push('Milestones');
+    return missing;
   };
 
-  const health = getProgramHealth();
+  // Calculate program health using centralized utility
+  const healthMetrics = calculateProgramHealth({
+    risks: programRisks,
+    milestones: programMilestones,
+    dependencies: programDependencies,
+    missingComponents: getMissingComponents().length
+  });
 
   // Get upcoming items (next 30 days)
   const getUpcomingItems = () => {
@@ -132,10 +119,10 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
     const totalMilestones = programMilestones.length;
     const mitigatedRisks = programRisks.filter(r => r.status === 'mitigated' || r.status === 'resolved').length;
     
-    const summary = `The ${program.name} is currently in ${program.status} status with ${health.score}% health score. The program encompasses ${health.totalComponents} tracked components including ${programMilestones.length} milestones, ${programRisks.length} risks, ${programDependencies.length} dependencies, and ${programStakeholders.length} stakeholders. Progress indicates ${completedMilestones} of ${totalMilestones} milestones completed (${totalMilestones > 0 ? Math.round((completedMilestones/totalMilestones) * 100) : 0}%) with ${mitigatedRisks} risks successfully mitigated.
+    const summary = `The ${program.name} is currently in ${program.status} status with ${healthMetrics.score}% health score. The program encompasses ${programMilestones.length + programRisks.length + programDependencies.length + programStakeholders.length} tracked components including ${programMilestones.length} milestones, ${programRisks.length} risks, ${programDependencies.length} dependencies, and ${programStakeholders.length} stakeholders. Progress indicates ${completedMilestones} of ${totalMilestones} milestones completed (${totalMilestones > 0 ? Math.round((completedMilestones/totalMilestones) * 100) : 0}%) with ${mitigatedRisks} risks successfully mitigated.
 
-    ${health.status === 'Critical' ? 'Immediate attention required due to ' + health.highRisks + ' high-severity risks and ' + health.overdueMilestones + ' overdue milestones.' : 
-      health.status === 'At Risk' ? 'Program requires monitoring with ' + (health.highRisks + health.overdueMilestones) + ' items needing attention.' :
+    ${healthMetrics.status === 'At Risk' ? 'Immediate attention required due to ' + healthMetrics.breakdown.criticalRisks + ' high-severity risks and ' + healthMetrics.breakdown.overdueMilestones + ' overdue milestones.' : 
+      healthMetrics.score < 60 ? 'Program requires monitoring with ' + (healthMetrics.breakdown.criticalRisks + healthMetrics.breakdown.overdueMilestones) + ' items needing attention.' :
       'Program is performing well with no critical issues identified.'} Key focus areas include ${upcoming.upcomingMilestones.length > 0 ? upcoming.upcomingMilestones.length + ' upcoming milestones in the next 30 days' : 'maintaining current momentum'} and ${programDependencies.filter(d => d.status === 'at_risk').length > 0 ? 'resolving at-risk dependencies' : 'dependency management'}.`;
     
     return summary;
@@ -870,15 +857,15 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className={`text-4xl font-bold ${health.color}`}>{health.score}%</div>
-                      <div className={`text-lg font-medium ${health.color}`}>{health.status}</div>
+                      <div className={`text-4xl font-bold ${healthMetrics.color}`}>{healthMetrics.score}%</div>
+                      <div className={`text-lg font-medium ${healthMetrics.color}`}>{healthMetrics.status}</div>
                     </div>
-                    <Progress value={health.score} className="w-full" />
+                    <Progress value={healthMetrics.score} className="w-full" />
                     <div className="text-sm text-gray-600 space-y-1">
-                      <p>• {health.totalComponents} components tracked</p>
-                      <p>• {health.highRisks} high-severity risks</p>
-                      <p>• {health.overdueMilestones} overdue milestones</p>
-                      <p>• {health.blockedDependencies} blocked dependencies</p>
+                      <p>• {programMilestones.length + programRisks.length + programDependencies.length + programStakeholders.length} components tracked</p>
+                      <p>• {healthMetrics.breakdown.criticalRisks} high-severity risks</p>
+                      <p>• {healthMetrics.breakdown.overdueMilestones} overdue milestones</p>
+                      <p>• {healthMetrics.breakdown.blockedDependencies} blocked dependencies</p>
                     </div>
                   </div>
                 </CardContent>
@@ -997,7 +984,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             </Card>
 
             {/* Critical Alerts */}
-            {(health.highRisks > 0 || health.overdueMilestones > 0 || health.blockedDependencies > 0) && (
+            {(healthMetrics.breakdown.criticalRisks > 0 || healthMetrics.breakdown.overdueMilestones > 0 || healthMetrics.breakdown.blockedDependencies > 0) && (
               <Card className="border-red-200 bg-red-50">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-red-800">
@@ -1007,33 +994,33 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {health.highRisks > 0 && (
+                    {healthMetrics.breakdown.criticalRisks > 0 && (
                       <div className="flex items-center justify-between p-3 bg-white rounded border">
                         <div>
                           <h4 className="font-medium text-red-800">High-Severity Risks</h4>
-                          <p className="text-sm text-red-600">{health.highRisks} risks require immediate mitigation</p>
+                          <p className="text-sm text-red-600">{healthMetrics.breakdown.criticalRisks} risks require immediate mitigation</p>
                         </div>
                         <Button size="sm" variant="outline" className="border-red-300 text-red-700">
                           Review Risks
                         </Button>
                       </div>
                     )}
-                    {health.overdueMilestones > 0 && (
+                    {healthMetrics.breakdown.overdueMilestones > 0 && (
                       <div className="flex items-center justify-between p-3 bg-white rounded border">
                         <div>
                           <h4 className="font-medium text-red-800">Overdue Milestones</h4>
-                          <p className="text-sm text-red-600">{health.overdueMilestones} milestones past due date</p>
+                          <p className="text-sm text-red-600">{healthMetrics.breakdown.overdueMilestones} milestones past due date</p>
                         </div>
                         <Button size="sm" variant="outline" className="border-red-300 text-red-700">
                           Review Timeline
                         </Button>
                       </div>
                     )}
-                    {health.blockedDependencies > 0 && (
+                    {healthMetrics.breakdown.blockedDependencies > 0 && (
                       <div className="flex items-center justify-between p-3 bg-white rounded border">
                         <div>
                           <h4 className="font-medium text-red-800">Blocked Dependencies</h4>
-                          <p className="text-sm text-red-600">{health.blockedDependencies} dependencies blocking progress</p>
+                          <p className="text-sm text-red-600">{healthMetrics.breakdown.blockedDependencies} dependencies blocking progress</p>
                         </div>
                         <Button size="sm" variant="outline" className="border-red-300 text-red-700">
                           Resolve Blocks
@@ -1055,17 +1042,17 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {health.highRisks > 0 && (
+                  {healthMetrics.breakdown.criticalRisks > 0 && (
                     <div className="border-l-4 border-red-500 pl-4 py-2">
                       <h4 className="font-medium text-gray-900">1. Address High-Severity Risks</h4>
-                      <p className="text-sm text-gray-600">Conduct risk mitigation workshops for {health.highRisks} critical risks</p>
+                      <p className="text-sm text-gray-600">Conduct risk mitigation workshops for {healthMetrics.breakdown.criticalRisks} critical risks</p>
                       <span className="text-xs text-red-600 font-medium">Priority: Critical</span>
                     </div>
                   )}
-                  {health.overdueMilestones > 0 && (
+                  {healthMetrics.breakdown.overdueMilestones > 0 && (
                     <div className="border-l-4 border-yellow-500 pl-4 py-2">
                       <h4 className="font-medium text-gray-900">2. Reschedule Overdue Milestones</h4>
-                      <p className="text-sm text-gray-600">Review and update timeline for {health.overdueMilestones} overdue deliverables</p>
+                      <p className="text-sm text-gray-600">Review and update timeline for {healthMetrics.breakdown.overdueMilestones} overdue deliverables</p>
                       <span className="text-xs text-yellow-600 font-medium">Priority: High</span>
                     </div>
                   )}
