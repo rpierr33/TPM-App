@@ -4,6 +4,8 @@ import {
   programs,
   projects,
   initiatives,
+  initiativePrograms,
+  initiativeProjects,
   milestones,
   milestoneSteps,
   jiraBepics,
@@ -284,26 +286,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProgram(id: string): Promise<void> {
-    try {
-      // Simple approach: try to delete and handle constraint errors
-      await db.delete(programs).where(eq(programs.id, id));
-    } catch (error: any) {
-      // If foreign key constraint, try to clean up associated data first
-      if (error.code === '23503') {
-        try {
-          // Delete associated risks
-          await db.delete(risks).where(eq(risks.programId, id));
-          // Delete associated adopters  
-          await db.delete(adopters).where(eq(adopters.programId, id));
-          // Try deleting the program again
-          await db.delete(programs).where(eq(programs.id, id));
-        } catch (secondError) {
-          throw new Error(`Unable to delete program due to database constraints: ${secondError}`);
+    // Delete all related data in proper order to avoid foreign key constraints
+    
+    // Step 1: Delete deepest nested items first
+    const milestoneIds = (await db.select({ id: milestones.id }).from(milestones).where(eq(milestones.programId, id))).map(m => m.id);
+    
+    if (milestoneIds.length > 0) {
+      // Delete milestone steps and their related data
+      for (const milestoneId of milestoneIds) {
+        const stepIds = (await db.select({ id: milestoneSteps.id }).from(milestoneSteps).where(eq(milestoneSteps.milestoneId, milestoneId))).map(s => s.id);
+        
+        for (const stepId of stepIds) {
+          // Delete jira_bepics related to this step
+          await db.delete(jiraBepics).where(eq(jiraBepics.stepId, stepId));
         }
-      } else {
-        throw error;
+        
+        // Delete milestone steps
+        await db.delete(milestoneSteps).where(eq(milestoneSteps.milestoneId, milestoneId));
       }
+      
+      // Delete milestones
+      await db.delete(milestones).where(eq(milestones.programId, id));
     }
+    
+    // Step 2: Delete program-related data
+    await db.delete(risks).where(eq(risks.programId, id));
+    await db.delete(adopters).where(eq(adopters.programId, id));
+    await db.delete(escalations).where(eq(escalations.programId, id));
+    await db.delete(reports).where(eq(reports.programId, id));
+    await db.delete(stakeholders).where(eq(stakeholders.programId, id));
+    await db.delete(stakeholderInteractions).where(eq(stakeholderInteractions.programId, id));
+    await db.delete(pmpRecommendations).where(eq(pmpRecommendations.programId, id));
+    await db.delete(programPhases).where(eq(programPhases.programId, id));
+    await db.delete(initiativePrograms).where(eq(initiativePrograms.programId, id));
+    
+    // Step 3: Delete dependencies where this program is involved
+    await db.delete(dependencies).where(eq(dependencies.programId, id));
+    
+    // Step 4: Delete projects and their related data
+    const projectIds = (await db.select({ id: projects.id }).from(projects).where(eq(projects.programId, id))).map(p => p.id);
+    
+    if (projectIds.length > 0) {
+      for (const projectId of projectIds) {
+        // Delete project-related data
+        await db.delete(risks).where(eq(risks.projectId, projectId));
+        await db.delete(milestones).where(eq(milestones.projectId, projectId));
+        await db.delete(stakeholders).where(eq(stakeholders.projectId, projectId));
+        await db.delete(stakeholderInteractions).where(eq(stakeholderInteractions.projectId, projectId));
+        await db.delete(pmpRecommendations).where(eq(pmpRecommendations.projectId, projectId));
+        await db.delete(programPhases).where(eq(programPhases.projectId, projectId));
+        await db.delete(initiativeProjects).where(eq(initiativeProjects.projectId, projectId));
+      }
+      
+      // Delete projects
+      await db.delete(projects).where(eq(projects.programId, id));
+    }
+    
+    // Step 5: Finally delete the program itself
+    await db.delete(programs).where(eq(programs.id, id));
   }
 
   // Milestone operations
