@@ -1,9 +1,13 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { 
   Mic, 
   MicOff, 
@@ -14,18 +18,32 @@ import {
   FileText,
   Image,
   Download,
-  Zap
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
+import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
 
 interface ChatMessage {
   id: string;
   type: 'user' | 'ai';
   content: string;
   timestamp: Date;
-  responseType?: 'text' | 'image' | 'file' | 'action';
+  responseType?: 'text' | 'image' | 'file' | 'action' | 'success' | 'error';
   attachments?: {
     type: 'image' | 'file';
     url: string;
+    name: string;
+  }[];
+  actions?: {
+    type: 'navigate' | 'create' | 'update' | 'delete';
+    target: string;
+    data?: any;
+  }[];
+  createdItems?: {
+    type: 'program' | 'risk' | 'milestone' | 'adopter' | 'dependency';
+    id: string;
     name: string;
   }[];
 }
@@ -35,7 +53,7 @@ export default function AIAssistant() {
     {
       id: '1',
       type: 'ai',
-      content: 'Hello! I\'m your AI assistant for program management. You can ask me questions, give voice commands, or request analysis. How can I help you today?',
+      content: 'Hello! I\'m your AI assistant for program management. I can help you create programs, add risks, create milestones, analyze data, and perform any action you can do manually. Just tell me what you need!',
       timestamp: new Date(),
       responseType: 'text'
     }
@@ -44,6 +62,113 @@ export default function AIAssistant() {
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  // Load current data for context
+  const { data: programs = [] } = useQuery<Program[]>({
+    queryKey: ["/api/programs"],
+  });
+
+  const { data: risks = [] } = useQuery<Risk[]>({
+    queryKey: ["/api/risks"],
+  });
+
+  const { data: milestones = [] } = useQuery<Milestone[]>({
+    queryKey: ["/api/milestones"],
+  });
+
+  const { data: adopters = [] } = useQuery<Adopter[]>({
+    queryKey: ["/api/adopters"],
+  });
+
+  const { data: dependencies = [] } = useQuery<Dependency[]>({
+    queryKey: ["/api/dependencies"],
+  });
+
+  // AI action processing mutation
+  const aiActionMutation = useMutation({
+    mutationFn: async (request: string) => {
+      return await apiRequest('/api/ai/process-request', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          request,
+          context: {
+            programCount: programs.length,
+            riskCount: risks.length,
+            milestoneCount: milestones.length,
+            programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status }))
+          }
+        })
+      });
+    },
+    onSuccess: (response) => {
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: response.message || 'Action completed successfully!',
+        timestamp: new Date(),
+        responseType: response.success ? 'success' : 'error',
+        createdItems: response.createdItems,
+        actions: response.actions
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
+      setIsProcessing(false);
+
+      // If items were created, invalidate caches
+      if (response.createdItems && response.createdItems.length > 0) {
+        response.createdItems.forEach((item: any) => {
+          if (item.type === 'program') {
+            queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+          } else if (item.type === 'risk') {
+            queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
+          } else if (item.type === 'milestone') {
+            queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+          } else if (item.type === 'adopter') {
+            queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
+          } else if (item.type === 'dependency') {
+            queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
+          }
+        });
+        
+        toast({
+          title: "Success",
+          description: `${response.createdItems.length} item(s) created successfully`,
+        });
+      }
+
+      // Handle navigation actions
+      if (response.actions && response.actions.length > 0) {
+        response.actions.forEach((action: any) => {
+          if (action.type === 'navigate') {
+            setTimeout(() => {
+              setLocation(action.target);
+            }, 1000);
+          }
+        });
+      }
+    },
+    onError: (error) => {
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: `Sorry, I encountered an error: ${error.message}. Please try again or be more specific about what you'd like me to do.`,
+        timestamp: new Date(),
+        responseType: 'error'
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
+      setIsProcessing(false);
+      
+      toast({
+        title: "Error",
+        description: "Failed to process your request. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return;
@@ -56,22 +181,12 @@ export default function AIAssistant() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsProcessing(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai',
-        content: `I understand you want to "${inputValue}". Let me help you with that. Based on your current program data, here's what I found...`,
-        timestamp: new Date(),
-        responseType: 'text'
-      };
-      
-      setMessages(prev => [...prev, aiResponse]);
-      setIsProcessing(false);
-    }, 1500);
+    // Process the request with the AI
+    aiActionMutation.mutate(currentInput);
   };
 
   const toggleVoiceRecognition = () => {
@@ -88,6 +203,8 @@ export default function AIAssistant() {
       case 'image': return <Image className="h-4 w-4" />;
       case 'file': return <FileText className="h-4 w-4" />;
       case 'action': return <Zap className="h-4 w-4" />;
+      case 'success': return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'error': return <AlertCircle className="h-4 w-4 text-red-600" />;
       default: return <Bot className="h-4 w-4" />;
     }
   };
@@ -141,6 +258,66 @@ export default function AIAssistant() {
                     >
                       <p className="text-sm">{message.content}</p>
                       
+                      {/* Created Items */}
+                      {message.createdItems && message.createdItems.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-xs font-medium text-green-600 mb-2">✓ Created Items:</div>
+                          {message.createdItems.map((item, index) => (
+                            <div 
+                              key={index}
+                              className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-xs flex-1">
+                                <span className="font-medium capitalize">{item.type}</span>: {item.name}
+                              </span>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-6 w-6 p-0 text-blue-600"
+                                onClick={() => {
+                                  if (item.type === 'program') {
+                                    setLocation(`/programs/${item.id}`);
+                                  } else if (item.type === 'risk') {
+                                    setLocation(`/risk-management?riskId=${item.id}`);
+                                  }
+                                }}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {message.actions && message.actions.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-xs font-medium text-blue-600 mb-2">⚡ Actions Available:</div>
+                          {message.actions.map((action, index) => (
+                            <div 
+                              key={index}
+                              className="flex items-center gap-2"
+                            >
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  if (action.type === 'navigate') {
+                                    setLocation(action.target);
+                                  }
+                                }}
+                              >
+                                {action.type === 'navigate' ? 'Go to ' : action.type + ' '}
+                                {action.target.replace('/api/', '').replace('/', ' ')}
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Attachments */}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-3 space-y-2">

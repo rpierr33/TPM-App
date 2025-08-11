@@ -870,6 +870,241 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Assistant endpoint for processing user requests and performing actions
+  app.post("/api/ai/process-request", async (req, res) => {
+    try {
+      const { request, context } = req.body;
+      
+      if (!request || typeof request !== 'string') {
+        return res.status(400).json({ message: "Request text is required" });
+      }
+
+      // Parse the user request and determine what action to take
+      const requestLower = request.toLowerCase();
+      const response = {
+        message: "",
+        success: false,
+        createdItems: [] as any[],
+        actions: [] as any[]
+      };
+
+      // Handle program creation requests
+      if (requestLower.includes('create') && (requestLower.includes('program') || requestLower.includes('project'))) {
+        try {
+          // Extract program name from request
+          const nameMatch = request.match(/(?:create|make|add).*?(?:program|project).*?(?:called|named|"([^"]+)"|'([^']+)'|(\w+(?:\s+\w+)*))/) ||
+                           request.match(/"([^"]+)"/) ||
+                           request.match(/'([^']+)'/) ||
+                           request.match(/(?:program|project)\s+(\w+(?:\s+\w+)*)/);
+          
+          let programName = nameMatch ? (nameMatch[1] || nameMatch[2] || nameMatch[3]) : null;
+          
+          if (!programName) {
+            // Generate a name based on context
+            const programCount = context?.programCount || 0;
+            programName = `AI Created Program ${programCount + 1}`;
+          }
+
+          // Clean up the name
+          programName = programName.trim().replace(/^(called|named)\s+/i, '');
+
+          const programData = {
+            name: programName,
+            description: `Program created by AI Assistant based on user request: "${request}"`,
+            status: 'planning' as const
+          };
+
+          const validatedData = insertProgramSchema.parse(programData);
+          const newProgram = await storage.createProgram(validatedData);
+          
+          response.success = true;
+          response.message = `Successfully created program "${newProgram.name}"! The program is now in planning status and will automatically generate missing component risks.`;
+          response.createdItems = [{
+            type: 'program',
+            id: newProgram.id,
+            name: newProgram.name
+          }];
+          response.actions = [{
+            type: 'navigate',
+            target: `/programs/${newProgram.id}`
+          }];
+
+        } catch (error) {
+          response.message = `Failed to create program: ${error}`;
+          response.success = false;
+        }
+      }
+      
+      // Handle risk creation requests
+      else if (requestLower.includes('create') && requestLower.includes('risk')) {
+        try {
+          const programs = await storage.getPrograms();
+          if (programs.length === 0) {
+            response.message = "No programs found. Create a program first, then I can add risks to it.";
+            response.success = false;
+          } else {
+            // Use first program if not specified
+            const targetProgram = programs[0];
+            
+            const riskData = {
+              title: `AI Generated Risk`,
+              description: `Risk created by AI Assistant based on user request: "${request}"`,
+              severity: 'medium' as const,
+              impact: 3,
+              probability: 3,
+              status: 'open' as const,
+              category: 'operational' as const,
+              programId: targetProgram.id
+            };
+
+            const validatedData = insertRiskSchema.parse(riskData);
+            const newRisk = await storage.createRisk(validatedData);
+            
+            response.success = true;
+            response.message = `Successfully created risk "${newRisk.title}" for program "${targetProgram.name}"!`;
+            response.createdItems = [{
+              type: 'risk',
+              id: newRisk.id,
+              name: newRisk.title
+            }];
+            response.actions = [{
+              type: 'navigate',
+              target: `/risk-management?riskId=${newRisk.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to create risk: ${error}`;
+          response.success = false;
+        }
+      }
+      
+      // Handle milestone creation requests
+      else if (requestLower.includes('create') && requestLower.includes('milestone')) {
+        try {
+          const programs = await storage.getPrograms();
+          if (programs.length === 0) {
+            response.message = "No programs found. Create a program first, then I can add milestones to it.";
+            response.success = false;
+          } else {
+            const targetProgram = programs[0];
+            
+            const milestoneData = {
+              name: `AI Generated Milestone`,
+              description: `Milestone created by AI Assistant based on user request: "${request}"`,
+              status: 'not_started' as const,
+              programId: targetProgram.id,
+              dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+            };
+
+            const validatedData = insertMilestoneSchema.parse(milestoneData);
+            const newMilestone = await storage.createMilestone(validatedData);
+            
+            response.success = true;
+            response.message = `Successfully created milestone "${newMilestone.name}" for program "${targetProgram.name}"!`;
+            response.createdItems = [{
+              type: 'milestone',
+              id: newMilestone.id,
+              name: newMilestone.name
+            }];
+            response.actions = [{
+              type: 'navigate',
+              target: `/programs/${targetProgram.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to create milestone: ${error}`;
+          response.success = false;
+        }
+      }
+      
+      // Handle data analysis requests
+      else if (requestLower.includes('analyze') || requestLower.includes('report') || requestLower.includes('summary')) {
+        const programs = await storage.getPrograms();
+        const risks = await storage.getRisks();
+        const milestones = await storage.getMilestones();
+        
+        response.success = true;
+        response.message = `Analysis Summary:
+        
+📊 Current Status:
+• ${programs.length} total programs
+• ${risks.length} total risks across all programs  
+• ${milestones.length} total milestones
+• ${risks.filter(r => r.severity === 'critical' || r.severity === 'high').length} high/critical risks need attention
+
+🎯 Program Health:
+${programs.map(p => {
+  const programRisks = risks.filter(r => r.programId === p.id);
+  const programMilestones = milestones.filter(m => m.programId === p.id);
+  return `• ${p.name}: ${programRisks.length} risks, ${programMilestones.length} milestones`;
+}).join('\n') || '• No programs to analyze'}
+
+💡 Recommendations:
+• Focus on resolving high/critical risks first
+• Ensure all programs have proper ownership and timelines
+• Track milestone progress regularly`;
+
+        response.actions = [{
+          type: 'navigate',
+          target: '/dashboard'
+        }];
+      }
+      
+      // Handle navigation requests
+      else if (requestLower.includes('show') || requestLower.includes('go to') || requestLower.includes('navigate')) {
+        let targetPath = '/dashboard';
+        
+        if (requestLower.includes('risk')) {
+          targetPath = '/risk-management';
+        } else if (requestLower.includes('program')) {
+          targetPath = '/programs';
+        } else if (requestLower.includes('dashboard')) {
+          targetPath = '/dashboard';
+        }
+        
+        response.success = true;
+        response.message = `Taking you to ${targetPath.replace('/', '').replace('-', ' ')}...`;
+        response.actions = [{
+          type: 'navigate',
+          target: targetPath
+        }];
+      }
+      
+      // Default response for unrecognized requests
+      else {
+        response.message = `I understand you want to "${request}". Here's what I can help you with:
+
+🏗️ **Create Items:**
+• "Create a new program called [name]"
+• "Add a risk to the program"  
+• "Create a milestone for the project"
+
+📊 **Analysis & Reports:**
+• "Analyze current program status"
+• "Show me a summary report"
+• "What's the current health status?"
+
+🧭 **Navigation:**
+• "Go to the dashboard"
+• "Show me the risk management page"
+• "Navigate to programs"
+
+Try being more specific about what you'd like me to do!`;
+        response.success = true;
+      }
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error processing AI request:", error);
+      res.status(500).json({ 
+        message: "Failed to process your request. Please try again.",
+        success: false,
+        createdItems: [],
+        actions: []
+      });
+    }
+  });
+
   // Enhanced contextual routes for all components
   app.get("/api/milestones/:id/context", async (req, res) => {
     try {
