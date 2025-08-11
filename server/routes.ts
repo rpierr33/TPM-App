@@ -2133,11 +2133,13 @@ Try being more specific about what you'd like me to do!`;
   
   // Broadcast function for real-time updates
   const broadcast = (eventType: string, data: any) => {
+    console.log(`Broadcasting ${eventType} to ${connectedClients.size} clients:`, data);
     const message = JSON.stringify({ type: eventType, data });
     connectedClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          console.log('Successfully sent WebSocket message to client');
         } catch (error) {
           console.error('Error sending WebSocket message:', error);
           connectedClients.delete(client);
