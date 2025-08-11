@@ -926,6 +926,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 try {
                   await storage.deleteProgram(program.id);
                   deletedCount++;
+                  
+                  // Broadcast real-time update for each deleted program
+                  (app as any).broadcast('data_changed', { type: 'program_deleted', data: { id: program.id, name: program.name } });
                 } catch (error) {
                   console.error(`Failed to delete program ${program.id}:`, error);
                   errors.push(`Failed to delete "${program.name}"`);
@@ -941,17 +944,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Navigation removed - keep user in chat to continue conversation
             }
           } else if (requestLower.includes('program')) {
-            // Delete specific program (for now, delete the first one as an example)
+            // Handle deletion of multiple recent programs
             const programs = await storage.getPrograms();
             if (programs.length === 0) {
               response.message = "No programs found to delete.";
               response.success = true;
             } else {
-              const programToDelete = programs[0];
-              await storage.deleteProgram(programToDelete.id);
+              let numToDelete = 1;
               
-              response.success = true;
-              response.message = `Successfully deleted program "${programToDelete.name}".`;
+              // Extract number from request if specified
+              if (requestLower.includes('three') || requestLower.includes('3') || requestLower.includes('most recent')) {
+                numToDelete = 3;
+              } else if (requestLower.includes('two') || requestLower.includes('2')) {
+                numToDelete = 2;
+              } else if (requestLower.includes('four') || requestLower.includes('4')) {
+                numToDelete = 4;
+              } else if (requestLower.includes('five') || requestLower.includes('5')) {
+                numToDelete = 5;
+              } else if (requestLower.includes('all')) {
+                numToDelete = programs.length;
+              }
+              
+              // Sort programs by creation date (newest first) and take the number to delete
+              const sortedPrograms = programs.sort((a, b) => 
+                new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+              );
+              const programsToDelete = sortedPrograms.slice(0, Math.min(numToDelete, programs.length));
+              
+              let deletedCount = 0;
+              let errors: string[] = [];
+              
+              for (const program of programsToDelete) {
+                try {
+                  await storage.deleteProgram(program.id);
+                  deletedCount++;
+                  
+                  // Broadcast real-time update for each deleted program
+                  (app as any).broadcast('data_changed', { type: 'program_deleted', data: { id: program.id, name: program.name } });
+                } catch (error) {
+                  console.error(`Failed to delete program ${program.id}:`, error);
+                  errors.push(`Failed to delete "${program.name}"`);
+                }
+              }
+              
+              response.success = deletedCount > 0;
+              if (errors.length > 0) {
+                response.message = `Deleted ${deletedCount} program(s). ${errors.length} programs could not be deleted due to database constraints. ${errors.join(', ')}.`;
+              } else {
+                response.message = `Successfully deleted ${deletedCount} program(s).`;
+              }
               // Navigation removed - keep user in chat to continue conversation
             }
           } else if (requestLower.includes('risk')) {
@@ -961,9 +1002,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               response.message = "No risks found to delete.";
               response.success = true;
             } else {
-              await storage.deleteRisk(risks[0].id);
+              const riskToDelete = risks[0];
+              await storage.deleteRisk(riskToDelete.id);
+              
+              // Broadcast real-time update for deleted risk
+              (app as any).broadcast('data_changed', { type: 'risk_deleted', data: { id: riskToDelete.id, title: riskToDelete.title } });
+              
               response.success = true;
-              response.message = `Successfully deleted risk "${risks[0].title}".`;
+              response.message = `Successfully deleted risk "${riskToDelete.title}".`;
             }
           } else {
             response.message = "Please specify what you'd like to delete (e.g., 'delete all programs', 'delete a program', 'delete a risk').";
@@ -989,14 +1035,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                requestLower.includes('completed') ? 'completed' :
                                requestLower.includes('on_hold') ? 'on_hold' : 'planning';
               
-              await storage.updateProgram(targetProgram.id, { status: newStatus });
+              const updatedProgram = await storage.updateProgram(targetProgram.id, { status: newStatus });
+              
+              // Broadcast real-time update for program status change
+              (app as any).broadcast('data_changed', { type: 'program_updated', data: updatedProgram });
               
               response.success = true;
               response.message = `Successfully updated program "${targetProgram.name}" status to ${newStatus}.`;
-              response.actions = [{
-                type: 'navigate',
-                target: `/programs/${targetProgram.id}`
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           } else {
             response.message = "I can help update program status. Try: 'update program status to active' or 'change program status to completed'.";

@@ -7,6 +7,10 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **REAL-TIME DASHBOARD UPDATES IMPLEMENTED** - Dashboard now automatically updates without manual refresh when any data changes occur from any source (AI Assistant, manual actions, API calls)
+- **WEBSOCKET BROADCASTING SYSTEM** - Complete WebSocket implementation with automatic cache invalidation and visual notifications for all data modifications
+- **AI ASSISTANT DELETE OPERATIONS ENHANCED** - Fixed AI deletion commands to properly handle multiple items ("delete three programs") with real-time broadcast updates
+- **COMPREHENSIVE REAL-TIME COVERAGE** - All CRUD operations (create, update, delete) for programs, risks, milestones, adopters, and dependencies now trigger automatic dashboard refreshes
 - **AI-CREATED PROGRAM GAP DETECTION FIXED** - AI-created programs now automatically generate the full set of 7 missing component risks (owner, dates, objectives, KPIs, milestones, adopters) instead of appearing empty
 - **CRITICAL UX FIXES COMPLETED** - Fixed cache invalidation and chat state persistence issues for professional-grade functionality
 - **COMPREHENSIVE CACHE INVALIDATION** - AI Assistant now invalidates ALL relevant query caches ensuring dashboard updates immediately after AI creates items
