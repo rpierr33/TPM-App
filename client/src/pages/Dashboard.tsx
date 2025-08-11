@@ -723,18 +723,18 @@ export default function Dashboard() {
                 );
                 const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
-                // Check for missing essential components
+                // Calculate missing components for health scoring - MUST MATCH PROGRAM DETAILS EXACTLY
                 const getMissingComponents = () => {
                   const missing = [];
-                  if (!program.description || program.description.trim().length < 10) missing.push('Program Description');
-                  if (!program.ownerId) missing.push('Program Owner');
+                  if (!program.description || program.description.trim().length < 10) missing.push('Description');
+                  if (!program.ownerId) missing.push('Owner');
                   if (!program.startDate) missing.push('Start Date');
                   if (!program.endDate) missing.push('End Date');
                   if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
                   if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
+                  if (programRisks.length === 0) missing.push('Risks');
                   if (programMilestones.length === 0) missing.push('Milestones');
                   if (programAdopters.length === 0) missing.push('Adopter Teams');
-
                   return missing;
                 };
 
