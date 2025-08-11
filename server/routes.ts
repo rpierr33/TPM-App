@@ -996,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle program creation requests (but not projects or platforms)
+      // Handle program creation requests (programs are containers for projects)
       else if (requestLower.includes('create') && requestLower.includes('program') && !requestLower.includes('project') && !requestLower.includes('platform')) {
         try {
           // Extract program name from request - prioritize quoted names
@@ -1037,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const newProgram = await storage.createProgram(validatedData);
           
           response.success = true;
-          response.message = `Successfully created program "${newProgram.name}"! The program is now in planning status and will automatically generate missing component risks.`;
+          response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. The program is in planning status and will automatically generate missing component risks.`;
           response.createdItems = [{
             type: 'program',
             id: newProgram.id,
@@ -1218,12 +1218,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle project creation requests (explicit project creation)
+      // Handle project creation requests (projects are created within programs)
       else if (requestLower.includes('create project') || requestLower.includes('add project')) {
         try {
           const programs = await storage.getPrograms();
           if (programs.length === 0) {
-            response.message = "No programs found. Create a program first, then I can add projects to it.";
+            response.message = "No programs found. Projects must be created within programs. Please create a program first, then I can add projects to it.";
             response.success = false;
           } else {
             const targetProgram = programs[0];
@@ -1260,7 +1260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newProject = await storage.createProject(validatedData);
             
             response.success = true;
-            response.message = `Successfully created project "${newProject.name}" for program "${targetProgram.name}"!`;
+            response.message = `Successfully created project "${newProject.name}" within program "${targetProgram.name}"! Projects are components that belong to programs and help achieve program objectives.`;
             response.createdItems = [{
               type: 'project',
               id: newProject.id,
@@ -1557,13 +1557,13 @@ ${programs.map(p => {
         response.message = `I understand you want to "${request}". Here's what I can help you with:
 
 🏗️ **Create Items:**
-• "Create a new program called [name]"
+• "Create a new program called [name]" (programs contain projects)
+• "Create a project called [name]" (projects belong within programs)
 • "Add a risk to the program"  
 • "Create a milestone for the program"
 • "Create an adopter team for the program"
 • "Add a dependency to the program"
 • "Create an initiative called [name]"
-• "Create a project called [name]"
 • "Create a platform called [name]"
 
 🔗 **Link Items:**

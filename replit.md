@@ -7,12 +7,12 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
-- **COMPREHENSIVE MANY-TO-MANY LINKING SYSTEM** - Complete implementation of all cross-component relationships: projects↔programs, programs↔initiatives, programs↔platforms, projects↔initiatives with full AI Assistant support
+- **COMPREHENSIVE MANY-TO-MANY LINKING SYSTEM** - Complete implementation of all cross-component relationships with proper hierarchy: projects within programs, programs linked to initiatives/platforms, with full AI Assistant support
+- **PROPER PROGRAM/PROJECT HIERARCHY** - Clear distinction between programs (containers) and projects (components within programs), with AI Assistant enforcing correct relationships
 - **Complete Action Parity** - AI Assistant can now perform ALL actions that users can perform manually, making it the primary interface for platform interaction
 - **Advanced Component Creation** - Full support for creating programs, projects, initiatives, platforms, risks, milestones, adopters, and dependencies through natural language
 - **Enhanced Pattern Matching** - AI correctly recognizes "create", "add", and "link" commands with intelligent name extraction and proper component differentiation
 - **Real-time System Integration** - AI Assistant creates/updates/deletes actual database entries, manages many-to-many relationships, invalidates caches, and provides auto-navigation
-- **Comprehensive Error Handling** - Graceful handling of database constraints, proper transaction management, and informative user feedback for all operations
 - **Voice and Text Command Support** - Full functionality through both text chat and voice commands with complete enum validation fixes
 
 ## System Architecture
