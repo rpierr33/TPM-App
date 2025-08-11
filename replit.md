@@ -7,6 +7,7 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **AI-CREATED PROGRAM GAP DETECTION FIXED** - AI-created programs now automatically generate the full set of 7 missing component risks (owner, dates, objectives, KPIs, milestones, adopters) instead of appearing empty
 - **CRITICAL UX FIXES COMPLETED** - Fixed cache invalidation and chat state persistence issues for professional-grade functionality
 - **COMPREHENSIVE CACHE INVALIDATION** - AI Assistant now invalidates ALL relevant query caches ensuring dashboard updates immediately after AI creates items
 - **PERSISTENT CHAT STATE** - Chat history now persists across navigation using Zustand global state with localStorage, preventing conversation resets

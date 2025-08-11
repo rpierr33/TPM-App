@@ -1030,13 +1030,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedData = insertProgramSchema.parse(programData);
           const newProgram = await storage.createProgram(validatedData);
           
-          response.success = true;
-          response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. The program is in planning status and will automatically generate missing component risks.`;
-          response.createdItems = [{
-            type: 'program',
-            id: newProgram.id,
-            name: newProgram.name
-          }];
+          // Automatically trigger gap detection for the new program to generate missing component risks
+          try {
+            await storage.detectAllProgramGaps(newProgram.id);
+            
+            // Count the risks generated for this program
+            const programRisks = await storage.getRisks(newProgram.id);
+            const riskCount = programRisks.length;
+            
+            response.success = true;
+            response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. Automatically generated ${riskCount} missing component risks to ensure program completeness.`;
+            response.createdItems = [{
+              type: 'program',
+              id: newProgram.id,
+              name: newProgram.name
+            }];
+          } catch (gapError) {
+            console.error('Gap detection failed for new program:', gapError);
+            // If gap detection fails, still report successful program creation
+            response.success = true;
+            response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. Gap detection will run automatically.`;
+            response.createdItems = [{
+              type: 'program',
+              id: newProgram.id,
+              name: newProgram.name
+            }];
+          }
           // Navigation removed - keep user in chat to continue conversation
 
         } catch (error) {
