@@ -133,6 +133,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertProgramSchema.parse(req.body);
       const program = await storage.createProgram(validatedData);
+      
+      // Broadcast real-time update
+      (app as any).broadcast('data_changed', { type: 'program_created', data: program });
+      
       res.status(201).json(program);
     } catch (error) {
       console.error("Error creating program:", error);
@@ -144,6 +148,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertProgramSchema.partial().parse(req.body);
       const program = await storage.updateProgram(req.params.id, validatedData);
+      
+      // Broadcast real-time update
+      (app as any).broadcast('data_changed', { type: 'program_updated', data: program });
+      
       res.json(program);
     } catch (error) {
       console.error("Error updating program:", error);
@@ -154,6 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/programs/:id", async (req, res) => {
     try {
       await storage.deleteProgram(req.params.id);
+      
+      // Broadcast real-time update
+      (app as any).broadcast('data_changed', { type: 'program_deleted', data: { id: req.params.id } });
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting program:", error);
@@ -248,6 +260,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertMilestoneSchema.parse(req.body);
       const milestone = await storage.createMilestone(validatedData);
+      
+      // Broadcast real-time update
+      (app as any).broadcast('data_changed', { type: 'milestone_created', data: milestone });
       
       // If Live mode and JIRA integration is configured, push to JIRA
       if (req.body.pushToJira) {
@@ -507,6 +522,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const risk = await storage.createRisk(validatedData);
+      
+      // Broadcast real-time update
+      (app as any).broadcast('data_changed', { type: 'risk_created', data: risk });
       
       // If Live mode and JIRA integration is configured, push to JIRA
       if (req.body.pushToJira) {
@@ -1089,6 +1107,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const validatedData = insertRiskSchema.parse(riskData);
             const newRisk = await storage.createRisk(validatedData);
             
+            // Broadcast real-time update for AI-created risk
+            (app as any).broadcast('data_changed', { type: 'risk_created', data: newRisk });
+            
             response.success = true;
             response.message = `Successfully created risk "${newRisk.title}" for program "${targetProgram.name}"!`;
             response.createdItems = [{
@@ -1124,6 +1145,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const validatedData = insertMilestoneSchema.parse(milestoneData);
             const newMilestone = await storage.createMilestone(validatedData);
+            
+            // Broadcast real-time update for AI-created milestone
+            (app as any).broadcast('data_changed', { type: 'milestone_created', data: newMilestone });
             
             response.success = true;
             response.message = `Successfully created milestone "${newMilestone.title}" for program "${targetProgram.name}"!`;
@@ -2058,13 +2082,37 @@ Try being more specific about what you'd like me to do!`;
   // WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
+  // Store connected clients for broadcasting
+  const connectedClients = new Set<WebSocket>();
+  
+  // Broadcast function for real-time updates
+  const broadcast = (eventType: string, data: any) => {
+    const message = JSON.stringify({ type: eventType, data });
+    connectedClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          console.error('Error sending WebSocket message:', error);
+          connectedClients.delete(client);
+        }
+      }
+    });
+  };
+  
+  // Make broadcast function available to routes
+  (app as any).broadcast = broadcast;
+  
   wss.on('connection', (ws: WebSocket) => {
     console.log('Client connected to WebSocket');
+    connectedClients.add(ws);
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({ type: 'connected', data: { timestamp: new Date() } }));
     
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message.toString());
-        // Handle WebSocket messages for real-time updates
         console.log('Received WebSocket message:', data);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -2073,6 +2121,12 @@ Try being more specific about what you'd like me to do!`;
     
     ws.on('close', () => {
       console.log('Client disconnected from WebSocket');
+      connectedClients.delete(ws);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      connectedClients.delete(ws);
     });
   });
 
