@@ -188,6 +188,7 @@ export interface IStorage {
   createInitiative(initiative: InsertInitiative): Promise<Initiative>;
   updateInitiative(id: string, updates: Partial<InsertInitiative>): Promise<Initiative>;
   deleteInitiative(id: string): Promise<void>;
+  linkProgramToInitiative(programId: string, initiativeId: string): Promise<void>;
 
   // Project operations
   getProjects(programId?: string): Promise<Project[]>;
@@ -795,6 +796,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInitiative(id: string): Promise<void> {
     await db.delete(initiatives).where(eq(initiatives.id, id));
+  }
+
+  async linkProgramToInitiative(programId: string, initiativeId: string): Promise<void> {
+    await db.insert(initiativePrograms).values({
+      programId,
+      initiativeId,
+      contribution: 'Linked by AI Assistant',
+      priority: 1
+    });
   }
 
   // Project operations

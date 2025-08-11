@@ -1216,7 +1216,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Handle initiative creation and linking requests
+      else if (requestLower.includes('create') && requestLower.includes('initiative')) {
+        try {
+          // Extract initiative name from request - prioritize quoted names
+          let initiativeName = null;
+          
+          const quotedMatch = request.match(/"([^"]+)"/);
+          if (quotedMatch) {
+            initiativeName = quotedMatch[1];
+          } else {
+            const singleQuotedMatch = request.match(/'([^']+)'/);
+            if (singleQuotedMatch) {
+              initiativeName = singleQuotedMatch[1];
+            } else {
+              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
+              if (namedMatch) {
+                initiativeName = namedMatch[1];
+              } else {
+                initiativeName = `AI Generated Initiative`;
+              }
+            }
+          }
 
+          initiativeName = initiativeName.trim();
+
+          const initiativeData = {
+            name: initiativeName,
+            description: `Initiative created by AI Assistant based on user request: "${request}"`,
+            status: 'planning' as const,
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
+          };
+
+          const validatedData = insertInitiativeSchema.parse(initiativeData);
+          const newInitiative = await storage.createInitiative(validatedData);
+          
+          response.success = true;
+          response.message = `Successfully created initiative "${newInitiative.name}"! You can now link programs to this initiative.`;
+          response.createdItems = [{
+            type: 'initiative',
+            id: newInitiative.id,
+            name: newInitiative.name
+          }];
+          response.actions = [{
+            type: 'navigate',
+            target: `/dashboard`
+          }];
+        } catch (error) {
+          response.message = `Failed to create initiative: ${error}`;
+          response.success = false;
+        }
+      }
+
+      // Handle linking programs to initiatives
+      else if (requestLower.includes('link') && requestLower.includes('program') && requestLower.includes('initiative')) {
+        try {
+          const programs = await storage.getPrograms();
+          const initiatives = await storage.getInitiatives();
+          
+          if (programs.length === 0) {
+            response.message = "No programs found to link. Create a program first.";
+            response.success = false;
+          } else if (initiatives.length === 0) {
+            response.message = "No initiatives found to link to. Create an initiative first.";
+            response.success = false;
+          } else {
+            const targetProgram = programs[0];
+            const targetInitiative = initiatives[0];
+            
+            // Create initiative-program mapping
+            await storage.linkProgramToInitiative(targetProgram.id, targetInitiative.id);
+            
+            response.success = true;
+            response.message = `Successfully linked program "${targetProgram.name}" to initiative "${targetInitiative.name}"!`;
+            response.actions = [{
+              type: 'navigate',
+              target: `/programs/${targetProgram.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to link program to initiative: ${error}`;
+          response.success = false;
+        }
+      }
       
       // Handle data analysis requests
       else if (requestLower.includes('analyze') || requestLower.includes('report') || requestLower.includes('summary')) {
@@ -1282,6 +1365,10 @@ ${programs.map(p => {
 • "Create a milestone for the program"
 • "Create an adopter team for the program"
 • "Add a dependency to the program"
+• "Create an initiative called [name]"
+
+🔗 **Link Items:**
+• "Link program to initiative"
 
 🗑️ **Delete Items:**
 • "Delete all programs"
