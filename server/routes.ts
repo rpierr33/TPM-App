@@ -186,6 +186,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive gap detection for a program
+  app.post("/api/programs/:id/detect-gaps", async (req, res) => {
+    try {
+      await (storage as any).detectAllProgramGaps(req.params.id);
+      res.json({ message: "Comprehensive gap detection completed" });
+    } catch (error) {
+      console.error("Error detecting gaps:", error);
+      res.status(500).json({ message: "Failed to detect gaps" });
+    }
+  });
+
+  // Import risks from JIRA (Live mode)
+  app.post("/api/programs/:id/import-jira-risks", async (req, res) => {
+    try {
+      const risks = await (storage as any).importJiraRisks(req.params.id);
+      res.json({ 
+        message: "JIRA risks imported successfully",
+        risksImported: risks.length,
+        risks 
+      });
+    } catch (error) {
+      console.error("Error importing JIRA risks:", error);
+      res.status(500).json({ message: "Failed to import JIRA risks" });
+    }
+  });
+
+  // Comprehensive gap detection for ALL programs
+  app.post("/api/programs/detect-all-gaps", async (req, res) => {
+    try {
+      const programs = await storage.getPrograms();
+      for (const program of programs) {
+        await (storage as any).detectAllProgramGaps(program.id);
+      }
+      res.json({ 
+        message: "Comprehensive gap detection completed for all programs",
+        programCount: programs.length 
+      });
+    } catch (error) {
+      console.error("Error detecting gaps for all programs:", error);
+      res.status(500).json({ message: "Failed to detect gaps for all programs" });
+    }
+  });
+
   // Milestone routes
   app.get("/api/milestones", async (req, res) => {
     try {

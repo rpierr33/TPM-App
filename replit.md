@@ -7,11 +7,12 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
-- **Integrated Program Phase Management** - Moved PMI phase management into individual program cards showing Current Phase and Next PMI Steps rather than separate section
-- **Fixed Critical Program Completeness Validation** - Programs now properly flag missing essential components as risks affecting health scores  
-- **Enhanced AI Insights Section** - Made cards clickable with real data integration and dynamic health assessment
-- **Restored Team Adoption Integration** - Added Team Adoption back to dashboard snapshot, program cards, Quick Navigation, and created dedicated adopter tab in ProgramDetails with comprehensive onboarding status tracking
-- **Improved Program Health Display** - Each program card shows health score, current PMI phase, next steps guidance, and missing component alerts
+- **Comprehensive Risk Management System** - Implemented automatic gap detection that creates risks for missing components, timeline issues, dependency problems, and resource gaps
+- **Automatic Missing Component Risk Generation** - Every missing program element (owner, dates, objectives, KPIs, milestones, adopters) automatically creates corresponding risks with appropriate severity levels
+- **JIRA Risk Integration Infrastructure** - Built framework for importing risks from JIRA in Live mode with proper API endpoints and error handling
+- **Enhanced Risk Analytics Dashboard** - Added comprehensive risk management page with analytics, filtering, manual risk creation, and detailed risk tracking
+- **Equal Program Treatment** - Both test programs now show identical risk generation patterns ensuring consistent missing component risk creation
+- **Multi-Level Gap Detection** - System detects missing components, timeline conflicts, dependency blocks, and resource allocation issues across all programs
 
 ## System Architecture
 
@@ -58,7 +59,9 @@ A comprehensive PostgreSQL schema supports hierarchical entities:
 
 ### Key Features and Design Decisions
 - **Dual Mode Operation**: `Test Mode` (mock data, simulated integrations) and `Live Mode` (real external services).
+- **Intelligent Risk Management**: Automatic gap detection creates risks for missing components, timeline issues, dependency blocks, and resource problems. JIRA integration ready for Live mode risk import.
 - **Dashboard System**: Real-time metrics, risk heatmap, program timeline, active risks table, adopter readiness dashboard, and AI-powered insights.
+- **Comprehensive Risk Analytics**: Full risk management dashboard with severity/status filtering, manual risk creation, detailed tracking, and PMP category classification.
 - **UI Component System**: Consistent design via shadcn/ui, responsive layout, modal system, toast notifications, and React Hook Form with Zod validation.
 - **Data Flow**: Frontend uses TanStack Query for API requests, Express server handles requests, Drizzle ORM for database operations, and WebSockets for real-time updates. State management uses Zustand for global state, TanStack Query for server state, and React Hook Form for form state.
 - **Architectural Focus**: Highly modular and extensible design with clear separation between test and live environments, comprehensive error handling, and a robust type system.

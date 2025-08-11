@@ -58,12 +58,13 @@ export default function Dashboard() {
   useEffect(() => {
     const generateMissingRisks = async () => {
       try {
-        await apiRequest('/api/programs/generate-all-missing-risks', 'POST');
-        console.log('Missing component risks generated for all programs');
+        // Run comprehensive gap detection (includes missing components + other gaps)
+        await apiRequest('/api/programs/detect-all-gaps', 'POST');
+        console.log('Comprehensive gap detection completed for all programs');
         // Refresh risks data to show the new auto-generated risks
         queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
       } catch (error) {
-        console.error('Failed to generate missing component risks:', error);
+        console.error('Failed to run gap detection:', error);
       }
     };
     

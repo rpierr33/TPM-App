@@ -854,6 +854,173 @@ export class DatabaseStorage implements IStorage {
     return recommendation;
   }
 
+  // Import risks from JIRA (Live mode)
+  async importJiraRisks(programId: string): Promise<Risk[]> {
+    // TODO: Implement actual JIRA API integration
+    // This would query JIRA for issues tagged as risks or blockers
+    // For now, return empty array - to be implemented in Live mode
+    console.log(`JIRA risk import requested for program: ${programId}`);
+    return [];
+  }
+
+  // Automatic gap detection and risk generation
+  async detectAllProgramGaps(programId: string): Promise<void> {
+    await this.generateMissingComponentRisks(programId);
+    await this.generateTimelineRisks(programId);
+    await this.generateDependencyRisks(programId);
+    await this.generateResourceRisks(programId);
+  }
+
+  // Generate timeline-related risks
+  async generateTimelineRisks(programId: string): Promise<void> {
+    const program = await this.getProgram(programId);
+    const milestones = await this.getMilestones(programId);
+    if (!program) return;
+
+    const risks = [];
+    const today = new Date();
+
+    // Check for overdue milestones
+    const overdueMilestones = milestones.filter(m => 
+      m.dueDate && new Date(m.dueDate) < today && m.status !== 'completed'
+    );
+
+    if (overdueMilestones.length > 0) {
+      risks.push({
+        title: 'Overdue Milestones Risk',
+        description: `${overdueMilestones.length} milestone(s) are overdue. This may impact overall program timeline and deliverables.`,
+        programId,
+        severity: 'high' as const,
+        impact: 4,
+        probability: 5,
+        status: 'identified' as const,
+        pmpCategory: 'schedule'
+      });
+    }
+
+    // Check for milestones too close together
+    const sortedMilestones = milestones
+      .filter(m => m.dueDate)
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+
+    for (let i = 0; i < sortedMilestones.length - 1; i++) {
+      const current = sortedMilestones[i];
+      const next = sortedMilestones[i + 1];
+      const timeDiff = new Date(next.dueDate!).getTime() - new Date(current.dueDate!).getTime();
+      const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+
+      if (daysDiff < 7) { // Less than a week between milestones
+        risks.push({
+          title: 'Compressed Timeline Risk',
+          description: `Milestones "${current.title}" and "${next.title}" are scheduled too close together (${Math.floor(daysDiff)} days). This may create resource conflicts.`,
+          programId,
+          severity: 'medium' as const,
+          impact: 3,
+          probability: 4,
+          status: 'identified' as const,
+          pmpCategory: 'schedule'
+        });
+      }
+    }
+
+    // Create risks that don't already exist
+    for (const risk of risks) {
+      await this.createRiskIfNotExists(risk);
+    }
+  }
+
+  // Generate dependency-related risks
+  async generateDependencyRisks(programId: string): Promise<void> {
+    const dependencies = await this.getDependencies(programId);
+    const risks = [];
+
+    // Check for blocked dependencies
+    const blockedDependencies = dependencies.filter(d => d.status === 'blocked');
+    if (blockedDependencies.length > 0) {
+      risks.push({
+        title: 'Blocked Dependencies Risk',
+        description: `${blockedDependencies.length} critical dependencies are blocked. This may delay program milestones and deliverables.`,
+        programId,
+        severity: 'high' as const,
+        impact: 4,
+        probability: 4,
+        status: 'identified' as const,
+        pmpCategory: 'scope'
+      });
+    }
+
+    // Check for dependencies with no owner
+    const unownedDependencies = dependencies.filter(d => !d.ownerId);
+    if (unownedDependencies.length > 0) {
+      risks.push({
+        title: 'Unassigned Dependencies Risk',
+        description: `${unownedDependencies.length} dependencies have no assigned owner. This creates accountability gaps.`,
+        programId,
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4,
+        status: 'identified' as const,
+        pmpCategory: 'resources'
+      });
+    }
+
+    for (const risk of risks) {
+      await this.createRiskIfNotExists(risk);
+    }
+  }
+
+  // Generate resource-related risks
+  async generateResourceRisks(programId: string): Promise<void> {
+    const adopters = await this.getAdopters(programId);
+    const milestones = await this.getMilestones(programId);
+    const risks = [];
+
+    // Check for adopters with poor readiness
+    const poorReadinessAdopters = adopters.filter(a => (a.readinessScore || 0) < 50);
+    if (poorReadinessAdopters.length > 0) {
+      risks.push({
+        title: 'Low Adopter Readiness Risk',
+        description: `${poorReadinessAdopters.length} adopter team(s) have low readiness scores (<50%). This may impact adoption success.`,
+        programId,
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4,
+        status: 'identified' as const,
+        pmpCategory: 'resources'
+      });
+    }
+
+    // Check for milestones with no owner
+    const unownedMilestones = milestones.filter(m => !m.ownerId);
+    if (unownedMilestones.length > 0) {
+      risks.push({
+        title: 'Unassigned Milestones Risk',
+        description: `${unownedMilestones.length} milestone(s) have no assigned owner. This creates accountability and delivery risks.`,
+        programId,
+        severity: 'high' as const,
+        impact: 4,
+        probability: 4,
+        status: 'identified' as const,
+        pmpCategory: 'resources'
+      });
+    }
+
+    for (const risk of risks) {
+      await this.createRiskIfNotExists(risk);
+    }
+  }
+
+  // Helper method to create risk only if it doesn't exist
+  async createRiskIfNotExists(riskData: any): Promise<Risk | null> {
+    const existingRisks = await this.getRisks(riskData.programId);
+    const exists = existingRisks.some(r => r.title === riskData.title);
+    
+    if (!exists) {
+      return await this.createRisk(riskData);
+    }
+    return null;
+  }
+
   // Auto-generate risks for missing program components
   async generateMissingComponentRisks(programId: string): Promise<void> {
     const program = await this.getProgram(programId);
