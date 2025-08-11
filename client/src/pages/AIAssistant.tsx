@@ -90,17 +90,14 @@ export default function AIAssistant() {
   // AI action processing mutation
   const aiActionMutation = useMutation({
     mutationFn: async (request: string) => {
-      return await apiRequest('/api/ai/process-request', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          request,
-          context: {
-            programCount: programs.length,
-            riskCount: risks.length,
-            milestoneCount: milestones.length,
-            programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status }))
-          }
-        })
+      return await apiRequest('/api/ai/process-request', 'POST', { 
+        request,
+        context: {
+          programCount: programs.length,
+          riskCount: risks.length,
+          milestoneCount: milestones.length,
+          programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status }))
+        }
       });
     },
     onSuccess: (response) => {

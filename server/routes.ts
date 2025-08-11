@@ -891,22 +891,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle program creation requests
       if (requestLower.includes('create') && (requestLower.includes('program') || requestLower.includes('project'))) {
         try {
-          // Extract program name from request
-          const nameMatch = request.match(/(?:create|make|add).*?(?:program|project).*?(?:called|named|"([^"]+)"|'([^']+)'|(\w+(?:\s+\w+)*))/) ||
-                           request.match(/"([^"]+)"/) ||
-                           request.match(/'([^']+)'/) ||
-                           request.match(/(?:program|project)\s+(\w+(?:\s+\w+)*)/);
+          // Extract program name from request - prioritize quoted names
+          let programName = null;
           
-          let programName = nameMatch ? (nameMatch[1] || nameMatch[2] || nameMatch[3]) : null;
-          
-          if (!programName) {
-            // Generate a name based on context
-            const programCount = context?.programCount || 0;
-            programName = `AI Created Program ${programCount + 1}`;
+          // First check for quoted names (highest priority)
+          const quotedMatch = request.match(/"([^"]+)"/);
+          if (quotedMatch) {
+            programName = quotedMatch[1];
+          } else {
+            // Then check for single quoted names
+            const singleQuotedMatch = request.match(/'([^']+)'/);
+            if (singleQuotedMatch) {
+              programName = singleQuotedMatch[1];
+            } else {
+              // Then check for named/called patterns without quotes
+              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
+              if (namedMatch) {
+                programName = namedMatch[1];
+              } else {
+                // Generate a name based on context
+                const programCount = context?.programCount || 0;
+                programName = `AI Created Program ${programCount + 1}`;
+              }
+            }
           }
 
           // Clean up the name
-          programName = programName.trim().replace(/^(called|named)\s+/i, '');
+          programName = programName.trim();
 
           const programData = {
             name: programName,
@@ -989,7 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const targetProgram = programs[0];
             
             const milestoneData = {
-              name: `AI Generated Milestone`,
+              title: `AI Generated Milestone`,
               description: `Milestone created by AI Assistant based on user request: "${request}"`,
               status: 'not_started' as const,
               programId: targetProgram.id,
@@ -1000,11 +1011,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newMilestone = await storage.createMilestone(validatedData);
             
             response.success = true;
-            response.message = `Successfully created milestone "${newMilestone.name}" for program "${targetProgram.name}"!`;
+            response.message = `Successfully created milestone "${newMilestone.title}" for program "${targetProgram.name}"!`;
             response.createdItems = [{
               type: 'milestone',
               id: newMilestone.id,
-              name: newMilestone.name
+              name: newMilestone.title
             }];
             response.actions = [{
               type: 'navigate',
