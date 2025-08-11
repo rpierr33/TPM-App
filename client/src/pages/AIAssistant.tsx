@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,53 @@ import {
   ExternalLink
 } from "lucide-react";
 import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
+
+// Global types for Speech Recognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
 
 interface ChatMessage {
   id: string;
@@ -62,6 +109,7 @@ export default function AIAssistant() {
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -146,6 +194,11 @@ export default function AIAssistant() {
           }
         });
       }
+
+      // Speak the response if voice was used
+      if (response.success && response.message) {
+        speakText(response.message);
+      }
     },
     onError: (error) => {
       const aiResponse: ChatMessage = {
@@ -186,9 +239,96 @@ export default function AIAssistant() {
     aiActionMutation.mutate(currentInput);
   };
 
+  // Initialize speech recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      
+      if (recognitionRef.current) {
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = event.results[0][0].transcript;
+          setInputValue(transcript);
+          
+          // Automatically send the voice command
+          setTimeout(() => {
+            handleVoiceCommand(transcript);
+          }, 500);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          toast({
+            title: "Voice Recognition Error",
+            description: "Unable to process voice input. Please try again.",
+            variant: "destructive"
+          });
+        };
+      }
+    }
+  }, []);
+
+  const handleVoiceCommand = async (command: string) => {
+    if (!command.trim() || isProcessing) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: `🎤 ${command}`,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsProcessing(true);
+
+    // Process the voice command with the AI
+    aiActionMutation.mutate(command);
+  };
+
   const toggleVoiceRecognition = () => {
-    setIsListening(!isListening);
-    // Voice recognition logic would go here
+    if (isListening) {
+      // Stop listening
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      // Start listening
+      if (recognitionRef.current) {
+        setIsListening(true);
+        recognitionRef.current.start();
+        toast({
+          title: "Listening...",
+          description: "Speak your command now",
+        });
+      } else {
+        toast({
+          title: "Voice Recognition Unavailable",
+          description: "Voice recognition is not supported in this browser",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      speechSynthesis.speak(utterance);
+    }
   };
 
   const formatTime = (date: Date) => {
