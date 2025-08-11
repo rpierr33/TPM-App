@@ -17,6 +17,7 @@ import {
   insertEscalationSchema,
   insertIntegrationSchema,
   insertReportSchema,
+  insertInitiativeSchema,
   type Program
 } from "@shared/schema";
 import { aiService } from "./services/ai";
@@ -1051,8 +1052,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Handle risk creation requests
-      else if (requestLower.includes('create') && requestLower.includes('risk')) {
+      // Handle risk creation requests  
+      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('risk')) {
         try {
           const programs = await storage.getPrograms();
           if (programs.length === 0) {
@@ -1068,7 +1069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               severity: 'medium' as const,
               impact: 3,
               probability: 3,
-              status: 'open' as const,
+              status: 'identified' as const,
               category: 'operational' as const,
               programId: targetProgram.id
             };
@@ -1095,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Handle milestone creation requests
-      else if (requestLower.includes('create') && requestLower.includes('milestone')) {
+      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('milestone')) {
         try {
           const programs = await storage.getPrograms();
           if (programs.length === 0) {
@@ -1132,6 +1133,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
           response.success = false;
         }
       }
+      
+      // Handle adopter creation requests
+      else if ((requestLower.includes('create') || requestLower.includes('add')) && (requestLower.includes('adopter') || requestLower.includes('team'))) {
+        try {
+          const programs = await storage.getPrograms();
+          if (programs.length === 0) {
+            response.message = "No programs found. Create a program first, then I can add adopter teams to it.";
+            response.success = false;
+          } else {
+            const targetProgram = programs[0];
+            
+            const adopterData = {
+              teamName: `AI Generated Team`,
+              department: 'IT',
+              contactPerson: 'Team Lead',
+              email: 'team@company.com',
+              onboardingStatus: 'planning' as const,
+              readinessScore: 50,
+              programId: targetProgram.id
+            };
+
+            const validatedData = insertAdopterSchema.parse(adopterData);
+            const newAdopter = await storage.createAdopter(validatedData);
+            
+            response.success = true;
+            response.message = `Successfully created adopter team "${newAdopter.teamName}" for program "${targetProgram.name}"!`;
+            response.createdItems = [{
+              type: 'adopter',
+              id: newAdopter.id,
+              name: newAdopter.teamName
+            }];
+            response.actions = [{
+              type: 'navigate',
+              target: `/programs/${targetProgram.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to create adopter team: ${error}`;
+          response.success = false;
+        }
+      }
+      
+      // Handle dependency creation requests
+      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('dependency')) {
+        try {
+          const programs = await storage.getPrograms();
+          if (programs.length === 0) {
+            response.message = "No programs found. Create a program first, then I can add dependencies to it.";
+            response.success = false;
+          } else {
+            const targetProgram = programs[0];
+            
+            const dependencyData = {
+              title: `AI Generated Dependency`,
+              description: `Dependency created by AI Assistant based on user request: "${request}"`,
+              type: 'external' as const,
+              status: 'blocked' as const,
+              priority: 'medium' as const,
+              programId: targetProgram.id,
+              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+            };
+
+            const validatedData = insertDependencySchema.parse(dependencyData);
+            const newDependency = await storage.createDependency(validatedData);
+            
+            response.success = true;
+            response.message = `Successfully created dependency "${newDependency.title}" for program "${targetProgram.name}"!`;
+            response.createdItems = [{
+              type: 'dependency',
+              id: newDependency.id,
+              name: newDependency.title
+            }];
+            response.actions = [{
+              type: 'navigate',
+              target: `/programs/${targetProgram.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to create dependency: ${error}`;
+          response.success = false;
+        }
+      }
+
+
       
       // Handle data analysis requests
       else if (requestLower.includes('analyze') || requestLower.includes('report') || requestLower.includes('summary')) {
@@ -1194,7 +1279,9 @@ ${programs.map(p => {
 🏗️ **Create Items:**
 • "Create a new program called [name]"
 • "Add a risk to the program"  
-• "Create a milestone for the project"
+• "Create a milestone for the program"
+• "Create an adopter team for the program"
+• "Add a dependency to the program"
 
 🗑️ **Delete Items:**
 • "Delete all programs"
