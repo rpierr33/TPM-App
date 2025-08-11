@@ -888,8 +888,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
         actions: [] as any[]
       };
 
+      // Handle delete requests first
+      if (requestLower.includes('delete') || requestLower.includes('remove')) {
+        try {
+          if (requestLower.includes('all') && requestLower.includes('program')) {
+            // Delete all programs
+            const programs = await storage.getPrograms();
+            if (programs.length === 0) {
+              response.message = "No programs found to delete.";
+              response.success = true;
+            } else {
+              let deletedCount = 0;
+              let errors: string[] = [];
+              
+              for (const program of programs) {
+                try {
+                  await storage.deleteProgram(program.id);
+                  deletedCount++;
+                } catch (error) {
+                  console.error(`Failed to delete program ${program.id}:`, error);
+                  errors.push(`Failed to delete "${program.name}"`);
+                }
+              }
+              
+              response.success = deletedCount > 0;
+              if (errors.length > 0) {
+                response.message = `Deleted ${deletedCount} program(s). ${errors.length} programs could not be deleted due to database constraints. ${errors.join(', ')}.`;
+              } else {
+                response.message = `Successfully deleted ${deletedCount} program(s). All programs have been removed from the system.`;
+              }
+              response.actions = [{
+                type: 'navigate',
+                target: '/dashboard'
+              }];
+            }
+          } else if (requestLower.includes('program')) {
+            // Delete specific program (for now, delete the first one as an example)
+            const programs = await storage.getPrograms();
+            if (programs.length === 0) {
+              response.message = "No programs found to delete.";
+              response.success = true;
+            } else {
+              const programToDelete = programs[0];
+              await storage.deleteProgram(programToDelete.id);
+              
+              response.success = true;
+              response.message = `Successfully deleted program "${programToDelete.name}".`;
+              response.actions = [{
+                type: 'navigate',
+                target: '/dashboard'
+              }];
+            }
+          } else if (requestLower.includes('risk')) {
+            // Delete risks
+            const risks = await storage.getRisks();
+            if (risks.length === 0) {
+              response.message = "No risks found to delete.";
+              response.success = true;
+            } else {
+              await storage.deleteRisk(risks[0].id);
+              response.success = true;
+              response.message = `Successfully deleted risk "${risks[0].title}".`;
+            }
+          } else {
+            response.message = "Please specify what you'd like to delete (e.g., 'delete all programs', 'delete a program', 'delete a risk').";
+            response.success = false;
+          }
+        } catch (error) {
+          response.message = `Failed to delete: ${error}`;
+          response.success = false;
+        }
+      }
+
+      // Handle update requests
+      else if (requestLower.includes('update') || requestLower.includes('change') || requestLower.includes('modify')) {
+        try {
+          if (requestLower.includes('program') && requestLower.includes('status')) {
+            const programs = await storage.getPrograms();
+            if (programs.length === 0) {
+              response.message = "No programs found to update.";
+              response.success = true;
+            } else {
+              const targetProgram = programs[0];
+              const newStatus = requestLower.includes('active') ? 'active' :
+                               requestLower.includes('completed') ? 'completed' :
+                               requestLower.includes('on_hold') ? 'on_hold' : 'planning';
+              
+              await storage.updateProgram(targetProgram.id, { status: newStatus });
+              
+              response.success = true;
+              response.message = `Successfully updated program "${targetProgram.name}" status to ${newStatus}.`;
+              response.actions = [{
+                type: 'navigate',
+                target: `/programs/${targetProgram.id}`
+              }];
+            }
+          } else {
+            response.message = "I can help update program status. Try: 'update program status to active' or 'change program status to completed'.";
+            response.success = true;
+          }
+        } catch (error) {
+          response.message = `Failed to update: ${error}`;
+          response.success = false;
+        }
+      }
+
       // Handle program creation requests
-      if (requestLower.includes('create') && (requestLower.includes('program') || requestLower.includes('project'))) {
+      else if (requestLower.includes('create') && (requestLower.includes('program') || requestLower.includes('project'))) {
         try {
           // Extract program name from request - prioritize quoted names
           let programName = null;
@@ -1060,7 +1165,8 @@ ${programs.map(p => {
           target: '/dashboard'
         }];
       }
-      
+
+
       // Handle navigation requests
       else if (requestLower.includes('show') || requestLower.includes('go to') || requestLower.includes('navigate')) {
         let targetPath = '/dashboard';
@@ -1089,6 +1195,16 @@ ${programs.map(p => {
 • "Create a new program called [name]"
 • "Add a risk to the program"  
 • "Create a milestone for the project"
+
+🗑️ **Delete Items:**
+• "Delete all programs"
+• "Remove a program"
+• "Delete a risk"
+
+✏️ **Update Items:**
+• "Update program status to active"
+• "Change program status to completed"
+• "Modify program status to on hold"
 
 📊 **Analysis & Reports:**
 • "Analyze current program status"

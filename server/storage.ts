@@ -284,7 +284,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProgram(id: string): Promise<void> {
-    await db.delete(programs).where(eq(programs.id, id));
+    try {
+      // Simple approach: try to delete and handle constraint errors
+      await db.delete(programs).where(eq(programs.id, id));
+    } catch (error: any) {
+      // If foreign key constraint, try to clean up associated data first
+      if (error.code === '23503') {
+        try {
+          // Delete associated risks
+          await db.delete(risks).where(eq(risks.programId, id));
+          // Delete associated adopters  
+          await db.delete(adopters).where(eq(adopters.programId, id));
+          // Try deleting the program again
+          await db.delete(programs).where(eq(programs.id, id));
+        } catch (secondError) {
+          throw new Error(`Unable to delete program due to database constraints: ${secondError}`);
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   // Milestone operations
