@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MissingComponentsModal } from "@/components/modals/MissingComponentsModal";
 import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -58,10 +58,10 @@ export default function Dashboard() {
   useEffect(() => {
     const generateMissingRisks = async () => {
       try {
-        await apiRequest('/api/programs/generate-all-missing-risks', {
-          method: 'POST'
-        });
+        await apiRequest('/api/programs/generate-all-missing-risks', 'POST');
         console.log('Missing component risks generated for all programs');
+        // Refresh risks data to show the new auto-generated risks
+        queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
       } catch (error) {
         console.error('Failed to generate missing component risks:', error);
       }
