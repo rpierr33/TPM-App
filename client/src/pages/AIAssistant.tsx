@@ -104,6 +104,7 @@ export default function AIAssistant() {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -155,6 +156,13 @@ export default function AIAssistant() {
       
       addChatMessage(aiResponse);
       setIsProcessing(false);
+      
+      // Auto-scroll to bottom when new message is added
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 100);
 
       // If items were created, invalidate ALL relevant caches to ensure dashboard updates
       if (response.createdItems && response.createdItems.length > 0) {
@@ -202,6 +210,13 @@ export default function AIAssistant() {
       
       addChatMessage(aiResponse);
       setIsProcessing(false);
+      
+      // Auto-scroll to bottom when new message is added
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 100);
       
       toast({
         title: "Error",
@@ -282,6 +297,13 @@ export default function AIAssistant() {
     addChatMessage(userMessage);
     setInputValue('');
     setIsProcessing(true);
+    
+    // Auto-scroll to bottom when new message is added
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 100);
 
     // Process the voice command with the AI
     aiActionMutation.mutate(command);
@@ -323,7 +345,8 @@ export default function AIAssistant() {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateObj = new Date(date);
+    return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const getResponseIcon = (responseType: string) => {
@@ -364,7 +387,10 @@ export default function AIAssistant() {
           
           <CardContent className="flex-1 flex flex-col p-0">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh] min-h-[400px]"
+            >
               {chatMessages.map((message) => (
                 <div
                   key={message.id}
