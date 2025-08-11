@@ -158,6 +158,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate missing component risks for a program
+  app.post("/api/programs/:id/generate-missing-risks", async (req, res) => {
+    try {
+      await (storage as any).generateMissingComponentRisks(req.params.id);
+      res.json({ message: "Missing component risks generated successfully" });
+    } catch (error) {
+      console.error("Error generating missing component risks:", error);
+      res.status(500).json({ message: "Failed to generate missing component risks" });
+    }
+  });
+
+  // Generate missing component risks for ALL programs
+  app.post("/api/programs/generate-all-missing-risks", async (req, res) => {
+    try {
+      const programs = await storage.getPrograms();
+      for (const program of programs) {
+        await (storage as any).generateMissingComponentRisks(program.id);
+      }
+      res.json({ 
+        message: "Missing component risks generated for all programs",
+        programCount: programs.length 
+      });
+    } catch (error) {
+      console.error("Error generating missing component risks for all programs:", error);
+      res.status(500).json({ message: "Failed to generate missing component risks for all programs" });
+    }
+  });
+
   // Milestone routes
   app.get("/api/milestones", async (req, res) => {
     try {

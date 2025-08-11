@@ -53,6 +53,23 @@ export default function Dashboard() {
   });
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  
+  // Auto-generate missing component risks on component mount
+  useEffect(() => {
+    const generateMissingRisks = async () => {
+      try {
+        await apiRequest('/api/programs/generate-all-missing-risks', {
+          method: 'POST'
+        });
+        console.log('Missing component risks generated for all programs');
+      } catch (error) {
+        console.error('Failed to generate missing component risks:', error);
+      }
+    };
+    
+    // Only run once when component mounts
+    generateMissingRisks();
+  }, []);
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],

@@ -265,6 +265,9 @@ export class DatabaseStorage implements IStorage {
 
   async createProgram(programData: InsertProgram): Promise<Program> {
     const [program] = await db.insert(programs).values(programData).returning();
+    
+    // Auto-generate risks for missing components
+    await this.generateMissingComponentRisks(program.id);
     return program;
   }
 
@@ -274,6 +277,9 @@ export class DatabaseStorage implements IStorage {
       .set({ ...programData, updatedAt: new Date() })
       .where(eq(programs.id, id))
       .returning();
+    
+    // Auto-generate/update risks for missing components after update
+    await this.generateMissingComponentRisks(program.id);
     return program;
   }
 
@@ -846,6 +852,144 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pmpRecommendations.id, id))
       .returning();
     return recommendation;
+  }
+
+  // Auto-generate risks for missing program components
+  async generateMissingComponentRisks(programId: string): Promise<void> {
+    const program = await this.getProgram(programId);
+    if (!program) return;
+
+    const programRisks = await this.getRisks(programId);
+    const programMilestones = await this.getMilestones(programId);
+    const programAdopters = await this.getAdopters(programId);
+
+    // Define missing components and their corresponding risk details
+    const missingComponents = [];
+    
+    if (!program.description || program.description.trim().length < 10) {
+      missingComponents.push({
+        component: 'Description',
+        title: 'Missing Program Description',
+        description: 'Program lacks adequate description. This creates ambiguity in scope, objectives, and stakeholder understanding.',
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4
+      });
+    }
+    
+    if (!program.ownerId) {
+      missingComponents.push({
+        component: 'Owner',
+        title: 'Missing Program Owner',
+        description: 'Program has no assigned owner. This creates accountability gaps and decision-making delays.',
+        severity: 'high' as const,
+        impact: 4,
+        probability: 4
+      });
+    }
+    
+    if (!program.startDate) {
+      missingComponents.push({
+        component: 'Start Date',
+        title: 'Missing Program Start Date',
+        description: 'Program lacks defined start date. This impacts timeline planning and resource allocation.',
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4
+      });
+    }
+    
+    if (!program.endDate) {
+      missingComponents.push({
+        component: 'End Date',
+        title: 'Missing Program End Date',
+        description: 'Program lacks defined end date. This creates uncertainty in deliverable expectations and resource planning.',
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4
+      });
+    }
+    
+    if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) {
+      missingComponents.push({
+        component: 'Objectives',
+        title: 'Missing Program Objectives',
+        description: 'Program lacks clearly defined objectives. This creates alignment issues and success measurement challenges.',
+        severity: 'high' as const,
+        impact: 4,
+        probability: 5
+      });
+    }
+    
+    if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) {
+      missingComponents.push({
+        component: 'KPIs',
+        title: 'Missing Key Performance Indicators',
+        description: 'Program lacks defined KPIs. This prevents proper success measurement and progress tracking.',
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 4
+      });
+    }
+    
+    if (programMilestones.length === 0) {
+      missingComponents.push({
+        component: 'Milestones',
+        title: 'Missing Program Milestones',
+        description: 'Program has no defined milestones. This creates issues with progress tracking and timeline management.',
+        severity: 'high' as const,
+        impact: 4,
+        probability: 5
+      });
+    }
+    
+    if (programAdopters.length === 0) {
+      missingComponents.push({
+        component: 'Adopter Teams',
+        title: 'Missing Adopter Teams',
+        description: 'Program has no identified adopter teams. This creates adoption risk and change management challenges.',
+        severity: 'medium' as const,
+        impact: 3,
+        probability: 3
+      });
+    }
+
+    // Remove existing "Missing" risks that might be resolved
+    const existingMissingRisks = programRisks.filter(r => 
+      r.title?.startsWith('Missing ') && 
+      r.description?.includes('Program lacks') || r.description?.includes('Program has no')
+    );
+    
+    for (const risk of existingMissingRisks) {
+      const componentName = risk.title?.replace('Missing Program ', '').replace('Missing Key Performance Indicators', 'KPIs').replace('Missing ', '');
+      const stillMissing = missingComponents.some(mc => mc.component === componentName);
+      
+      if (!stillMissing) {
+        // Component is no longer missing, remove the risk
+        await this.deleteRisk(risk.id);
+      }
+    }
+
+    // Create risks for components that are missing and don't already have risks
+    for (const missing of missingComponents) {
+      const existingRisk = programRisks.find(r => 
+        r.title === missing.title || 
+        (r.title?.includes(missing.component) && r.description?.includes('Program lacks'))
+      );
+      
+      if (!existingRisk) {
+        await this.createRisk({
+          title: missing.title,
+          description: missing.description,
+          programId: programId,
+          severity: missing.severity,
+          impact: missing.impact,
+          probability: missing.probability,
+          status: 'identified',
+          pmpCategory: 'scope'
+        });
+      }
+    }
   }
 }
 
