@@ -7,7 +7,10 @@ This is an AI-first Technical Program Manager (TPM) automation web application. 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
-- **CHAT-FIRST INTERACTION MODEL** - Removed all automatic navigation actions; AI Assistant keeps users in chat to maintain conversation history and context, fixing critical UX issue
+- **CRITICAL UX FIXES COMPLETED** - Fixed cache invalidation and chat state persistence issues for professional-grade functionality
+- **COMPREHENSIVE CACHE INVALIDATION** - AI Assistant now invalidates ALL relevant query caches ensuring dashboard updates immediately after AI creates items
+- **PERSISTENT CHAT STATE** - Chat history now persists across navigation using Zustand global state with localStorage, preventing conversation resets
+- **CHAT-FIRST INTERACTION MODEL** - Removed all automatic navigation actions; AI Assistant keeps users in chat to maintain conversation history and context
 - **COMPREHENSIVE MANY-TO-MANY LINKING SYSTEM** - Complete implementation of all cross-component relationships with proper hierarchy: projects within programs, programs linked to initiatives/platforms, with full AI Assistant support
 - **PROPER PROGRAM/PROJECT HIERARCHY** - Clear distinction between programs (containers) and projects (components within programs), with AI Assistant enforcing correct relationships
 - **Complete Action Parity** - AI Assistant can now perform ALL actions that users can perform manually, making it the primary interface for platform interaction

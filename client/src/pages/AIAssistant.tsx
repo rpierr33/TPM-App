@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useAppStore } from "@/stores/appStore";
 import { 
   Mic, 
   MicOff, 
@@ -96,15 +97,8 @@ interface ChatMessage {
 }
 
 export default function AIAssistant() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'ai',
-      content: 'Hello! I\'m your AI assistant for program management. I can help you create programs, add risks, create milestones, analyze data, and perform any action you can do manually. Just tell me what you need!',
-      timestamp: new Date(),
-      responseType: 'text'
-    }
-  ]);
+  // Use global chat state from zustand store for persistence across navigation
+  const { chatMessages, setChatMessages, addChatMessage, clearChatHistory } = useAppStore();
   
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -159,24 +153,21 @@ export default function AIAssistant() {
         actions: response.actions
       };
       
-      setMessages(prev => [...prev, aiResponse]);
+      addChatMessage(aiResponse);
       setIsProcessing(false);
 
-      // If items were created, invalidate caches
+      // If items were created, invalidate ALL relevant caches to ensure dashboard updates
       if (response.createdItems && response.createdItems.length > 0) {
-        response.createdItems.forEach((item: any) => {
-          if (item.type === 'program') {
-            queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
-          } else if (item.type === 'risk') {
-            queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
-          } else if (item.type === 'milestone') {
-            queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-          } else if (item.type === 'adopter') {
-            queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
-          } else if (item.type === 'dependency') {
-            queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
-          }
-        });
+        // Invalidate all major query caches to ensure dashboard and all pages update
+        queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/platforms"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        
         
         toast({
           title: "Success",
@@ -209,7 +200,7 @@ export default function AIAssistant() {
         responseType: 'error'
       };
       
-      setMessages(prev => [...prev, aiResponse]);
+      addChatMessage(aiResponse);
       setIsProcessing(false);
       
       toast({
@@ -230,7 +221,7 @@ export default function AIAssistant() {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    addChatMessage(userMessage);
     const currentInput = inputValue;
     setInputValue('');
     setIsProcessing(true);
@@ -288,7 +279,7 @@ export default function AIAssistant() {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    addChatMessage(userMessage);
     setInputValue('');
     setIsProcessing(true);
 
@@ -374,7 +365,7 @@ export default function AIAssistant() {
           <CardContent className="flex-1 flex flex-col p-0">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-              {messages.map((message) => (
+              {chatMessages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -552,6 +543,16 @@ export default function AIAssistant() {
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
+                
+                <Button
+                  onClick={clearChatHistory}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Clear chat history"
+                >
+                  Clear Chat
+                </Button>
               </div>
             </div>
           </CardContent>
