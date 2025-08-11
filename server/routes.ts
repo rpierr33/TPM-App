@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
+  insertPlatformSchema,
   insertProgramSchema,
   insertMilestoneSchema,
   insertMilestoneStepSchema,
@@ -31,6 +32,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching dashboard metrics:", error);
       res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  // Platform routes
+  app.get("/api/platforms", async (req, res) => {
+    try {
+      const platforms = await storage.getPlatforms();
+      res.json(platforms);
+    } catch (error) {
+      console.error("Error fetching platforms:", error);
+      res.status(500).json({ message: "Failed to fetch platforms" });
+    }
+  });
+
+  app.get("/api/platforms/:id", async (req, res) => {
+    try {
+      const platform = await storage.getPlatform(req.params.id);
+      if (!platform) {
+        return res.status(404).json({ message: "Platform not found" });
+      }
+      res.json(platform);
+    } catch (error) {
+      console.error("Error fetching platform:", error);
+      res.status(500).json({ message: "Failed to fetch platform" });
+    }
+  });
+
+  app.post("/api/platforms", async (req, res) => {
+    try {
+      const validatedData = insertPlatformSchema.parse(req.body);
+      const platform = await storage.createPlatform(validatedData);
+      res.status(201).json(platform);
+    } catch (error) {
+      console.error("Error creating platform:", error);
+      res.status(400).json({ message: "Failed to create platform" });
+    }
+  });
+
+  app.patch("/api/platforms/:id", async (req, res) => {
+    try {
+      const validatedData = insertPlatformSchema.partial().parse(req.body);
+      const platform = await storage.updatePlatform(req.params.id, validatedData);
+      res.json(platform);
+    } catch (error) {
+      console.error("Error updating platform:", error);
+      res.status(400).json({ message: "Failed to update platform" });
+    }
+  });
+
+  app.delete("/api/platforms/:id", async (req, res) => {
+    try {
+      await storage.deletePlatform(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting platform:", error);
+      res.status(500).json({ message: "Failed to delete platform" });
+    }
+  });
+
+  // Initiative routes 
+  app.get("/api/initiatives", async (req, res) => {
+    try {
+      const initiatives = await storage.getInitiatives();
+      res.json(initiatives);
+    } catch (error) {
+      console.error("Error fetching initiatives:", error);
+      res.status(500).json({ message: "Failed to fetch initiatives" });
     }
   });
 

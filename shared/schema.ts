@@ -142,6 +142,17 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Platforms - manageable list of platforms that programs can belong to
+export const platforms = pgTable("platforms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  color: varchar("color").default("#3B82F6"), // Hex color for UI
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Initiatives - high-level strategic objectives that span multiple programs/projects
 export const initiatives = pgTable("initiatives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -163,10 +174,13 @@ export const programs = pgTable("programs", {
   description: text("description"),
   status: programStatusEnum("status").default("planning"),
   ownerId: varchar("owner_id").references(() => users.id),
+  platformId: varchar("platform_id").references(() => platforms.id),
   objectives: jsonb("objectives"), // Array of OKRs
   kpis: jsonb("kpis"), // Key Performance Indicators
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  actualStartDate: timestamp("actual_start_date"), // For programs added mid-execution
+  estimatedCompletionPercentage: integer("estimated_completion_percentage").default(0), // 0-100 for mid-execution programs
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -534,6 +548,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
+export const insertPlatformSchema = createInsertSchema(platforms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertProgramSchema = createInsertSchema(programs).omit({
   id: true,
   createdAt: true,
@@ -587,6 +607,9 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Platform = typeof platforms.$inferSelect;
+export type InsertPlatform = z.infer<typeof insertPlatformSchema>;
 
 export type Program = typeof programs.$inferSelect;
 export type InsertProgram = z.infer<typeof insertProgramSchema>;

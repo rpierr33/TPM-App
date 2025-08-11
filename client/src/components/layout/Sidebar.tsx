@@ -27,6 +27,7 @@ const navigationItems = [
   { path: "/adopter-support", icon: Users, label: "Adopter Support" },
   { path: "/escalations", icon: TrendingUp, label: "Escalations" },
   { path: "/executive-reports", icon: BarChart3, label: "Executive Reports" },
+  { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function Sidebar() {

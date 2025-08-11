@@ -1,5 +1,6 @@
 import {
   users,
+  platforms,
   programs,
   projects,
   initiatives,
@@ -21,6 +22,8 @@ import {
   pmpRecommendations,
   type User,
   type InsertUser,
+  type Platform,
+  type InsertPlatform,
   type Program,
   type InsertProgram,
   type Project,
@@ -67,6 +70,13 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  // Platform operations
+  getPlatforms(): Promise<Platform[]>;
+  getPlatform(id: string): Promise<Platform | undefined>;
+  createPlatform(platform: InsertPlatform): Promise<Platform>;
+  updatePlatform(id: string, platform: Partial<InsertPlatform>): Promise<Platform>;
+  deletePlatform(id: string): Promise<void>;
   
   // Program operations
   getPrograms(): Promise<Program[]>;
@@ -213,6 +223,34 @@ export class DatabaseStorage implements IStorage {
   async createUser(userData: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(userData).returning();
     return user;
+  }
+
+  // Platform operations
+  async getPlatforms(): Promise<Platform[]> {
+    return await db.select().from(platforms).orderBy(desc(platforms.createdAt));
+  }
+
+  async getPlatform(id: string): Promise<Platform | undefined> {
+    const [platform] = await db.select().from(platforms).where(eq(platforms.id, id));
+    return platform;
+  }
+
+  async createPlatform(platformData: InsertPlatform): Promise<Platform> {
+    const [platform] = await db.insert(platforms).values(platformData).returning();
+    return platform;
+  }
+
+  async updatePlatform(id: string, platformData: Partial<InsertPlatform>): Promise<Platform> {
+    const [platform] = await db
+      .update(platforms)
+      .set({ ...platformData, updatedAt: new Date() })
+      .where(eq(platforms.id, id))
+      .returning();
+    return platform;
+  }
+
+  async deletePlatform(id: string): Promise<void> {
+    await db.delete(platforms).where(eq(platforms.id, id));
   }
 
   // Program operations
