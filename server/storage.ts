@@ -189,6 +189,10 @@ export interface IStorage {
   updateInitiative(id: string, updates: Partial<InsertInitiative>): Promise<Initiative>;
   deleteInitiative(id: string): Promise<void>;
   linkProgramToInitiative(programId: string, initiativeId: string): Promise<void>;
+  linkProjectToInitiative(projectId: string, initiativeId: string): Promise<void>;
+  linkProgramToPlatform(programId: string, platformId: string): Promise<void>;
+  linkEpicToPrograms(epicId: string, programIds: string[]): Promise<void>;
+  linkProjectToPrograms(projectId: string, programIds: string[]): Promise<void>;
 
   // Project operations
   getProjects(programId?: string): Promise<Project[]>;
@@ -805,6 +809,38 @@ export class DatabaseStorage implements IStorage {
       contribution: 'Linked by AI Assistant',
       priority: 1
     });
+  }
+
+  async linkProjectToInitiative(projectId: string, initiativeId: string): Promise<void> {
+    await db.insert(initiativeProjects).values({
+      projectId,
+      initiativeId,
+      contribution: 'Linked by AI Assistant',
+      priority: 1
+    });
+  }
+
+  async linkProgramToPlatform(programId: string, platformId: string): Promise<void> {
+    await db.update(programs)
+      .set({ platformId })
+      .where(eq(programs.id, programId));
+  }
+
+  async linkEpicToPrograms(epicId: string, programIds: string[]): Promise<void> {
+    // Epic to program linking is limited by current schema - epics are linked to milestones, not directly to programs
+    // For now, we'll skip this implementation as it requires schema changes
+    // This would need a new epicPrograms mapping table for true many-to-many relationships
+    console.log(`Epic linking requested but not implemented: epic ${epicId} to programs ${programIds.join(', ')}`);
+  }
+
+  async linkProjectToPrograms(projectId: string, programIds: string[]): Promise<void> {
+    // Project to program linking currently uses single programId field
+    // This would need a new projectPrograms mapping table for true many-to-many
+    if (programIds.length > 0) {
+      await db.update(projects)
+        .set({ programId: programIds[0] })
+        .where(eq(projects.id, projectId));
+    }
   }
 
   // Project operations

@@ -18,7 +18,9 @@ import {
   insertIntegrationSchema,
   insertReportSchema,
   insertInitiativeSchema,
-  type Program
+  insertProjectSchema,
+  type Program,
+  type Project
 } from "@shared/schema";
 import { aiService } from "./services/ai";
 import { integrationService } from "./services/integrations";
@@ -994,8 +996,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle program creation requests
-      else if (requestLower.includes('create') && (requestLower.includes('program') || requestLower.includes('project'))) {
+      // Handle program creation requests (but not projects or platforms)
+      else if (requestLower.includes('create') && requestLower.includes('program') && !requestLower.includes('project') && !requestLower.includes('platform')) {
         try {
           // Extract program name from request - prioritize quoted names
           let programName = null;
@@ -1216,6 +1218,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Handle project creation requests (explicit project creation)
+      else if (requestLower.includes('create project') || requestLower.includes('add project')) {
+        try {
+          const programs = await storage.getPrograms();
+          if (programs.length === 0) {
+            response.message = "No programs found. Create a program first, then I can add projects to it.";
+            response.success = false;
+          } else {
+            const targetProgram = programs[0];
+            
+            // Extract project name from request - prioritize quoted names
+            let projectName = null;
+            const quotedMatch = request.match(/"([^"]+)"/);
+            if (quotedMatch) {
+              projectName = quotedMatch[1];
+            } else {
+              const singleQuotedMatch = request.match(/'([^']+)'/);
+              if (singleQuotedMatch) {
+                projectName = singleQuotedMatch[1];
+              } else {
+                const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
+                if (namedMatch) {
+                  projectName = namedMatch[1];
+                } else {
+                  projectName = `AI Generated Project`;
+                }
+              }
+            }
+
+            projectName = projectName.trim();
+            
+            const projectData = {
+              name: projectName,
+              description: `Project created by AI Assistant based on user request: "${request}"`,
+              status: 'planning' as const,
+              programId: targetProgram.id
+            };
+
+            const validatedData = insertProjectSchema.parse(projectData);
+            const newProject = await storage.createProject(validatedData);
+            
+            response.success = true;
+            response.message = `Successfully created project "${newProject.name}" for program "${targetProgram.name}"!`;
+            response.createdItems = [{
+              type: 'project',
+              id: newProject.id,
+              name: newProject.name
+            }];
+            response.actions = [{
+              type: 'navigate',
+              target: `/programs/${targetProgram.id}`
+            }];
+          }
+        } catch (error) {
+          response.message = `Failed to create project: ${error}`;
+          response.success = false;
+        }
+      }
+
+      // Handle platform creation requests
+      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('platform')) {
+        try {
+          // Extract platform name from request - prioritize quoted names
+          let platformName = null;
+          const quotedMatch = request.match(/"([^"]+)"/);
+          if (quotedMatch) {
+            platformName = quotedMatch[1];
+          } else {
+            const singleQuotedMatch = request.match(/'([^']+)'/);
+            if (singleQuotedMatch) {
+              platformName = singleQuotedMatch[1];
+            } else {
+              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
+              if (namedMatch) {
+                platformName = namedMatch[1];
+              } else {
+                platformName = `AI Generated Platform`;
+              }
+            }
+          }
+
+          platformName = platformName.trim();
+          
+          const platformData = {
+            name: platformName,
+            description: `Platform created by AI Assistant based on user request: "${request}"`,
+            type: 'technology' as const,
+            status: 'active' as const
+          };
+
+          const validatedData = insertPlatformSchema.parse(platformData);
+          const newPlatform = await storage.createPlatform(validatedData);
+          
+          response.success = true;
+          response.message = `Successfully created platform "${newPlatform.name}"! You can now link programs to this platform.`;
+          response.createdItems = [{
+            type: 'platform',
+            id: newPlatform.id,
+            name: newPlatform.name
+          }];
+          response.actions = [{
+            type: 'navigate',
+            target: `/dashboard`
+          }];
+        } catch (error) {
+          response.message = `Failed to create platform: ${error}`;
+          response.success = false;
+        }
+      }
+
       // Handle initiative creation and linking requests
       else if (requestLower.includes('create') && requestLower.includes('initiative')) {
         try {
@@ -1269,34 +1381,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle linking programs to initiatives
-      else if (requestLower.includes('link') && requestLower.includes('program') && requestLower.includes('initiative')) {
+      // Handle comprehensive linking requests
+      else if (requestLower.includes('link')) {
         try {
-          const programs = await storage.getPrograms();
-          const initiatives = await storage.getInitiatives();
+          // Program to Initiative linking
+          if (requestLower.includes('program') && requestLower.includes('initiative')) {
+            const programs = await storage.getPrograms();
+            const initiatives = await storage.getInitiatives();
+            
+            if (programs.length === 0) {
+              response.message = "No programs found to link. Create a program first.";
+              response.success = false;
+            } else if (initiatives.length === 0) {
+              response.message = "No initiatives found to link to. Create an initiative first.";
+              response.success = false;
+            } else {
+              const targetProgram = programs[0];
+              const targetInitiative = initiatives[0];
+              
+              await storage.linkProgramToInitiative(targetProgram.id, targetInitiative.id);
+              
+              response.success = true;
+              response.message = `Successfully linked program "${targetProgram.name}" to initiative "${targetInitiative.name}"!`;
+              response.actions = [{
+                type: 'navigate',
+                target: `/programs/${targetProgram.id}`
+              }];
+            }
+          }
           
-          if (programs.length === 0) {
-            response.message = "No programs found to link. Create a program first.";
-            response.success = false;
-          } else if (initiatives.length === 0) {
-            response.message = "No initiatives found to link to. Create an initiative first.";
-            response.success = false;
-          } else {
-            const targetProgram = programs[0];
-            const targetInitiative = initiatives[0];
+          // Project to Initiative linking
+          else if (requestLower.includes('project') && requestLower.includes('initiative')) {
+            const projects = await storage.getProjects();
+            const initiatives = await storage.getInitiatives();
             
-            // Create initiative-program mapping
-            await storage.linkProgramToInitiative(targetProgram.id, targetInitiative.id);
+            if (projects.length === 0) {
+              response.message = "No projects found to link. Create a project first.";
+              response.success = false;
+            } else if (initiatives.length === 0) {
+              response.message = "No initiatives found to link to. Create an initiative first.";
+              response.success = false;
+            } else {
+              const targetProject = projects[0];
+              const targetInitiative = initiatives[0];
+              
+              await storage.linkProjectToInitiative(targetProject.id, targetInitiative.id);
+              
+              response.success = true;
+              response.message = `Successfully linked project "${targetProject.name}" to initiative "${targetInitiative.name}"!`;
+              response.actions = [{
+                type: 'navigate',
+                target: `/dashboard`
+              }];
+            }
+          }
+          
+          // Program to Platform linking
+          else if (requestLower.includes('program') && requestLower.includes('platform')) {
+            const programs = await storage.getPrograms();
+            const platforms = await storage.getPlatforms();
             
+            if (programs.length === 0) {
+              response.message = "No programs found to link. Create a program first.";
+              response.success = false;
+            } else if (platforms.length === 0) {
+              response.message = "No platforms found to link to. Create a platform first.";
+              response.success = false;
+            } else {
+              const targetProgram = programs[0];
+              const targetPlatform = platforms[0];
+              
+              await storage.linkProgramToPlatform(targetProgram.id, targetPlatform.id);
+              
+              response.success = true;
+              response.message = `Successfully linked program "${targetProgram.name}" to platform "${targetPlatform.name}"!`;
+              response.actions = [{
+                type: 'navigate',
+                target: `/programs/${targetProgram.id}`
+              }];
+            }
+          }
+          
+          // Project to Program linking
+          else if (requestLower.includes('project') && requestLower.includes('program')) {
+            const projects = await storage.getProjects();
+            const programs = await storage.getPrograms();
+            
+            if (projects.length === 0) {
+              response.message = "No projects found to link. Create a project first.";
+              response.success = false;
+            } else if (programs.length === 0) {
+              response.message = "No programs found to link to. Create a program first.";
+              response.success = false;
+            } else {
+              const targetProject = projects[0];
+              const targetProgram = programs[0];
+              
+              await storage.linkProjectToPrograms(targetProject.id, [targetProgram.id]);
+              
+              response.success = true;
+              response.message = `Successfully linked project "${targetProject.name}" to program "${targetProgram.name}"!`;
+              response.actions = [{
+                type: 'navigate',
+                target: `/programs/${targetProgram.id}`
+              }];
+            }
+          }
+          
+          else {
+            response.message = "I can link: program to initiative, project to initiative, program to platform, project to program. Please specify what you'd like to link.";
             response.success = true;
-            response.message = `Successfully linked program "${targetProgram.name}" to initiative "${targetInitiative.name}"!`;
-            response.actions = [{
-              type: 'navigate',
-              target: `/programs/${targetProgram.id}`
-            }];
           }
         } catch (error) {
-          response.message = `Failed to link program to initiative: ${error}`;
+          response.message = `Failed to link components: ${error}`;
           response.success = false;
         }
       }
@@ -1366,9 +1563,14 @@ ${programs.map(p => {
 • "Create an adopter team for the program"
 • "Add a dependency to the program"
 • "Create an initiative called [name]"
+• "Create a project called [name]"
+• "Create a platform called [name]"
 
 🔗 **Link Items:**
 • "Link program to initiative"
+• "Link project to initiative"  
+• "Link program to platform"
+• "Link project to program"
 
 🗑️ **Delete Items:**
 • "Delete all programs"
