@@ -920,10 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } else {
                 response.message = `Successfully deleted ${deletedCount} program(s). All programs have been removed from the system.`;
               }
-              response.actions = [{
-                type: 'navigate',
-                target: '/dashboard'
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           } else if (requestLower.includes('program')) {
             // Delete specific program (for now, delete the first one as an example)
@@ -937,10 +934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               response.success = true;
               response.message = `Successfully deleted program "${programToDelete.name}".`;
-              response.actions = [{
-                type: 'navigate',
-                target: '/dashboard'
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           } else if (requestLower.includes('risk')) {
             // Delete risks
@@ -1043,10 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: newProgram.id,
             name: newProgram.name
           }];
-          response.actions = [{
-            type: 'navigate',
-            target: `/programs/${newProgram.id}`
-          }];
+          // Navigation removed - keep user in chat to continue conversation
 
         } catch (error) {
           response.message = `Failed to create program: ${error}`;
@@ -1086,10 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: newRisk.id,
               name: newRisk.title
             }];
-            response.actions = [{
-              type: 'navigate',
-              target: `/risk-management?riskId=${newRisk.id}`
-            }];
+            // Navigation removed - keep user in chat to continue conversation
           }
         } catch (error) {
           response.message = `Failed to create risk: ${error}`;
@@ -1125,10 +1113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: newMilestone.id,
               name: newMilestone.title
             }];
-            response.actions = [{
-              type: 'navigate',
-              target: `/programs/${targetProgram.id}`
-            }];
+            // Navigation removed - keep user in chat to continue conversation
           }
         } catch (error) {
           response.message = `Failed to create milestone: ${error}`;
@@ -1166,10 +1151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: newAdopter.id,
               name: newAdopter.teamName
             }];
-            response.actions = [{
-              type: 'navigate',
-              target: `/programs/${targetProgram.id}`
-            }];
+            // Navigation removed - keep user in chat to continue conversation
           }
         } catch (error) {
           response.message = `Failed to create adopter team: ${error}`;
@@ -1207,10 +1189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: newDependency.id,
               name: newDependency.title
             }];
-            response.actions = [{
-              type: 'navigate',
-              target: `/programs/${targetProgram.id}`
-            }];
+            // Navigation removed - keep user in chat to continue conversation
           }
         } catch (error) {
           response.message = `Failed to create dependency: ${error}`;
@@ -1266,10 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: newProject.id,
               name: newProject.name
             }];
-            response.actions = [{
-              type: 'navigate',
-              target: `/programs/${targetProgram.id}`
-            }];
+            // Navigation removed - keep user in chat to continue conversation
           }
         } catch (error) {
           response.message = `Failed to create project: ${error}`;
@@ -1318,10 +1294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: newPlatform.id,
             name: newPlatform.name
           }];
-          response.actions = [{
-            type: 'navigate',
-            target: `/dashboard`
-          }];
+          // Navigation removed - keep user in chat to continue conversation
         } catch (error) {
           response.message = `Failed to create platform: ${error}`;
           response.success = false;
@@ -1371,10 +1344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: newInitiative.id,
             name: newInitiative.name
           }];
-          response.actions = [{
-            type: 'navigate',
-            target: `/dashboard`
-          }];
+          // Navigation removed - keep user in chat to continue conversation
         } catch (error) {
           response.message = `Failed to create initiative: ${error}`;
           response.success = false;
@@ -1403,10 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               response.success = true;
               response.message = `Successfully linked program "${targetProgram.name}" to initiative "${targetInitiative.name}"!`;
-              response.actions = [{
-                type: 'navigate',
-                target: `/programs/${targetProgram.id}`
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           }
           
@@ -1429,10 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               response.success = true;
               response.message = `Successfully linked project "${targetProject.name}" to initiative "${targetInitiative.name}"!`;
-              response.actions = [{
-                type: 'navigate',
-                target: `/dashboard`
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           }
           
@@ -1455,10 +1419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               response.success = true;
               response.message = `Successfully linked program "${targetProgram.name}" to platform "${targetPlatform.name}"!`;
-              response.actions = [{
-                type: 'navigate',
-                target: `/programs/${targetProgram.id}`
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           }
           
@@ -1481,10 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               response.success = true;
               response.message = `Successfully linked project "${targetProject.name}" to program "${targetProgram.name}"!`;
-              response.actions = [{
-                type: 'navigate',
-                target: `/programs/${targetProgram.id}`
-              }];
+              // Navigation removed - keep user in chat to continue conversation
             }
           }
           
@@ -1525,31 +1483,23 @@ ${programs.map(p => {
 • Ensure all programs have proper ownership and timelines
 • Track milestone progress regularly`;
 
-        response.actions = [{
-          type: 'navigate',
-          target: '/dashboard'
-        }];
+        // Navigation removed - keep user in chat to continue conversation
       }
 
 
-      // Handle navigation requests
+      // Handle navigation requests - now providing information instead of navigating
       else if (requestLower.includes('show') || requestLower.includes('go to') || requestLower.includes('navigate')) {
-        let targetPath = '/dashboard';
-        
-        if (requestLower.includes('risk')) {
-          targetPath = '/risk-management';
-        } else if (requestLower.includes('program')) {
-          targetPath = '/programs';
-        } else if (requestLower.includes('dashboard')) {
-          targetPath = '/dashboard';
-        }
-        
         response.success = true;
-        response.message = `Taking you to ${targetPath.replace('/', '').replace('-', ' ')}...`;
-        response.actions = [{
-          type: 'navigate',
-          target: targetPath
-        }];
+        if (requestLower.includes('risk')) {
+          response.message = `The risk management section shows all program risks with filtering by severity and status. You can view, create, and manage risks there. I can create risks for you here in chat if you prefer!`;
+        } else if (requestLower.includes('program')) {
+          response.message = `The programs section shows all your programs with their status, progress, and associated components. I can create and manage programs for you here in chat if you prefer!`;
+        } else if (requestLower.includes('dashboard')) {
+          response.message = `The dashboard provides an overview of all programs, risks, milestones, and key metrics. I can provide analysis and summaries here in chat if you prefer!`;
+        } else {
+          response.message = `I can help you with programs, risks, milestones, dependencies, adopters, initiatives, and platforms - all through our chat here. What would you like to work on?`;
+        }
+        // Navigation removed - keep user in chat to continue conversation
       }
       
       // Default response for unrecognized requests
