@@ -284,14 +284,12 @@ export default function Programs() {
                       <div className="text-center p-2 rounded bg-gray-50">
                         <div className="flex items-center justify-center mb-1">
                           <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programRisks.length + totalMissingRisks}</span>
+                          <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
                         </div>
                         <div className="text-xs text-gray-500">Total Risks</div>
-                        {(criticalRisks.length > 0 || totalMissingRisks > 0) && (
+                        {criticalRisks.length > 0 && (
                           <div className="text-xs text-red-600 font-medium">
-                            {criticalRisks.length > 0 && `${criticalRisks.length} critical`}
-                            {criticalRisks.length > 0 && totalMissingRisks > 0 && ', '}
-                            {totalMissingRisks > 0 && `${totalMissingRisks} missing`}
+                            {criticalRisks.length} critical
                           </div>
                         )}
                       </div>
