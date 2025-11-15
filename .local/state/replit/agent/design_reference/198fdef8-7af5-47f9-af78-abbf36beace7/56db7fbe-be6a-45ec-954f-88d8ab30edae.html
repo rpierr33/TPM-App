@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPM Automation Platform - Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#E3F2FD',
+                            100: '#BBDEFB',
+                            500: '#1976D2',
+                            600: '#1565C0',
+                            700: '#0D47A1'
+                        },
+                        success: '#4CAF50',
+                        warning: '#FF9800',
+                        danger: '#F44336',
+                        gray: {
+                            50: '#FAFAFA',
+                            100: '#F5F5F5',
+                            200: '#EEEEEE',
+                            300: '#E0E0E0',
+                            400: '#BDBDBD',
+                            500: '#9E9E9E',
+                            600: '#757575',
+                            700: '#616161',
+                            800: '#424242',
+                            900: '#212121'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- @COMPONENT: AppLayout [Main application layout with sidebar and content area] -->
+    <div class="flex h-screen bg-gray-50">
+        <!-- @COMPONENT: Sidebar [Navigation sidebar with menu items and mode toggle] -->
+        <div class="w-64 bg-white shadow-lg flex flex-col">
+            <!-- Logo and Mode Toggle -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-project-diagram text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">TPM Platform</h1>
+                        <p class="text-sm text-gray-500">Program Management</p>
+                    </div>
+                </div>
+                
+                <!-- Mode Toggle -->
+                <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
+                    <span class="text-sm font-medium text-gray-700">Mode:</span>
+                    <div class="flex bg-white rounded-md p-1">
+                        <button class="px-3 py-1 text-sm font-medium bg-primary-500 text-white rounded-md">Test</button>
+                        <button class="px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md">Live</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="flex-1 p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 bg-primary-50 text-primary-600 rounded-lg">
+                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <span class="font-medium">Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-clipboard-list w-5"></i>
+                            <span>Program Planning</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-flag-checkered w-5"></i>
+                            <span>Milestones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-exclamation-triangle w-5"></i>
+                            <span>Risk Management</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-project-diagram w-5"></i>
+                            <span>Dependencies</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-users w-5"></i>
+                            <span>Adopter Support</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-level-up-alt w-5"></i>
+                            <span>Escalations</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+                            <i class="fas fa-chart-line w-5"></i>
+                            <span>Executive Reports</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Integration Status -->
+                <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Integration Status</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">JIRA</span>
+                            <span class="w-2 h-2 bg-success rounded-full" title="Connected"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">Smartsheet</span>
+                            <span class="w-2 h-2 bg-success rounded-full" title="Connected"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">Confluence</span>
+                            <span class="w-2 h-2 bg-warning rounded-full" title="Limited"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">Slack</span>
+                            <span class="w-2 h-2 bg-success rounded-full" title="Connected"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">Teams</span>
+                            <span class="w-2 h-2 bg-gray-300 rounded-full" title="Disconnected"></span>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex items-center gap-3">
+                    <!-- Professional headshot of a technical program manager -->
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=150&h=150" alt="User Profile" class="w-10 h-10 rounded-full object-cover">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900" data-bind="user.name">Sarah Chen</p>
+                        <p class="text-xs text-gray-500" data-bind="user.role">Senior TPM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- @COMPONENT: MainContent [Primary content area with dashboard widgets] -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Program Dashboard</h2>
+                        <p class="text-sm text-gray-500">Overview of all active programs and initiatives</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Test Mode Indicator -->
+                        <div class="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
+                            <i class="fas fa-flask text-sm"></i>
+                            <span class="text-sm font-medium">Test Mode Active</span>
+                        </div>
+                        <button class="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
+                            <i class="fas fa-plus"></i>
+                            <span>New Program</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- Key Metrics Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- @COMPONENT: MetricCard [Individual metric display card] -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Active Programs</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.activePrograms">12</p>
+                                <p class="text-sm text-success mt-1">
+                                    <i class="fas fa-arrow-up"></i> +2 this month
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-project-diagram text-primary-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Critical Risks</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.criticalRisks">7</p>
+                                <p class="text-sm text-danger mt-1">
+                                    <i class="fas fa-arrow-up"></i> +1 this week
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-danger text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Upcoming Milestones</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.upcomingMilestones">23</p>
+                                <p class="text-sm text-warning mt-1">
+                                    <i class="fas fa-clock"></i> 5 due this week
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-flag-checkered text-warning text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Adopter Score</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.adopterScore">87%</p>
+                                <p class="text-sm text-success mt-1">
+                                    <i class="fas fa-arrow-up"></i> +3% this month
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-success text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: MetricCard -->
+                </div>
+
+                <!-- Main Dashboard Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- @COMPONENT: RiskHeatmap [Visual risk assessment grid] -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">Risk Heatmap</h3>
+                            <button class="text-sm text-primary-500 hover:text-primary-600">View All</button>
+                        </div>
+                        
+                        <!-- Risk Matrix -->
+                        <div class="space-y-4">
+                            <div class="flex justify-between text-xs text-gray-500 mb-2">
+                                <span>Impact →</span>
+                                <span>Low</span>
+                                <span>Medium</span>
+                                <span>High</span>
+                                <span>Critical</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-5 gap-2">
+                                <div class="text-xs text-gray-500 flex items-center">High</div>
+                                <div class="h-12 bg-warning rounded flex items-center justify-center text-xs font-medium">2</div>
+                                <div class="h-12 bg-danger rounded flex items-center justify-center text-xs font-medium text-white">3</div>
+                                <div class="h-12 bg-danger rounded flex items-center justify-center text-xs font-medium text-white">1</div>
+                                <div class="h-12 bg-danger rounded flex items-center justify-center text-xs font-medium text-white">1</div>
+                            </div>
+                            
+                            <div class="grid grid-cols-5 gap-2">
+                                <div class="text-xs text-gray-500 flex items-center">Med</div>
+                                <div class="h-12 bg-success rounded flex items-center justify-center text-xs font-medium text-white">1</div>
+                                <div class="h-12 bg-warning rounded flex items-center justify-center text-xs font-medium">4</div>
+                                <div class="h-12 bg-danger rounded flex items-center justify-center text-xs font-medium text-white">2</div>
+                                <div class="h-12 bg-danger rounded flex items-center justify-center text-xs font-medium text-white">1</div>
+                            </div>
+                            
+                            <div class="grid grid-cols-5 gap-2">
+                                <div class="text-xs text-gray-500 flex items-center">Low</div>
+                                <div class="h-12 bg-success rounded flex items-center justify-center text-xs font-medium text-white">3</div>
+                                <div class="h-12 bg-success rounded flex items-center justify-center text-xs font-medium text-white">2</div>
+                                <div class="h-12 bg-warning rounded flex items-center justify-center text-xs font-medium">1</div>
+                                <div class="h-12 bg-warning rounded flex items-center justify-center text-xs font-medium">1</div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Legend -->
+                        <div class="flex items-center justify-center gap-4 mt-4 text-xs">
+                            <div class="flex items-center gap-1">
+                                <div class="w-3 h-3 bg-success rounded"></div>
+                                <span>Low</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-3 h-3 bg-warning rounded"></div>
+                                <span>Medium</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-3 h-3 bg-danger rounded"></div>
+                                <span>High</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: RiskHeatmap -->
+
+                    <!-- @COMPONENT: ProgramTimeline [Visual timeline of program milestones] -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">Program Timeline</h3>
+                            <button class="text-sm text-primary-500 hover:text-primary-600">View Full Roadmap</button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- Timeline Item -->
+                            <div class="flex items-start gap-4">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 bg-success rounded-full"></div>
+                                    <div class="w-px h-8 bg-gray-200"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">New-Flex Authz Beta Release</h4>
+                                        <span class="text-xs text-gray-500">Mar 15</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600">Initial beta deployment completed</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 bg-warning rounded-full"></div>
+                                    <div class="w-px h-8 bg-gray-200"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">Legacy HCM Security Audit</h4>
+                                        <span class="text-xs text-gray-500">Mar 22</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600">Security assessment in progress</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 bg-gray-300 rounded-full"></div>
+                                    <div class="w-px h-8 bg-gray-200"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">API Gateway Migration</h4>
+                                        <span class="text-xs text-gray-500">Apr 5</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600">Scheduled for next phase</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 bg-gray-300 rounded-full"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900">Full Production Rollout</h4>
+                                        <span class="text-xs text-gray-500">Apr 30</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600">Final deployment milestone</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: ProgramTimeline -->
+                </div>
+
+                <!-- Bottom Section: Tables and Additional Info -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- @COMPONENT: ActiveRisksTable [Detailed risk tracking table] -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Active Risks</h3>
+                                <div class="flex items-center gap-2">
+                                    <button class="text-sm text-primary-500 hover:text-primary-600">
+                                        <i class="fas fa-external-link-alt"></i> Push to JIRA
+                                    </button>
+                                    <button class="px-3 py-1 text-xs bg-primary-500 text-white rounded-md hover:bg-primary-600">Add Risk</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <!-- @MAP: risks.map(risk => ( -->
+                                    <tr data-mock="true">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">API Rate Limiting Issues</div>
+                                                <div class="text-sm text-gray-500">Third-party service dependencies</div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-red-100 text-red-800 rounded-full">High</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Alex Rivera</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">In Progress</span>
+                                        </td>
+                                    </tr>
+                                    <tr data-mock="true">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">Database Migration Delay</div>
+                                                <div class="text-sm text-gray-500">Legacy data compatibility</div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-red-100 text-red-800 rounded-full">High</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Maria Lopez</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">Mitigated</span>
+                                        </td>
+                                    </tr>
+                                    <tr data-mock="true">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">Security Compliance Gap</div>
+                                                <div class="text-sm text-gray-500">SOC2 certification requirements</div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">Medium</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">David Kim</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">Identified</span>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: ActiveRisksTable -->
+
+                    <!-- @COMPONENT: AdopterDashboard [Adopter support and tracking panel] -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Adopter Dashboard</h3>
+                                <button class="text-sm text-primary-500 hover:text-primary-600">View All Teams</button>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <!-- Adopter Item -->
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-mobile-alt text-primary-500"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900">Mobile App Team</h4>
+                                            <p class="text-xs text-gray-500">iOS & Android Integration</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-success">92%</div>
+                                        <div class="text-xs text-gray-500">Ready</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-warning-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-globe text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900">Web Platform Team</h4>
+                                            <p class="text-xs text-gray-500">Frontend Integration</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-warning">67%</div>
+                                        <div class="text-xs text-gray-500">In Progress</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-server text-danger"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900">Data Analytics Team</h4>
+                                            <p class="text-xs text-gray-500">API Consumption</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-danger">34%</div>
+                                        <div class="text-xs text-gray-500">Blocked</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-cogs text-success"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-900">DevOps Team</h4>
+                                            <p class="text-xs text-gray-500">Infrastructure Setup</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-success">88%</div>
+                                        <div class="text-xs text-gray-500">Near Complete</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Actions -->
+                            <div class="mt-6 pt-6 border-t border-gray-200">
+                                <div class="flex gap-2">
+                                    <button class="flex-1 px-3 py-2 text-sm bg-primary-500 text-white rounded-md hover:bg-primary-600">
+                                        <i class="fas fa-comments mr-1"></i> Send Update
+                                    </button>
+                                    <button class="flex-1 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                                        <i class="fas fa-calendar mr-1"></i> Schedule Check-in
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: AdopterDashboard -->
+                </div>
+
+                <!-- AI Insights Panel -->
+                <div class="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-brain text-purple-500"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">AI Insights & Recommendations</h3>
+                            <div class="space-y-3 text-sm text-gray-700">
+                                <div class="flex items-start gap-2">
+                                    <i class="fas fa-lightbulb text-yellow-500 mt-1"></i>
+                                    <p><strong>Risk Prediction:</strong> Based on current velocity, the "API Gateway Migration" milestone has a 78% chance of delay. Consider adding 2 more engineers or extending deadline by 1 week.</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <i class="fas fa-users text-blue-500 mt-1"></i>
+                                    <p><strong>Adopter Support:</strong> Data Analytics Team shows concerning progress. Recommend immediate escalation and technical deep-dive session with platform team.</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <i class="fas fa-chart-line text-green-500 mt-1"></i>
+                                    <p><strong>Program Health:</strong> Overall program health score is 84%. Top performing area: Mobile integration. Area needing attention: Legacy system migration.</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex gap-2">
+                                <button class="px-4 py-2 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600">
+                                    Generate Report
+                                </button>
+                                <button class="px-4 py-2 text-sm bg-white text-purple-600 border border-purple-200 rounded-md hover:bg-purple-50">
+                                    Run Scenario Analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    <!-- @END_COMPONENT: AppLayout -->
+
+    <!-- @COMPONENT: EscalationModal [Modal for creating new escalations] -->
+    <div id="escalationModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-50"></div>
+            <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold text-gray-900">Create Escalation</h3>
+                    <button class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Escalation Summary</label>
+                        <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500" placeholder="Brief description of the issue">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Urgency</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                                <option>High</option>
+                                <option>Medium</option>
+                                <option>Low</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Owner</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                                <option>Sarah Chen</option>
+                                <option>Alex Rivera</option>
+                                <option>Maria Lopez</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Impact Description</label>
+                        <textarea rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500" placeholder="Describe the impact and potential consequences"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Send To:</label>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2" checked>
+                                <span class="text-sm">Slack #engineering</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm">Teams Leadership</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm">Email Stakeholders</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm bg-primary-500 text-white rounded-md hover:bg-primary-600">Create Escalation</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: EscalationModal -->
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        
+        (function() {
+            // Mock data for Test Mode demonstration
+            const mockData = {
+                metrics: {
+                    activePrograms: 12,
+                    criticalRisks: 7,
+                    upcomingMilestones: 23,
+                    adopterScore: 87
+                },
+                risks: [
+                    {
+                        id: 1,
+                        title: "API Rate Limiting Issues",
+                        description: "Third-party service dependencies",
+                        severity: "High",
+                        owner: "Alex Rivera",
+                        status: "In Progress"
+                    }
+                    // More mock risk data would be added here
+                ]
+            };
+
+            // Simulate real-time updates in Test Mode
+            function simulateRealTimeUpdates() {
+                // TODO: Implement WebSocket connections for live updates
+                console.log('Simulating real-time updates...');
+            }
+
+            // Initialize Test Mode features
+            function initTestMode() {
+                console.log('Test Mode initialized with mock data');
+                simulateRealTimeUpdates();
+            }
+
+            // Initialize Live Mode features
+            function initLiveMode() {
+                // TODO: Initialize real integrations, authentication, etc.
+                console.log('Live Mode would initialize real integrations');
+            }
+
+            // Mode switching functionality
+            function setupModeToggle() {
+                const testBtn = document.querySelector('[data-mode="test"]');
+                const liveBtn = document.querySelector('[data-mode="live"]');
+                
+                // TODO: Implement mode switching logic with proper state management
+            }
+
+            // Initialize the application
+            document.addEventListener('DOMContentLoaded', function() {
+                initTestMode(); // Default to Test Mode
+                setupModeToggle();
+            });
+        })();
+    </script>
+</body>
+</html>
