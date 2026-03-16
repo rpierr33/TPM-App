@@ -912,20 +912,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getAdopters()
       ]);
 
+      // Sort programs by createdAt so oldest/newest references work correctly
+      const programsSorted = [...programs].sort((a, b) =>
+        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+      );
+
       const liveData = {
-        programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status })),
+        programs: programsSorted.map((p, i) => ({ id: p.id, name: p.name, status: p.status, age_rank: i + 1 })),
         risks: risks.map(r => ({ id: r.id, title: r.title, severity: r.severity, programId: r.programId })),
         milestones: milestones.map(m => ({ id: m.id, title: m.title, status: m.status, programId: m.programId })),
         dependencies: dependencies.map(d => ({ id: d.id, title: d.title, status: d.status })),
         adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status }))
       };
 
+      // Carry recent chat history for context (from request body if provided)
+      const recentHistory: string = context?.recentHistory || '';
+
       // Step 1: Use Claude to parse intent and extract structured commands
       const intentPrompt = `You are a TPM platform AI that can execute real actions. Parse the user's request and return a JSON object.
 
-Current platform state:
+Current platform state (programs sorted oldest→newest, age_rank 1 = oldest):
 ${JSON.stringify(liveData, null, 2)}
 
+${recentHistory ? `Recent conversation context:\n${recentHistory}\n` : ''}
 User request: "${request}"
 
 Return ONLY valid JSON in this exact format:
@@ -935,12 +944,13 @@ Return ONLY valid JSON in this exact format:
     {
       "action": "create_program" | "create_milestone" | "create_risk" | "create_dependency" | "update_program" | "delete_program" | "analyze_program",
       "parameters": {
-        "name": "...",
+        "name": "...(for delete: match by name from live data)",
+        "ids": ["...(for delete: use the actual IDs from live data, e.g. oldest 3 = first 3 by age_rank)"],
         "description": "...",
         "status": "planning",
-        "programId": "...(if applicable, use id from live data)",
+        "programId": "...(use id from live data)",
         "title": "...(for milestones/risks)",
-        "severity": "...(for risks: low/medium/high/critical)",
+        "severity": "...(low/medium/high/critical)",
         "dueDate": "...(ISO date string if mentioned)"
       }
     }
@@ -949,10 +959,13 @@ Return ONLY valid JSON in this exact format:
 }
 
 Rules:
-- If the user wants to create multiple items (e.g. "create three programs called X, Y, Z"), return one command per item
-- Map "project" to "program" — they are the same thing in this platform
-- If it's a question or conversational (not an action), set intent to "query" and commands to [] and conversational to true
-- For program names, extract each name precisely from the request`;
+- "project" and "program" mean the same thing in this platform
+- For DELETE with "oldest N": use programs with lowest age_rank values; return one delete_program command per item with the real ID in "ids"
+- For DELETE with "newest N": use programs with highest age_rank values
+- For DELETE by name: match name from live data
+- For multiple creates, return one command per item
+- If request is a question, complaint, or conversation (not an action), set intent to "query", commands to [], conversational to true
+- If the user refers to something that was just done (e.g. "you deleted the wrong ones"), treat as "query" and explain what the system just did based on recent history`;
 
       let parsedIntent: any = { intent: "query", commands: [], conversational: true };
       try {
@@ -1020,11 +1033,20 @@ Rules:
               created.push({ type: "risk", id: newRisk.id, name: newRisk.title, data: newRisk });
 
             } else if (cmd.action === "delete_program") {
-              const target = programs.find(p => p.name.toLowerCase().includes((cmd.parameters.name || "").toLowerCase()));
-              if (target) {
-                await storage.deleteProgram(target.id);
-                (app as any).broadcast("data_changed", { type: "program_deleted", data: { id: target.id } });
-                created.push({ type: "deleted_program", name: target.name });
+              // Support ids array (preferred) or name match fallback
+              const idsToDelete: string[] = cmd.parameters.ids?.length
+                ? cmd.parameters.ids
+                : programs
+                    .filter(p => p.name.toLowerCase().includes((cmd.parameters.name || "").toLowerCase()))
+                    .map(p => p.id);
+
+              for (const pid of idsToDelete) {
+                const target = programs.find(p => p.id === pid);
+                if (target) {
+                  await storage.deleteProgram(target.id);
+                  (app as any).broadcast("data_changed", { type: "program_deleted", data: { id: target.id } });
+                  created.push({ type: "deleted_program", name: target.name });
+                }
               }
 
             } else if (cmd.action === "update_program") {
@@ -1067,11 +1089,19 @@ Keep it tight — one block per program, plain text, no markdown.`;
           }
         }
 
-        // Build final message
-        const createdNames = created.filter(c => c.type === "program" || c.type === "milestone" || c.type === "risk")
-          .map(c => `"${c.name}"`).join(", ");
+        // Build final message — label correctly by action type
+        const newItems = created.filter(c => ["program", "milestone", "risk", "dependency"].includes(c.type));
+        const deletedItems = created.filter(c => c.type === "deleted_program");
+        const updatedItems = created.filter(c => c.type === "updated_program");
 
-        let message = `Created ${created.length} item(s): ${createdNames}.`;
+        let message = "";
+        if (newItems.length > 0)
+          message += `Created: ${newItems.map(c => `"${c.name}"`).join(", ")}.`;
+        if (deletedItems.length > 0)
+          message += `${message ? " " : ""}Deleted: ${deletedItems.map(c => `"${c.name}"`).join(", ")}.`;
+        if (updatedItems.length > 0)
+          message += `${message ? " " : ""}Updated: ${updatedItems.map(c => `"${c.name}" → ${c.status}`).join(", ")}.`;
+        if (!message) message = "Done.";
         if (errors.length > 0) message += `\n\nErrors: ${errors.join("; ")}`;
         if (gapSummaries.length > 0) message += `\n\n${gapSummaries[0]}`;
 

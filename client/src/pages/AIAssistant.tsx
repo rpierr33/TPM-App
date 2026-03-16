@@ -103,6 +103,9 @@ export default function AIAssistant() {
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastInputWasVoice, setLastInputWasVoice] = useState(false);
+  const [pendingVoiceText, setPendingVoiceText] = useState('');
+  const voiceFlagRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const handleVoiceCommandRef = useRef<(command: string) => void>(() => {});
@@ -134,13 +137,19 @@ export default function AIAssistant() {
   // AI action processing mutation
   const aiActionMutation = useMutation({
     mutationFn: async (request: string) => {
-      return await apiRequest('/api/ai/process-request', 'POST', { 
+      // Build last 6 messages as plain text history for context
+      const recentHistory = chatMessages.slice(-6).map(m =>
+        `${m.type === 'user' ? 'User' : 'AI'}: ${m.content.substring(0, 200)}`
+      ).join('\n');
+
+      return await apiRequest('/api/ai/process-request', 'POST', {
         request,
         context: {
           programCount: programs.length,
           riskCount: risks.length,
           milestoneCount: milestones.length,
-          programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status }))
+          programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status })),
+          recentHistory
         }
       });
     },
@@ -195,8 +204,8 @@ export default function AIAssistant() {
         });
       }
 
-      // Speak the response if voice was used
-      if (response.success && response.message) {
+      // Only speak the response if the request came from voice input
+      if (voiceFlagRef.current && response.success && response.message) {
         speakText(response.message);
       }
     },
@@ -230,6 +239,7 @@ export default function AIAssistant() {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return;
 
+    voiceFlagRef.current = lastInputWasVoice;
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
@@ -240,9 +250,11 @@ export default function AIAssistant() {
     addChatMessage(userMessage);
     const currentInput = inputValue;
     setInputValue('');
+    setLastInputWasVoice(false);
+    setPendingVoiceText('');
     setIsProcessing(true);
 
-    // Process the request with the AI
+    // Pass wasVoice flag so mutation can decide whether to speak the response
     aiActionMutation.mutate(currentInput);
   };
 
@@ -260,11 +272,10 @@ export default function AIAssistant() {
 
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
+          // Populate input and let user confirm — do NOT auto-submit
           setInputValue(transcript);
-          // Use ref so we always call the latest version, not a stale closure
-          setTimeout(() => {
-            handleVoiceCommandRef.current(transcript);
-          }, 300);
+          setPendingVoiceText(transcript);
+          setLastInputWasVoice(true);
         };
 
         recognitionRef.current.onend = () => {
@@ -289,27 +300,9 @@ export default function AIAssistant() {
     }
   }, []);
 
-  const handleVoiceCommand = async (command: string) => {
-    if (!command.trim() || isProcessing) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: `🎤 ${command}`,
-      timestamp: new Date()
-    };
-
-    addChatMessage(userMessage);
-    setInputValue('');
-    setIsProcessing(true);
-
-    setTimeout(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-      }
-    }, 100);
-
-    aiActionMutation.mutate(command);
+  // Voice command is handled via onresult → setInputValue, user presses Send to confirm
+  const handleVoiceCommand = (_command: string) => {
+    // No-op: voice result is placed into input field, user must confirm by pressing Send
   };
 
   // Keep ref in sync with the latest version of handleVoiceCommand
