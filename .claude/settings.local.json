@@ -14,7 +14,12 @@
       "Bash(node --env-file=/Users/ralphpierre/Downloads/TPM_APP/.env -e \"\nconst { Pool } = require\\('@neondatabase/serverless'\\);\nconst pool = new Pool\\({ connectionString: process.env.DATABASE_URL }\\);\nasync function run\\(\\) {\n  await pool.query\\('ALTER TABLE jira_bepics ADD COLUMN IF NOT EXISTS milestone_id varchar REFERENCES milestones\\(id\\)'\\);\n  await pool.query\\('ALTER TABLE jira_bepics ADD COLUMN IF NOT EXISTS program_id varchar REFERENCES programs\\(id\\)'\\);\n  console.log\\('Schema updated successfully'\\);\n  await pool.end\\(\\);\n}\nrun\\(\\).catch\\(e => { console.error\\(e\\); process.exit\\(1\\); }\\);\n\" 2>&1)",
       "Bash(npx tsc:*)",
       "Bash(curl -s http://localhost:3000/api/programs | head -100)",
-      "Bash(curl -s -X POST http://localhost:3000/api/pmp-recommendations/generate -H \"Content-Type: application/json\" -d '{}' | head -200)"
+      "Bash(curl -s -X POST http://localhost:3000/api/pmp-recommendations/generate -H \"Content-Type: application/json\" -d '{}' | head -200)",
+      "Bash(git restore:*)",
+      "Bash(curl -s http://localhost:3000/api/programs > /dev/null 2>&1 && echo \"already running\" || echo \"not running\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/ai/process-request \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"message\": \"hello\"}' | python3 -m json.tool 2>/dev/null | head -20)",
+      "Bash(curl -s -X POST http://localhost:3000/api/ai/process-request \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"request\": \"hello, how are you?\"}' | python3 -m json.tool 2>/dev/null | head -20)",
+      "Bash(node -e \"\nconst fs = require\\('fs'\\);\nlet content = fs.readFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', 'utf8'\\);\nconst lines = content.split\\('\\\\n'\\);\n// Remove lines 1101-1800 \\(0-indexed: 1100-1799\\)\nconst newLines = [...lines.slice\\(0, 1100\\), ...lines.slice\\(1800\\)];\nfs.writeFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', newLines.join\\('\\\\n'\\)\\);\nconsole.log\\('Done. Lines remaining:', newLines.length\\);\n\")"
     ]
   }
 }

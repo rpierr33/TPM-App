@@ -894,17 +894,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Assistant endpoint for processing user requests and performing actions
+  // AI Assistant endpoint - Claude-powered intent parsing + execution + gap analysis
   app.post("/api/ai/process-request", async (req, res) => {
     try {
       const { request, context } = req.body;
-      
+
       if (!request || typeof request !== 'string') {
         return res.status(400).json({ message: "Request text is required" });
       }
 
-      // Parse the user request and determine what action to take
-      const requestLower = request.toLowerCase();
+      // Fetch live platform data for context
+      const [programs, risks, milestones, dependencies, adopters] = await Promise.all([
+        storage.getPrograms(),
+        storage.getRisks(),
+        storage.getMilestones(),
+        storage.getDependencies(),
+        storage.getAdopters()
+      ]);
+
+      const liveData = {
+        programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status })),
+        risks: risks.map(r => ({ id: r.id, title: r.title, severity: r.severity, programId: r.programId })),
+        milestones: milestones.map(m => ({ id: m.id, title: m.title, status: m.status, programId: m.programId })),
+        dependencies: dependencies.map(d => ({ id: d.id, title: d.title, status: d.status })),
+        adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status }))
+      };
+
+      // Step 1: Use Claude to parse intent and extract structured commands
+      const intentPrompt = `You are a TPM platform AI that can execute real actions. Parse the user's request and return a JSON object.
+
+Current platform state:
+${JSON.stringify(liveData, null, 2)}
+
+User request: "${request}"
+
+Return ONLY valid JSON in this exact format:
+{
+  "intent": "create_items" | "query" | "update" | "delete" | "analyze" | "other",
+  "commands": [
+    {
+      "action": "create_program" | "create_milestone" | "create_risk" | "create_dependency" | "update_program" | "delete_program" | "analyze_program",
+      "parameters": {
+        "name": "...",
+        "description": "...",
+        "status": "planning",
+        "programId": "...(if applicable, use id from live data)",
+        "title": "...(for milestones/risks)",
+        "severity": "...(for risks: low/medium/high/critical)",
+        "dueDate": "...(ISO date string if mentioned)"
+      }
+    }
+  ],
+  "conversational": false
+}
+
+Rules:
+- If the user wants to create multiple items (e.g. "create three programs called X, Y, Z"), return one command per item
+- Map "project" to "program" — they are the same thing in this platform
+- If it's a question or conversational (not an action), set intent to "query" and commands to [] and conversational to true
+- For program names, extract each name precisely from the request`;
+
+      let parsedIntent: any = { intent: "query", commands: [], conversational: true };
+      try {
+        const intentResponse = await aiService.chatWithAI(intentPrompt, {});
+        // Extract JSON from the response
+        const jsonMatch = intentResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedIntent = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error("Intent parsing failed:", e);
+      }
+
       const response = {
         message: "",
         success: false,
@@ -912,721 +973,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
         actions: [] as any[]
       };
 
-      // Handle delete requests first
-      if (requestLower.includes('delete') || requestLower.includes('remove')) {
-        try {
-          if (requestLower.includes('all') && requestLower.includes('program')) {
-            // Delete all programs
-            const programs = await storage.getPrograms();
-            if (programs.length === 0) {
-              response.message = "No programs found to delete.";
-              response.success = true;
-            } else {
-              let deletedCount = 0;
-              let errors: string[] = [];
-              
-              for (const program of programs) {
-                try {
-                  await storage.deleteProgram(program.id);
-                  deletedCount++;
-                  
-                  // Broadcast real-time update for each deleted program
-                  (app as any).broadcast('data_changed', { type: 'program_deleted', data: { id: program.id, name: program.name } });
-                } catch (error) {
-                  console.error(`Failed to delete program ${program.id}:`, error);
-                  errors.push(`Failed to delete "${program.name}"`);
-                }
-              }
-              
-              response.success = deletedCount > 0;
-              if (errors.length > 0) {
-                response.message = `Deleted ${deletedCount} program(s). ${errors.length} programs could not be deleted due to database constraints. ${errors.join(', ')}.`;
-              } else {
-                response.message = `Successfully deleted ${deletedCount} program(s). All programs have been removed from the system.`;
-              }
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          } else if (requestLower.includes('program')) {
-            // Handle deletion of multiple recent programs
-            const programs = await storage.getPrograms();
-            if (programs.length === 0) {
-              response.message = "No programs found to delete.";
-              response.success = true;
-            } else {
-              let numToDelete = 1;
-              
-              // Extract number from request if specified
-              if (requestLower.includes('three') || requestLower.includes('3') || requestLower.includes('most recent')) {
-                numToDelete = 3;
-              } else if (requestLower.includes('two') || requestLower.includes('2')) {
-                numToDelete = 2;
-              } else if (requestLower.includes('four') || requestLower.includes('4')) {
-                numToDelete = 4;
-              } else if (requestLower.includes('five') || requestLower.includes('5')) {
-                numToDelete = 5;
-              } else if (requestLower.includes('all')) {
-                numToDelete = programs.length;
-              }
-              
-              // Sort programs by creation date (newest first) and take the number to delete
-              const sortedPrograms = programs.sort((a, b) => 
-                new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-              );
-              const programsToDelete = sortedPrograms.slice(0, Math.min(numToDelete, programs.length));
-              
-              let deletedCount = 0;
-              let errors: string[] = [];
-              
-              for (const program of programsToDelete) {
-                try {
-                  await storage.deleteProgram(program.id);
-                  deletedCount++;
-                  
-                  // Broadcast real-time update for each deleted program
-                  (app as any).broadcast('data_changed', { type: 'program_deleted', data: { id: program.id, name: program.name } });
-                } catch (error) {
-                  console.error(`Failed to delete program ${program.id}:`, error);
-                  errors.push(`Failed to delete "${program.name}"`);
-                }
-              }
-              
-              response.success = deletedCount > 0;
-              if (errors.length > 0) {
-                response.message = `Deleted ${deletedCount} program(s). ${errors.length} programs could not be deleted due to database constraints. ${errors.join(', ')}.`;
-              } else {
-                response.message = `Successfully deleted ${deletedCount} program(s).`;
-              }
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          } else if (requestLower.includes('risk')) {
-            // Delete risks
-            const risks = await storage.getRisks();
-            if (risks.length === 0) {
-              response.message = "No risks found to delete.";
-              response.success = true;
-            } else {
-              const riskToDelete = risks[0];
-              await storage.deleteRisk(riskToDelete.id);
-              
-              // Broadcast real-time update for deleted risk
-              (app as any).broadcast('data_changed', { type: 'risk_deleted', data: { id: riskToDelete.id, title: riskToDelete.title } });
-              
-              response.success = true;
-              response.message = `Successfully deleted risk "${riskToDelete.title}".`;
-            }
-          } else {
-            response.message = "Please specify what you'd like to delete (e.g., 'delete all programs', 'delete a program', 'delete a risk').";
-            response.success = false;
-          }
-        } catch (error) {
-          response.message = `Failed to delete: ${error}`;
-          response.success = false;
-        }
-      }
+      // Step 2: Execute commands
+      if (parsedIntent.intent !== "query" && parsedIntent.commands?.length > 0) {
+        const created: any[] = [];
+        const errors: string[] = [];
 
-      // Handle update requests
-      else if (requestLower.includes('update') || requestLower.includes('change') || requestLower.includes('modify')) {
-        try {
-          if (requestLower.includes('program') && requestLower.includes('status')) {
-            const programs = await storage.getPrograms();
-            if (programs.length === 0) {
-              response.message = "No programs found to update.";
-              response.success = true;
-            } else {
-              const targetProgram = programs[0];
-              const newStatus = requestLower.includes('active') ? 'active' :
-                               requestLower.includes('completed') ? 'completed' :
-                               requestLower.includes('on_hold') ? 'on_hold' : 'planning';
-              
-              const updatedProgram = await storage.updateProgram(targetProgram.id, { status: newStatus });
-              
-              // Broadcast real-time update for program status change
-              (app as any).broadcast('data_changed', { type: 'program_updated', data: updatedProgram });
-              
-              response.success = true;
-              response.message = `Successfully updated program "${targetProgram.name}" status to ${newStatus}.`;
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          } else {
-            response.message = "I can help update program status. Try: 'update program status to active' or 'change program status to completed'.";
-            response.success = true;
-          }
-        } catch (error) {
-          response.message = `Failed to update: ${error}`;
-          response.success = false;
-        }
-      }
-
-      // Handle program creation requests (programs are containers for projects)
-      else if (requestLower.includes('create') && requestLower.includes('program') && !requestLower.includes('project') && !requestLower.includes('platform')) {
-        try {
-          // Extract program name from request - prioritize quoted names
-          let programName = null;
-          
-          // First check for quoted names (highest priority)
-          const quotedMatch = request.match(/"([^"]+)"/);
-          if (quotedMatch) {
-            programName = quotedMatch[1];
-          } else {
-            // Then check for single quoted names
-            const singleQuotedMatch = request.match(/'([^']+)'/);
-            if (singleQuotedMatch) {
-              programName = singleQuotedMatch[1];
-            } else {
-              // Then check for named/called patterns without quotes
-              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
-              if (namedMatch) {
-                programName = namedMatch[1];
-              } else {
-                // Generate a name based on context
-                const programCount = context?.programCount || 0;
-                programName = `AI Created Program ${programCount + 1}`;
-              }
-            }
-          }
-
-          // Clean up the name
-          programName = programName.trim();
-
-          const programData = {
-            name: programName,
-            description: `Program created by AI Assistant based on user request: "${request}"`,
-            status: 'planning' as const
-          };
-
-          const validatedData = insertProgramSchema.parse(programData);
-          const newProgram = await storage.createProgram(validatedData);
-          
-          // Automatically trigger gap detection for the new program to generate missing component risks
+        for (const cmd of parsedIntent.commands) {
           try {
-            await storage.detectAllProgramGaps(newProgram.id);
-            
-            // Count the risks generated for this program
-            const programRisks = await storage.getRisks(newProgram.id);
-            const riskCount = programRisks.length;
-            
-            response.success = true;
-            response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. Automatically generated ${riskCount} missing component risks to ensure program completeness.`;
-            response.createdItems = [{
-              type: 'program',
-              id: newProgram.id,
-              name: newProgram.name
-            }];
-          } catch (gapError) {
-            console.error('Gap detection failed for new program:', gapError);
-            // If gap detection fails, still report successful program creation
-            response.success = true;
-            response.message = `Successfully created program "${newProgram.name}"! This program can now contain multiple projects. Gap detection will run automatically.`;
-            response.createdItems = [{
-              type: 'program',
-              id: newProgram.id,
-              name: newProgram.name
-            }];
-          }
-          // Navigation removed - keep user in chat to continue conversation
+            if (cmd.action === "create_program") {
+              const newProgram = await storage.createProgram({
+                name: cmd.parameters.name,
+                description: cmd.parameters.description || `Program created via AI assistant`,
+                status: "planning"
+              });
+              created.push({ type: "program", id: newProgram.id, name: newProgram.name, data: newProgram });
+              (app as any).broadcast("data_changed", { type: "program_created", data: newProgram });
 
-        } catch (error) {
-          response.message = `Failed to create program: ${error}`;
-          response.success = false;
-        }
-      }
-      
-      // Handle risk creation requests  
-      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('risk')) {
-        try {
-          const programs = await storage.getPrograms();
-          if (programs.length === 0) {
-            response.message = "No programs found. Create a program first, then I can add risks to it.";
-            response.success = false;
-          } else {
-            // Use first program if not specified
-            const targetProgram = programs[0];
-            
-            const riskData = {
-              title: `AI Generated Risk`,
-              description: `Risk created by AI Assistant based on user request: "${request}"`,
-              severity: 'medium' as const,
-              impact: 3,
-              probability: 3,
-              status: 'identified' as const,
-              category: 'operational' as const,
-              programId: targetProgram.id
-            };
+            } else if (cmd.action === "create_milestone") {
+              const programId = cmd.parameters.programId || programs[0]?.id || null;
+              const newMilestone = await storage.createMilestone({
+                title: cmd.parameters.title || cmd.parameters.name,
+                description: cmd.parameters.description || null,
+                programId,
+                status: "not_started",
+                ownerId: null,
+                dueDate: cmd.parameters.dueDate ? new Date(cmd.parameters.dueDate) : undefined,
+                completedDate: undefined,
+                jiraEpicKey: null
+              });
+              created.push({ type: "milestone", id: newMilestone.id, name: newMilestone.title, data: newMilestone });
 
-            const validatedData = insertRiskSchema.parse(riskData);
-            const newRisk = await storage.createRisk(validatedData);
-            
-            // Broadcast real-time update for AI-created risk
-            (app as any).broadcast('data_changed', { type: 'risk_created', data: newRisk });
-            
-            response.success = true;
-            response.message = `Successfully created risk "${newRisk.title}" for program "${targetProgram.name}"!`;
-            response.createdItems = [{
-              type: 'risk',
-              id: newRisk.id,
-              name: newRisk.title
-            }];
-            // Navigation removed - keep user in chat to continue conversation
-          }
-        } catch (error) {
-          response.message = `Failed to create risk: ${error}`;
-          response.success = false;
-        }
-      }
-      
-      // Handle milestone creation requests
-      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('milestone')) {
-        try {
-          const programs = await storage.getPrograms();
-          if (programs.length === 0) {
-            response.message = "No programs found. Create a program first, then I can add milestones to it.";
-            response.success = false;
-          } else {
-            const targetProgram = programs[0];
-            
-            const milestoneData = {
-              title: `AI Generated Milestone`,
-              description: `Milestone created by AI Assistant based on user request: "${request}"`,
-              status: 'not_started' as const,
-              programId: targetProgram.id,
-              dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-            };
+            } else if (cmd.action === "create_risk") {
+              const programId = cmd.parameters.programId || programs[0]?.id || null;
+              const newRisk = await storage.createRisk({
+                title: cmd.parameters.title || cmd.parameters.name,
+                description: cmd.parameters.description || null,
+                programId,
+                severity: cmd.parameters.severity || "medium",
+                probability: 3,
+                impact: 3,
+                status: "identified",
+                ownerId: null,
+                mitigationPlan: null,
+                jiraIssueKey: null
+              });
+              created.push({ type: "risk", id: newRisk.id, name: newRisk.title, data: newRisk });
 
-            const validatedData = insertMilestoneSchema.parse(milestoneData);
-            const newMilestone = await storage.createMilestone(validatedData);
-            
-            // Broadcast real-time update for AI-created milestone
-            (app as any).broadcast('data_changed', { type: 'milestone_created', data: newMilestone });
-            
-            response.success = true;
-            response.message = `Successfully created milestone "${newMilestone.title}" for program "${targetProgram.name}"!`;
-            response.createdItems = [{
-              type: 'milestone',
-              id: newMilestone.id,
-              name: newMilestone.title
-            }];
-            // Navigation removed - keep user in chat to continue conversation
-          }
-        } catch (error) {
-          response.message = `Failed to create milestone: ${error}`;
-          response.success = false;
-        }
-      }
-      
-      // Handle adopter creation requests
-      else if ((requestLower.includes('create') || requestLower.includes('add')) && (requestLower.includes('adopter') || requestLower.includes('team'))) {
-        try {
-          const programs = await storage.getPrograms();
-          if (programs.length === 0) {
-            response.message = "No programs found. Create a program first, then I can add adopter teams to it.";
-            response.success = false;
-          } else {
-            const targetProgram = programs[0];
-            
-            const adopterData = {
-              teamName: `AI Generated Team`,
-              department: 'IT',
-              contactPerson: 'Team Lead',
-              email: 'team@company.com',
-              onboardingStatus: 'planning' as const,
-              readinessScore: 50,
-              programId: targetProgram.id
-            };
+            } else if (cmd.action === "delete_program") {
+              const target = programs.find(p => p.name.toLowerCase().includes((cmd.parameters.name || "").toLowerCase()));
+              if (target) {
+                await storage.deleteProgram(target.id);
+                (app as any).broadcast("data_changed", { type: "program_deleted", data: { id: target.id } });
+                created.push({ type: "deleted_program", name: target.name });
+              }
 
-            const validatedData = insertAdopterSchema.parse(adopterData);
-            const newAdopter = await storage.createAdopter(validatedData);
-            
-            response.success = true;
-            response.message = `Successfully created adopter team "${newAdopter.teamName}" for program "${targetProgram.name}"!`;
-            response.createdItems = [{
-              type: 'adopter',
-              id: newAdopter.id,
-              name: newAdopter.teamName
-            }];
-            // Navigation removed - keep user in chat to continue conversation
-          }
-        } catch (error) {
-          response.message = `Failed to create adopter team: ${error}`;
-          response.success = false;
-        }
-      }
-      
-      // Handle dependency creation requests
-      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('dependency')) {
-        try {
-          const programs = await storage.getPrograms();
-          if (programs.length === 0) {
-            response.message = "No programs found. Create a program first, then I can add dependencies to it.";
-            response.success = false;
-          } else {
-            const targetProgram = programs[0];
-            
-            const dependencyData = {
-              title: `AI Generated Dependency`,
-              description: `Dependency created by AI Assistant based on user request: "${request}"`,
-              type: 'external' as const,
-              status: 'blocked' as const,
-              priority: 'medium' as const,
-              programId: targetProgram.id,
-              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
-            };
-
-            const validatedData = insertDependencySchema.parse(dependencyData);
-            const newDependency = await storage.createDependency(validatedData);
-            
-            response.success = true;
-            response.message = `Successfully created dependency "${newDependency.title}" for program "${targetProgram.name}"!`;
-            response.createdItems = [{
-              type: 'dependency',
-              id: newDependency.id,
-              name: newDependency.title
-            }];
-            // Navigation removed - keep user in chat to continue conversation
-          }
-        } catch (error) {
-          response.message = `Failed to create dependency: ${error}`;
-          response.success = false;
-        }
-      }
-
-      // Handle project creation requests (projects are created within programs)
-      else if (requestLower.includes('create project') || requestLower.includes('add project')) {
-        try {
-          const programs = await storage.getPrograms();
-          if (programs.length === 0) {
-            response.message = "No programs found. Projects must be created within programs. Please create a program first, then I can add projects to it.";
-            response.success = false;
-          } else {
-            const targetProgram = programs[0];
-            
-            // Extract project name from request - prioritize quoted names
-            let projectName = null;
-            const quotedMatch = request.match(/"([^"]+)"/);
-            if (quotedMatch) {
-              projectName = quotedMatch[1];
-            } else {
-              const singleQuotedMatch = request.match(/'([^']+)'/);
-              if (singleQuotedMatch) {
-                projectName = singleQuotedMatch[1];
-              } else {
-                const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
-                if (namedMatch) {
-                  projectName = namedMatch[1];
-                } else {
-                  projectName = `AI Generated Project`;
-                }
+            } else if (cmd.action === "update_program") {
+              const target = programs.find(p =>
+                p.name.toLowerCase().includes((cmd.parameters.name || "").toLowerCase())
+              ) || programs[0];
+              if (target) {
+                const updated = await storage.updateProgram(target.id, { status: cmd.parameters.status });
+                (app as any).broadcast("data_changed", { type: "program_updated", data: updated });
+                created.push({ type: "updated_program", name: target.name, status: cmd.parameters.status });
               }
             }
-
-            projectName = projectName.trim();
-            
-            const projectData = {
-              name: projectName,
-              description: `Project created by AI Assistant based on user request: "${request}"`,
-              status: 'planning' as const,
-              programId: targetProgram.id
-            };
-
-            const validatedData = insertProjectSchema.parse(projectData);
-            const newProject = await storage.createProject(validatedData);
-            
-            response.success = true;
-            response.message = `Successfully created project "${newProject.name}" within program "${targetProgram.name}"! Projects are components that belong to programs and help achieve program objectives.`;
-            response.createdItems = [{
-              type: 'project',
-              id: newProject.id,
-              name: newProject.name
-            }];
-            // Navigation removed - keep user in chat to continue conversation
+          } catch (err) {
+            console.error(`Command failed (${cmd.action}):`, err);
+            errors.push(`Failed to ${cmd.action.replace("_", " ")}: ${cmd.parameters.name || ""}`);
           }
-        } catch (error) {
-          response.message = `Failed to create project: ${error}`;
-          response.success = false;
         }
-      }
 
-      // Handle platform creation requests
-      else if ((requestLower.includes('create') || requestLower.includes('add')) && requestLower.includes('platform')) {
-        try {
-          // Extract platform name from request - prioritize quoted names
-          let platformName = null;
-          const quotedMatch = request.match(/"([^"]+)"/);
-          if (quotedMatch) {
-            platformName = quotedMatch[1];
-          } else {
-            const singleQuotedMatch = request.match(/'([^']+)'/);
-            if (singleQuotedMatch) {
-              platformName = singleQuotedMatch[1];
-            } else {
-              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
-              if (namedMatch) {
-                platformName = namedMatch[1];
-              } else {
-                platformName = `AI Generated Platform`;
-              }
-            }
+        // Step 3: PMI gap analysis for each newly created program
+        const createdPrograms = created.filter(c => c.type === "program");
+        const gapSummaries: string[] = [];
+
+        if (createdPrograms.length > 0) {
+          const gapPrompt = `You are a PMI/PMP expert TPM. These programs were just created and are empty:
+${createdPrograms.map(p => `- ${p.name}`).join("\n")}
+
+For EACH program, list the missing required components based on PMI PMBOK standards. Be specific and concise.
+Format:
+[Program Name]
+Missing: milestones, risk register, stakeholders, dependencies, adopter/change plan, OKRs, owner assignment, schedule baseline
+Warning: [one sentence on the biggest risk of not having these]
+
+Keep it tight — one block per program, plain text, no markdown.`;
+
+          try {
+            const gapAnalysis = await aiService.chatWithAI(gapPrompt, {});
+            gapSummaries.push(gapAnalysis);
+          } catch (e) {
+            console.error("Gap analysis failed:", e);
           }
-
-          platformName = platformName.trim();
-          
-          const platformData = {
-            name: platformName,
-            description: `Platform created by AI Assistant based on user request: "${request}"`,
-            type: 'technology' as const,
-            status: 'active' as const
-          };
-
-          const validatedData = insertPlatformSchema.parse(platformData);
-          const newPlatform = await storage.createPlatform(validatedData);
-          
-          response.success = true;
-          response.message = `Successfully created platform "${newPlatform.name}"! You can now link programs to this platform.`;
-          response.createdItems = [{
-            type: 'platform',
-            id: newPlatform.id,
-            name: newPlatform.name
-          }];
-          // Navigation removed - keep user in chat to continue conversation
-        } catch (error) {
-          response.message = `Failed to create platform: ${error}`;
-          response.success = false;
         }
-      }
 
-      // Handle initiative creation and linking requests
-      else if (requestLower.includes('create') && requestLower.includes('initiative')) {
-        try {
-          // Extract initiative name from request - prioritize quoted names
-          let initiativeName = null;
-          
-          const quotedMatch = request.match(/"([^"]+)"/);
-          if (quotedMatch) {
-            initiativeName = quotedMatch[1];
-          } else {
-            const singleQuotedMatch = request.match(/'([^']+)'/);
-            if (singleQuotedMatch) {
-              initiativeName = singleQuotedMatch[1];
-            } else {
-              const namedMatch = request.match(/(?:called|named)\s+([^"'\s].+?)(?:\s*$)/i);
-              if (namedMatch) {
-                initiativeName = namedMatch[1];
-              } else {
-                initiativeName = `AI Generated Initiative`;
-              }
-            }
-          }
+        // Build final message
+        const createdNames = created.filter(c => c.type === "program" || c.type === "milestone" || c.type === "risk")
+          .map(c => `"${c.name}"`).join(", ");
 
-          initiativeName = initiativeName.trim();
+        let message = `Created ${created.length} item(s): ${createdNames}.`;
+        if (errors.length > 0) message += `\n\nErrors: ${errors.join("; ")}`;
+        if (gapSummaries.length > 0) message += `\n\n${gapSummaries[0]}`;
 
-          const initiativeData = {
-            name: initiativeName,
-            description: `Initiative created by AI Assistant based on user request: "${request}"`,
-            status: 'planning' as const,
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
-          };
+        response.message = message;
+        response.success = created.length > 0;
+        response.createdItems = created;
 
-          const validatedData = insertInitiativeSchema.parse(initiativeData);
-          const newInitiative = await storage.createInitiative(validatedData);
-          
-          response.success = true;
-          response.message = `Successfully created initiative "${newInitiative.name}"! You can now link programs to this initiative.`;
-          response.createdItems = [{
-            type: 'initiative',
-            id: newInitiative.id,
-            name: newInitiative.name
-          }];
-          // Navigation removed - keep user in chat to continue conversation
-        } catch (error) {
-          response.message = `Failed to create initiative: ${error}`;
-          response.success = false;
-        }
-      }
-
-      // Handle comprehensive linking requests
-      else if (requestLower.includes('link')) {
-        try {
-          // Program to Initiative linking
-          if (requestLower.includes('program') && requestLower.includes('initiative')) {
-            const programs = await storage.getPrograms();
-            const initiatives = await storage.getInitiatives();
-            
-            if (programs.length === 0) {
-              response.message = "No programs found to link. Create a program first.";
-              response.success = false;
-            } else if (initiatives.length === 0) {
-              response.message = "No initiatives found to link to. Create an initiative first.";
-              response.success = false;
-            } else {
-              const targetProgram = programs[0];
-              const targetInitiative = initiatives[0];
-              
-              await storage.linkProgramToInitiative(targetProgram.id, targetInitiative.id);
-              
-              response.success = true;
-              response.message = `Successfully linked program "${targetProgram.name}" to initiative "${targetInitiative.name}"!`;
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          }
-          
-          // Project to Initiative linking
-          else if (requestLower.includes('project') && requestLower.includes('initiative')) {
-            const projects = await storage.getProjects();
-            const initiatives = await storage.getInitiatives();
-            
-            if (projects.length === 0) {
-              response.message = "No projects found to link. Create a project first.";
-              response.success = false;
-            } else if (initiatives.length === 0) {
-              response.message = "No initiatives found to link to. Create an initiative first.";
-              response.success = false;
-            } else {
-              const targetProject = projects[0];
-              const targetInitiative = initiatives[0];
-              
-              await storage.linkProjectToInitiative(targetProject.id, targetInitiative.id);
-              
-              response.success = true;
-              response.message = `Successfully linked project "${targetProject.name}" to initiative "${targetInitiative.name}"!`;
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          }
-          
-          // Program to Platform linking
-          else if (requestLower.includes('program') && requestLower.includes('platform')) {
-            const programs = await storage.getPrograms();
-            const platforms = await storage.getPlatforms();
-            
-            if (programs.length === 0) {
-              response.message = "No programs found to link. Create a program first.";
-              response.success = false;
-            } else if (platforms.length === 0) {
-              response.message = "No platforms found to link to. Create a platform first.";
-              response.success = false;
-            } else {
-              const targetProgram = programs[0];
-              const targetPlatform = platforms[0];
-              
-              await storage.linkProgramToPlatform(targetProgram.id, targetPlatform.id);
-              
-              response.success = true;
-              response.message = `Successfully linked program "${targetProgram.name}" to platform "${targetPlatform.name}"!`;
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          }
-          
-          // Project to Program linking
-          else if (requestLower.includes('project') && requestLower.includes('program')) {
-            const projects = await storage.getProjects();
-            const programs = await storage.getPrograms();
-            
-            if (projects.length === 0) {
-              response.message = "No projects found to link. Create a project first.";
-              response.success = false;
-            } else if (programs.length === 0) {
-              response.message = "No programs found to link to. Create a program first.";
-              response.success = false;
-            } else {
-              const targetProject = projects[0];
-              const targetProgram = programs[0];
-              
-              await storage.linkProjectToPrograms(targetProject.id, [targetProgram.id]);
-              
-              response.success = true;
-              response.message = `Successfully linked project "${targetProject.name}" to program "${targetProgram.name}"!`;
-              // Navigation removed - keep user in chat to continue conversation
-            }
-          }
-          
-          else {
-            response.message = "I can link: program to initiative, project to initiative, program to platform, project to program. Please specify what you'd like to link.";
-            response.success = true;
-          }
-        } catch (error) {
-          response.message = `Failed to link components: ${error}`;
-          response.success = false;
-        }
-      }
-      
-      // Handle data analysis requests
-      else if (requestLower.includes('analyze') || requestLower.includes('report') || requestLower.includes('summary')) {
-        const programs = await storage.getPrograms();
-        const risks = await storage.getRisks();
-        const milestones = await storage.getMilestones();
-        
+      } else {
+        // Conversational / query — pass to chatWithAI with live context
+        const aiResponse = await aiService.chatWithAI(request, liveData);
+        response.message = aiResponse;
         response.success = true;
-        response.message = `Analysis Summary:
-        
-📊 Current Status:
-• ${programs.length} total programs
-• ${risks.length} total risks across all programs  
-• ${milestones.length} total milestones
-• ${risks.filter(r => r.severity === 'critical' || r.severity === 'high').length} high/critical risks need attention
-
-🎯 Program Health:
-${programs.map(p => {
-  const programRisks = risks.filter(r => r.programId === p.id);
-  const programMilestones = milestones.filter(m => m.programId === p.id);
-  return `• ${p.name}: ${programRisks.length} risks, ${programMilestones.length} milestones`;
-}).join('\n') || '• No programs to analyze'}
-
-💡 Recommendations:
-• Focus on resolving high/critical risks first
-• Ensure all programs have proper ownership and timelines
-• Track milestone progress regularly`;
-
-        // Navigation removed - keep user in chat to continue conversation
-      }
-
-
-      // Handle navigation requests - now providing information instead of navigating (but exclude reporting requests)
-      else if ((requestLower.includes('show') || requestLower.includes('go to') || requestLower.includes('navigate')) &&
-               !requestLower.includes('overdue') && !requestLower.includes('past due') && 
-               !requestLower.includes('give me') && !requestLower.includes('show me')) {
-        response.success = true;
-        if (requestLower.includes('risk')) {
-          response.message = `The risk management section shows all program risks with filtering by severity and status. You can view, create, and manage risks there. I can create risks for you here in chat if you prefer!`;
-        } else if (requestLower.includes('program')) {
-          response.message = `The programs section shows all your programs with their status, progress, and associated components. I can create and manage programs for you here in chat if you prefer!`;
-        } else if (requestLower.includes('dashboard')) {
-          response.message = `The dashboard provides an overview of all programs, risks, milestones, and key metrics. I can provide analysis and summaries here in chat if you prefer!`;
-        } else {
-          response.message = `I can help you with programs, risks, milestones, dependencies, adopters, initiatives, and platforms - all through our chat here. What would you like to work on?`;
-        }
-        // Navigation removed - keep user in chat to continue conversation
-      }
-      
-      // Handle all questions, analysis, and unrecognized requests via Claude with live data context
-      else {
-        try {
-          const programs = await storage.getPrograms();
-          const risks = await storage.getRisks();
-          const milestones = await storage.getMilestones();
-          const dependencies = await storage.getDependencies();
-          const adopters = await storage.getAdopters();
-
-          const liveData = {
-            programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status, completion: p.estimatedCompletionPercentage })),
-            risks: risks.map(r => ({ id: r.id, title: r.title, severity: r.severity, status: r.status, programId: r.programId })),
-            milestones: milestones.map(m => ({ id: m.id, title: m.title, status: m.status, dueDate: m.dueDate, programId: m.programId })),
-            dependencies: dependencies.map(d => ({ id: d.id, title: d.title, status: d.status, programId: d.programId })),
-            adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status, readinessScore: a.readinessScore, programId: a.programId }))
-          };
-
-          const aiResponse = await aiService.chatWithAI(request, liveData);
-          response.message = aiResponse;
-          response.success = true;
-        } catch (error) {
-          console.error('Error processing request via AI:', error);
-          response.message = 'I had trouble processing that. Please try again.';
-          response.success = false;
-        }
       }
 
       res.json(response);
     } catch (error) {
       console.error("Error processing AI request:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to process your request. Please try again.",
         success: false,
         createdItems: [],
@@ -1634,6 +1097,7 @@ ${programs.map(p => {
       });
     }
   });
+
 
   // Enhanced contextual routes for all components
   app.get("/api/milestones/:id/context", async (req, res) => {
