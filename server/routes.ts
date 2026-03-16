@@ -1593,11 +1593,8 @@ ${programs.map(p => {
         // Navigation removed - keep user in chat to continue conversation
       }
       
-      // Handle reporting and analysis requests
-      else if (requestLower.includes('how many') || requestLower.includes('count') || 
-               requestLower.includes('which programs') || requestLower.includes('what programs') ||
-               requestLower.includes('report on') || requestLower.includes('status of') ||
-               requestLower.includes('show me') || requestLower.includes('give me a report')) {
+      // Handle all questions, analysis, and unrecognized requests via Claude with live data context
+      else {
         try {
           const programs = await storage.getPrograms();
           const risks = await storage.getRisks();
@@ -1605,237 +1602,22 @@ ${programs.map(p => {
           const dependencies = await storage.getDependencies();
           const adopters = await storage.getAdopters();
 
-          // Handle specific program report
-          if (requestLower.includes('report on') || requestLower.includes('status of')) {
-            // Extract program name from request
-            const programMatch = request.match(/(?:report on|status of)\s+["']?([^"']+?)["']?\s*$/i);
-            if (programMatch) {
-              const programName = programMatch[1].trim();
-              const targetProgram = programs.find(p => 
-                p.name.toLowerCase().includes(programName.toLowerCase())
-              );
-              
-              if (targetProgram) {
-                const programRisks = risks.filter(r => r.programId === targetProgram.id);
-                const programMilestones = milestones.filter(m => m.programId === targetProgram.id);
-                const programDependencies = dependencies.filter(d => d.programId === targetProgram.id);
-                const programAdopters = adopters.filter(a => a.programId === targetProgram.id);
-                
-                const overdueMilestones = programMilestones.filter(m => 
-                  m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed'
-                );
-                
-                const highRisks = programRisks.filter(r => r.severity === 'high' || r.severity === 'critical');
-                
-                response.message = `📊 **Program Report: ${targetProgram.name}**
+          const liveData = {
+            programs: programs.map(p => ({ id: p.id, name: p.name, status: p.status, completion: p.estimatedCompletionPercentage })),
+            risks: risks.map(r => ({ id: r.id, title: r.title, severity: r.severity, status: r.status, programId: r.programId })),
+            milestones: milestones.map(m => ({ id: m.id, title: m.title, status: m.status, dueDate: m.dueDate, programId: m.programId })),
+            dependencies: dependencies.map(d => ({ id: d.id, title: d.title, status: d.status, programId: d.programId })),
+            adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status, readinessScore: a.readinessScore, programId: a.programId }))
+          };
 
-**Status:** ${targetProgram.status}
-**Completion:** ${targetProgram.estimatedCompletionPercentage}%
-
-**Components:**
-• **Milestones:** ${programMilestones.length} total (${overdueMilestones.length} overdue)
-• **Risks:** ${programRisks.length} total (${highRisks.length} high/critical)
-• **Dependencies:** ${programDependencies.length} tracked
-• **Adopter Teams:** ${programAdopters.length} identified
-
-**Key Alerts:**
-${overdueMilestones.length > 0 ? `⚠️ ${overdueMilestones.length} overdue milestone(s)` : '✅ No overdue milestones'}
-${highRisks.length > 0 ? `🚨 ${highRisks.length} high/critical risk(s)` : '✅ No critical risks'}
-${programDependencies.length === 0 ? '⚠️ No dependencies tracked' : `✅ Dependencies managed`}
-
-**Next Actions Needed:**
-${overdueMilestones.length > 0 ? '• Review and update overdue milestone timelines' : ''}
-${highRisks.length > 0 ? '• Address high-priority risks immediately' : ''}
-${programMilestones.length === 0 ? '• Define program milestones and timeline' : ''}`;
-                
-                response.success = true;
-              } else {
-                response.message = `Program "${programName}" not found. Available programs: ${programs.map(p => p.name).join(', ')}`;
-                response.success = false;
-              }
-            } else {
-              response.message = "Please specify which program you'd like a report on. Example: 'Give me a report on Project Alpha'";
-              response.success = false;
-            }
-          }
-          
-          // Handle "how many active programs"
-          else if (requestLower.includes('active program')) {
-            const activePrograms = programs.filter(p => p.status === 'active');
-            response.message = `📈 **Active Programs: ${activePrograms.length}**
-
-${activePrograms.length > 0 ? 
-  activePrograms.map(p => `• ${p.name} (${p.estimatedCompletionPercentage}% complete)`).join('\n') :
-  'No active programs found.'
-}
-
-**Total Programs:** ${programs.length}
-**Breakdown by Status:**
-• Planning: ${programs.filter(p => p.status === 'planning').length}
-• Active: ${programs.filter(p => p.status === 'active').length}
-• On Hold: ${programs.filter(p => p.status === 'on_hold').length}
-• Completed: ${programs.filter(p => p.status === 'completed').length}`;
-            response.success = true;
-          }
-          
-          // Handle "which programs have risks"
-          else if (requestLower.includes('program') && requestLower.includes('risk')) {
-            const programsWithRisks = programs.filter(p => 
-              risks.some(r => r.programId === p.id)
-            );
-            
-            response.message = `🚨 **Programs with Risks: ${programsWithRisks.length}**
-
-${programsWithRisks.map(p => {
-              const programRisks = risks.filter(r => r.programId === p.id);
-              const highRisks = programRisks.filter(r => r.severity === 'high' || r.severity === 'critical');
-              return `• **${p.name}**: ${programRisks.length} risk(s) ${highRisks.length > 0 ? `(${highRisks.length} critical)` : ''}`;
-            }).join('\n')}
-
-**Risk Summary:**
-• Total Risks: ${risks.length}
-• High/Critical: ${risks.filter(r => r.severity === 'high' || r.severity === 'critical').length}
-• Programs without risks: ${programs.length - programsWithRisks.length}`;
-            response.success = true;
-          }
-          
-          // Handle "which programs have dependencies"
-          else if (requestLower.includes('program') && requestLower.includes('dependen')) {
-            const programsWithDeps = programs.filter(p => 
-              dependencies.some(d => d.programId === p.id)
-            );
-            
-            response.message = `🔗 **Programs with Dependencies: ${programsWithDeps.length}**
-
-${programsWithDeps.map(p => {
-              const programDeps = dependencies.filter(d => d.programId === p.id);
-              return `• **${p.name}**: ${programDeps.length} dependenc${programDeps.length === 1 ? 'y' : 'ies'}`;
-            }).join('\n')}
-
-**Dependency Summary:**
-• Total Dependencies: ${dependencies.length}
-• Programs without dependencies: ${programs.length - programsWithDeps.length}`;
-            response.success = true;
-          }
-          
-          // Handle "past due milestones" or "overdue milestones"
-          else if ((requestLower.includes('past due') || requestLower.includes('overdue')) && requestLower.includes('milestone')) {
-            const overdueMilestones = milestones.filter(m => 
-              m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed'
-            );
-            
-            const programsWithOverdue = programs.filter(p => 
-              overdueMilestones.some(m => m.programId === p.id)
-            );
-            
-            response.message = `⏰ **Programs with Overdue Milestones: ${programsWithOverdue.length}**
-
-${programsWithOverdue.map(p => {
-              const programOverdue = overdueMilestones.filter(m => m.programId === p.id);
-              return `• **${p.name}**: ${programOverdue.length} overdue milestone(s)`;
-            }).join('\n')}
-
-**Overdue Milestone Details:**
-${overdueMilestones.slice(0, 5).map(m => {
-              const program = programs.find(p => p.id === m.programId);
-              const daysPast = Math.floor((new Date().getTime() - new Date(m.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
-              return `• ${m.title} (${program?.name}) - ${daysPast} days overdue`;
-            }).join('\n')}
-${overdueMilestones.length > 5 ? `\n... and ${overdueMilestones.length - 5} more` : ''}
-
-**Total Overdue:** ${overdueMilestones.length} milestones`;
-            response.success = true;
-          }
-          
-          // Handle general "show me" or summary requests
-          else {
-            const activePrograms = programs.filter(p => p.status === 'active');
-            const programsWithRisks = programs.filter(p => risks.some(r => r.programId === p.id));
-            const overdueMilestones = milestones.filter(m => 
-              m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed'
-            );
-            const highRisks = risks.filter(r => r.severity === 'high' || r.severity === 'critical');
-            
-            response.message = `📊 **System Overview Report**
-
-**Programs (${programs.length} total):**
-• Active: ${activePrograms.length}
-• Planning: ${programs.filter(p => p.status === 'planning').length}
-• Completed: ${programs.filter(p => p.status === 'completed').length}
-• On Hold: ${programs.filter(p => p.status === 'on_hold').length}
-
-**Risk Status:**
-• Programs with risks: ${programsWithRisks.length}/${programs.length}
-• Total risks: ${risks.length}
-• High/Critical risks: ${highRisks.length}
-
-**Milestones & Timeline:**
-• Total milestones: ${milestones.length}
-• Overdue milestones: ${overdueMilestones.length}
-
-**Dependencies:**
-• Total tracked: ${dependencies.length}
-
-**Adopter Teams:**
-• Total identified: ${adopters.length}
-
-**Key Alerts:**
-${overdueMilestones.length > 0 ? `⚠️ ${overdueMilestones.length} overdue milestones need attention` : '✅ No overdue milestones'}
-${highRisks.length > 0 ? `🚨 ${highRisks.length} high-priority risks need immediate action` : '✅ No critical risks'}`;
-            response.success = true;
-          }
-          
+          const aiResponse = await aiService.chatWithAI(request, liveData);
+          response.message = aiResponse;
+          response.success = true;
         } catch (error) {
-          console.error('Error generating report:', error);
-          response.message = 'Failed to generate report. Please try again.';
+          console.error('Error processing request via AI:', error);
+          response.message = 'I had trouble processing that. Please try again.';
           response.success = false;
         }
-      }
-      
-      // Default response for unrecognized requests
-      else {
-        response.message = `I understand you want to "${request}". Here's what I can help you with:
-
-🏗️ **Create Items:**
-• "Create a new program called [name]" (programs contain projects)
-• "Create a project called [name]" (projects belong within programs)
-• "Add a risk to the program"  
-• "Create a milestone for the program"
-• "Create an adopter team for the program"
-• "Add a dependency to the program"
-• "Create an initiative called [name]"
-• "Create a platform called [name]"
-
-🔗 **Link Items:**
-• "Link program to initiative"
-• "Link project to initiative"  
-• "Link program to platform"
-• "Link project to program"
-
-🗑️ **Delete Items:**
-• "Delete all programs"
-• "Remove a program"
-• "Delete a risk"
-
-✏️ **Update Items:**
-• "Update program status to active"
-• "Change program status to completed"
-• "Modify program status to on hold"
-
-📊 **Analysis & Reports:**
-• "How many active programs are there?"
-• "Which programs have risks?"
-• "Which programs have past due milestones?"
-• "Give me a report on [program name]"
-• "Show me a summary report"
-
-🧭 **Navigation:**
-• "Go to the dashboard"
-• "Show me the risk management page"
-• "Navigate to programs"
-
-Try being more specific about what you'd like me to do!`;
-        response.success = true;
       }
 
       res.json(response);

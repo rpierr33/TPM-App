@@ -105,6 +105,7 @@ export default function AIAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const handleVoiceCommandRef = useRef<(command: string) => void>(() => {});
   
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -260,11 +261,10 @@ export default function AIAssistant() {
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
           setInputValue(transcript);
-          
-          // Automatically send the voice command
+          // Use ref so we always call the latest version, not a stale closure
           setTimeout(() => {
-            handleVoiceCommand(transcript);
-          }, 500);
+            handleVoiceCommandRef.current(transcript);
+          }, 300);
         };
 
         recognitionRef.current.onend = () => {
@@ -274,9 +274,14 @@ export default function AIAssistant() {
         recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
+          const description = event.error === 'not-allowed'
+            ? "Microphone access was denied. Please allow microphone access in your browser settings and try again."
+            : event.error === 'no-speech'
+            ? "No speech detected. Please try again."
+            : "Unable to process voice input. Please try again.";
           toast({
             title: "Voice Recognition Error",
-            description: "Unable to process voice input. Please try again.",
+            description,
             variant: "destructive"
           });
         };
@@ -297,17 +302,18 @@ export default function AIAssistant() {
     addChatMessage(userMessage);
     setInputValue('');
     setIsProcessing(true);
-    
-    // Auto-scroll to bottom when new message is added
+
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
     }, 100);
 
-    // Process the voice command with the AI
     aiActionMutation.mutate(command);
   };
+
+  // Keep ref in sync with the latest version of handleVoiceCommand
+  handleVoiceCommandRef.current = handleVoiceCommand;
 
   const toggleVoiceRecognition = () => {
     if (isListening) {
@@ -410,7 +416,7 @@ export default function AIAssistant() {
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       
                       {/* Created Items */}
                       {message.createdItems && message.createdItems.length > 0 && (

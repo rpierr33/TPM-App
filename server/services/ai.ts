@@ -1,11 +1,10 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { storage } from "../storage";
-import { v4 as uuidv4 } from "uuid";
-import type { 
-  Program, 
-  Milestone, 
-  Risk, 
-  Dependency, 
+import type {
+  Program,
+  Milestone,
+  Risk,
+  Dependency,
   Adopter,
   Escalation,
   InsertProgram,
@@ -16,10 +15,47 @@ import type {
   InsertEscalation
 } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "your-api-key-here"
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
 });
+
+const MODEL = "claude-sonnet-4-6";
+
+const TPM_SYSTEM_PROMPT = `You are an expert AI Technical Program Manager (TPM) assistant with deep expertise in:
+
+FRAMEWORKS & METHODOLOGIES:
+- PMI/PMBOK (6th & 7th editions): process groups, knowledge areas, predictive vs. adaptive tailoring
+- PMP best practices: scope, schedule, cost, quality, resource, communications, risk, procurement, stakeholder management
+- Agile/Scrum: sprint planning, velocity, backlog grooming, retrospectives, definition of done
+- SAFe (Scaled Agile Framework): PI planning, ARTs, program increments, dependencies across trains
+- Kanban: WIP limits, flow metrics, cycle time, throughput
+- SDLC phases: Requirements → Architecture → Design → Development → Testing → Deployment → Maintenance
+
+TECHNICAL PROGRAM MANAGEMENT:
+- Cross-functional program coordination across engineering, product, design, data, infra, and security
+- Dependency management: hard vs. soft dependencies, critical path analysis, float/slack calculation
+- Risk management: probability/impact matrices, risk registers, RAID logs, mitigation vs. contingency plans
+- OKR and KPI definition, tracking, and reporting cadences
+- Stakeholder management: RACI matrices, communication plans, escalation paths
+- Milestone planning aligned to SDLC gates and PMI phase deliverables
+- Adoption and change management: readiness assessments, training plans, rollout strategies
+- Executive reporting: status RAG ratings, variance analysis, forecast vs. actuals
+
+INDUSTRY STANDARDS:
+- ISO 21500 project management guidelines
+- ITIL for service management integration
+- DevOps and CI/CD pipeline considerations in program planning
+- SLA/SLO/SLI definitions for technical programs
+- Tech debt quantification and prioritization frameworks
+
+Always provide specific, actionable recommendations. When making suggestions, cite the relevant PMI knowledge area, SDLC phase, or Agile ceremony they apply to. Think like a Staff/Principal TPM at a top tech company.`;
+
+function parseJSON(text: string): any {
+  // Strip markdown code fences if present
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = match ? match[1] : text;
+  return JSON.parse(raw.trim());
+}
 
 export interface AICommand {
   action: string;
@@ -44,22 +80,21 @@ export interface VoiceCommandResult {
 export class AIService {
   async summarizeText(text: string): Promise<string> {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 500,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: "You are a technical program manager assistant. Summarize the following text concisely while maintaining key technical details and action items."
-          },
-          {
             role: "user",
-            content: text
+            content: `Summarize the following text concisely, preserving key technical details, decisions, risks, and action items:\n\n${text}`
           }
-        ],
-        max_tokens: 500
+        ]
       });
 
-      return response.choices[0].message.content || "Unable to generate summary";
+      return response.content[0].type === "text"
+        ? response.content[0].text
+        : "Unable to generate summary";
     } catch (error) {
       console.error("Error in AI summarization:", error);
       throw new Error("Failed to summarize text");
@@ -68,23 +103,20 @@ export class AIService {
 
   async extractActionItems(text: string): Promise<string[]> {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 500,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: "You are a technical program manager assistant. Extract action items from the following text. Return the response as a JSON array of strings. Each action item should be clear and actionable."
-          },
-          {
             role: "user",
-            content: text
+            content: `Extract all action items from the following text. Return ONLY a JSON object with an "actions" array of strings. Each action item should be clear, specific, and assigned if possible.\n\n${text}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 500
+        ]
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{"actions": []}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{"actions": []}';
+      const result = parseJSON(text_content);
       return result.actions || [];
     } catch (error) {
       console.error("Error extracting action items:", error);
@@ -94,27 +126,24 @@ export class AIService {
 
   async calculateRiskScore(riskDescription: string): Promise<number> {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 200,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: "You are a risk assessment expert. Analyze the following risk description and provide a risk score from 1-100 based on potential impact and likelihood. Return the response as JSON with a 'score' field."
-          },
-          {
             role: "user",
-            content: riskDescription
+            content: `Analyze this risk using the PMI probability/impact matrix and provide a risk score from 1-100 (1=negligible, 100=critical). Return ONLY a JSON object with a "score" field and a brief "rationale" field.\n\nRisk: ${riskDescription}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 100
+        ]
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{"score": 50}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{"score": 50}';
+      const result = parseJSON(text_content);
       return Math.max(1, Math.min(100, result.score));
     } catch (error) {
       console.error("Error calculating risk score:", error);
-      return 50; // Default moderate risk score
+      return 50;
     }
   }
 
@@ -145,23 +174,20 @@ export class AIService {
         }))
       };
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1000,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: "You are a technical program manager AI assistant. Analyze the program data and predict milestone delay probabilities (0-100) and recommend specific actions. Return JSON with an array of predictions."
-          },
-          {
             role: "user",
-            content: `Analyze this program data and predict delays: ${JSON.stringify(analysisData)}`
+            content: `Using critical path analysis and Monte Carlo-style risk reasoning, predict delay probabilities (0-100) for each milestone and recommend specific PMI-aligned mitigation actions. Return ONLY a JSON object with a "predictions" array where each item has: milestoneId, delayProbability, recommendedActions (array of strings).\n\nProgram data:\n${JSON.stringify(analysisData, null, 2)}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 1000
+        ]
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{"predictions": []}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{"predictions": []}';
+      const result = parseJSON(text_content);
       return result.predictions || [];
     } catch (error) {
       console.error("Error predicting milestone delays:", error);
@@ -181,44 +207,31 @@ export class AIService {
       const milestones = await storage.getMilestones(programId);
 
       const programData = {
-        program: {
-          name: program?.name,
-          status: program?.status
-        },
-        risks: risks.map(r => ({
-          severity: r.severity,
-          status: r.status,
-          title: r.title
-        })),
-        adopters: adopters.map(a => ({
-          teamName: a.teamName,
-          status: a.status,
-          readinessScore: a.readinessScore
-        })),
-        milestones: milestones.map(m => ({
-          title: m.title,
-          status: m.status,
-          dueDate: m.dueDate
-        }))
+        program: { name: program?.name, status: program?.status },
+        risks: risks.map(r => ({ severity: r.severity, status: r.status, title: r.title })),
+        adopters: adopters.map(a => ({ teamName: a.teamName, status: a.status, readinessScore: a.readinessScore })),
+        milestones: milestones.map(m => ({ title: m.title, status: m.status, dueDate: m.dueDate }))
       };
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 800,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: "You are a senior technical program manager AI assistant. Analyze the program data and provide insights on risk prediction, adopter support needs, and overall program health. Return JSON with riskPrediction, adopterSupport, and programHealth fields."
-          },
-          {
             role: "user",
-            content: `Analyze this program data: ${JSON.stringify(programData)}`
+            content: `Analyze this program and provide insights grounded in PMI and SDLC best practices. Return ONLY a JSON object with three fields:
+- riskPrediction: forward-looking risk assessment with specific mitigations
+- adopterSupport: adoption readiness analysis with change management recommendations
+- programHealth: overall RAG status with specific improvement actions
+
+Program data:\n${JSON.stringify(programData, null, 2)}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 800
+        ]
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
+      const result = parseJSON(text_content);
       return {
         riskPrediction: result.riskPrediction || "No risk analysis available",
         adopterSupport: result.adopterSupport || "No adopter analysis available",
@@ -237,39 +250,29 @@ export class AIService {
       const milestones = await storage.getMilestones(programId);
       const adopters = await storage.getAdopters(programId);
 
-      const reportData = {
-        program,
-        risks,
-        milestones,
-        adopters,
-        type
-      };
+      const reportData = { program, risks, milestones, adopters, type };
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 2000,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: `You are a technical program manager assistant. Generate a comprehensive ${type} report based on the program data. Include executive summary, key metrics, risk assessment, milestone progress, and recommendations.`
-          },
-          {
             role: "user",
-            content: `Generate a ${type} report for this program data: ${JSON.stringify(reportData)}`
+            content: `Generate a comprehensive ${type} report following PMI reporting standards. Include: executive summary, RAG status, key metrics with variance analysis, risk assessment with RAID log summary, milestone progress vs. baseline, adopter readiness, and prioritized next steps. Return as a JSON object with clearly labeled sections.\n\nProgram data:\n${JSON.stringify(reportData, null, 2)}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 2000
+        ]
       });
 
-      const reportContent = JSON.parse(response.choices[0].message.content || '{}');
-      
-      // Save the generated report
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
+      const reportContent = parseJSON(text_content);
+
       const report = await storage.createReport({
         title: `${type} Report - ${program?.name}`,
         type,
         programId,
         content: reportContent,
-        generatedBy: "ai-system" // In a real app, this would be the current user ID
+        generatedBy: "ai-system"
       });
 
       return report;
@@ -279,16 +282,16 @@ export class AIService {
     }
   }
 
-  // AI-FIRST FEATURES - Voice & Chat Interface
-
   async processVoiceCommand(input: string): Promise<VoiceCommandResult> {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 500,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: `You are an AI-first Technical Program Manager assistant. Parse voice/text commands and extract actionable instructions.
+            role: "user",
+            content: `Parse this voice/text command and extract the intended action. Return ONLY a JSON object with: action, parameters, confidence (0-100), and reasoning.
 
 Available actions:
 - create_program: Create a new program
@@ -299,20 +302,16 @@ Available actions:
 - generate_report: Create executive report
 - escalate_issue: Create escalation
 
-Return JSON with: action, parameters, confidence (0-100), and reasoning.
-
 Example: "Create a new program called API Migration with deadline March 15th"
-Should return: {"action": "create_program", "parameters": {"name": "API Migration", "endDate": "2024-03-15"}, "confidence": 95}`
-          },
-          {
-            role: "user",
-            content: input
+Returns: {"action": "create_program", "parameters": {"name": "API Migration", "endDate": "2026-03-15"}, "confidence": 95, "reasoning": "Clear create program intent with name and date"}
+
+Command: "${input}"`
           }
-        ],
-        response_format: { type: "json_object" }
+        ]
       });
 
-      const parsed = JSON.parse(response.choices[0].message.content || '{}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
+      const parsed = parseJSON(text_content);
       return await this.executeVoiceCommand(parsed);
     } catch (error) {
       console.error("Voice command processing error:", error);
@@ -331,13 +330,13 @@ Should return: {"action": "create_program", "parameters": {"name": "API Migratio
             name: command.parameters.name,
             description: command.parameters.description || `AI-created program: ${command.parameters.name}`,
             status: 'planning',
-            ownerId: null, // Set based on authenticated user
+            ownerId: null,
             startDate: command.parameters.startDate ? new Date(command.parameters.startDate) : new Date(),
             endDate: command.parameters.endDate ? new Date(command.parameters.endDate) : null,
             objectives: command.parameters.objectives || null,
             kpis: command.parameters.kpis || null
           });
-          
+
           return {
             success: true,
             message: `Created program "${program.name}" successfully!`,
@@ -345,7 +344,7 @@ Should return: {"action": "create_program", "parameters": {"name": "API Migratio
             followUp: [
               "Would you like to add milestones to this program?",
               "Should I analyze potential risks for this program?",
-              "Want me to suggest team assignments?"
+              "Want me to suggest a SDLC phase breakdown?"
             ]
           };
 
@@ -368,7 +367,7 @@ Should return: {"action": "create_program", "parameters": {"name": "API Migratio
             followUp: [
               "Should I identify potential risks for this milestone?",
               "Want me to check for dependencies?",
-              "Need me to estimate the timeline?"
+              "Need me to align this to a PMI process group?"
             ]
           };
 
@@ -402,7 +401,6 @@ Should return: {"action": "create_program", "parameters": {"name": "API Migratio
 
   async analyzeProgram(programId?: string): Promise<AIAnalysis> {
     try {
-      // Get all program data
       const programs = programId ? [await storage.getProgram(programId)] : await storage.getPrograms();
       const milestones = await storage.getMilestones(programId);
       const risks = await storage.getRisks(programId);
@@ -417,42 +415,32 @@ Should return: {"action": "create_program", "parameters": {"name": "API Migratio
         adopters
       };
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1500,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: `You are a senior Technical Program Manager AI analyzing program health. 
-
-Analyze the program data and provide:
-1. SUGGESTIONS: Actionable recommendations to improve the program
-2. RISKS: Potential risks that should be tracked (missing from current risks)
-3. GAPS: Missing components or information that could cause problems
-4. IMPROVEMENTS: Specific ways to optimize processes and outcomes
-
-Focus on:
-- Timeline feasibility and resource allocation
-- Missing dependencies or blockers
-- Team readiness and adoption challenges
-- Communication and stakeholder alignment
-- Technical debt and integration risks
-
-Return JSON with arrays of specific, actionable insights.`
-          },
-          {
             role: "user",
-            content: `Analyze this program data: ${JSON.stringify(programData, null, 2)}`
+            content: `Perform a comprehensive program health analysis using PMI knowledge areas and SDLC best practices. Return ONLY a JSON object with four arrays:
+- suggestions: Actionable recommendations tied to specific PMI knowledge areas or SDLC phases
+- risks: New risks not currently tracked (use RAID log thinking)
+- gaps: Missing program components that could cause failure (scope gaps, resource gaps, communication gaps, etc.)
+- improvements: Process optimizations using Agile, SAFe, or PMI frameworks
+
+Be specific and cite frameworks where relevant.
+
+Program data:\n${JSON.stringify(programData, null, 2)}`
           }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 1500
+        ]
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content || '{}');
-      
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
+      const analysis = parseJSON(text_content);
+
       // Auto-create risks for critical gaps
       if (analysis.risks && analysis.risks.length > 0) {
-        for (const riskDescription of analysis.risks.slice(0, 3)) { // Limit to top 3
+        for (const riskDescription of analysis.risks.slice(0, 3)) {
           const riskScore = await this.calculateRiskScore(riskDescription);
           await storage.createRisk({
             title: `AI-Identified: ${riskDescription.substring(0, 50)}...`,
@@ -488,33 +476,30 @@ Return JSON with arrays of specific, actionable insights.`
 
   async chatWithAI(message: string, context?: any): Promise<string> {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 800,
+        system: `${TPM_SYSTEM_PROMPT}
+
+Current platform context: ${context ? JSON.stringify(context) : 'General TPM conversation'}
+
+RESPONSE STYLE:
+- Answer only what was asked. Do not volunteer unrequested data.
+- Keep responses short and direct. One or two sentences for simple factual questions.
+- Do NOT use markdown formatting (no **, no ##, no bullet dashes). Write in plain prose.
+- When giving recommendations, reference the relevant PMI knowledge area, SDLC phase, or Agile framework.
+- Ask a clarifying question only if the request is genuinely ambiguous.`,
         messages: [
-          {
-            role: "system",
-            content: `You are an AI-first Technical Program Manager assistant. You help manage engineering programs through conversation.
-
-You can:
-- Answer questions about programs, milestones, risks, and dependencies
-- Provide advice on program management best practices
-- Suggest improvements and identify gaps
-- Help create and manage program artifacts
-- Escalate issues when needed
-
-Keep responses concise but helpful. Ask clarifying questions when needed. Always think like a senior TPM.
-
-Current context: ${context ? JSON.stringify(context) : 'General conversation'}`
-          },
           {
             role: "user",
             content: message
           }
-        ],
-        max_tokens: 500
+        ]
       });
 
-      return response.choices[0].message.content || "I'm not sure how to help with that right now.";
+      return response.content[0].type === "text"
+        ? response.content[0].text
+        : "I'm not sure how to help with that right now.";
     } catch (error) {
       console.error("Chat error:", error);
       return "I'm having trouble processing that right now. Could you try rephrasing?";
@@ -528,19 +513,18 @@ Current context: ${context ? JSON.stringify(context) : 'General conversation'}`
     recommendations: string[];
   }> {
     try {
-      // Get current program state
       const programs = await storage.getPrograms();
       const risks = await storage.getRisks();
       const milestones = await storage.getMilestones();
-      
+
       const today = new Date();
       const oneWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      const upcomingMilestones = milestones.filter(m => 
+
+      const upcomingMilestones = milestones.filter(m =>
         m.dueDate && new Date(m.dueDate) <= oneWeek && new Date(m.dueDate) >= today
       );
-      
-      const criticalRisks = risks.filter(r => 
+
+      const criticalRisks = risks.filter(r =>
         r.severity === 'critical' || r.severity === 'high'
       );
 
@@ -549,38 +533,31 @@ Current context: ${context ? JSON.stringify(context) : 'General conversation'}`
         activePrograms: programs.filter(p => p.status === 'active').length,
         upcomingMilestones: upcomingMilestones.length,
         criticalRisks: criticalRisks.length,
-        programDetails: programs.map(p => ({
-          name: p.name,
-          status: p.status
-        })),
-        riskDetails: criticalRisks.map(r => ({
-          title: r.title,
-          severity: r.severity
-        }))
+        programDetails: programs.map(p => ({ name: p.name, status: p.status })),
+        riskDetails: criticalRisks.map(r => ({ title: r.title, severity: r.severity })),
+        milestonesThisWeek: upcomingMilestones.map(m => ({ title: m.title, dueDate: m.dueDate }))
       };
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1000,
+        system: TPM_SYSTEM_PROMPT,
         messages: [
           {
-            role: "system",
-            content: `You are an AI TPM assistant creating a daily briefing. Provide a concise summary, top priorities, critical alerts, and actionable recommendations.
-
-Return JSON with:
-- summary: Brief overview of current state
-- priorities: Top 3-5 things to focus on today
-- alerts: Critical issues requiring immediate attention
-- recommendations: Specific actions to improve program health`
-          },
-          {
             role: "user",
-            content: `Create daily briefing for: ${JSON.stringify(briefingData)}`
+            content: `Generate a concise daily TPM briefing following a staff meeting agenda format. Return ONLY a JSON object with:
+- summary: One paragraph RAG-rated overview of program portfolio health
+- priorities: Top 3-5 items requiring attention today (specific and actionable)
+- alerts: Critical issues requiring immediate escalation or action
+- recommendations: Specific next steps tied to PMI best practices or Agile ceremonies
+
+Data:\n${JSON.stringify(briefingData, null, 2)}`
           }
-        ],
-        response_format: { type: "json_object" }
+        ]
       });
 
-      return JSON.parse(response.choices[0].message.content || '{}');
+      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
+      return parseJSON(text_content);
     } catch (error) {
       console.error("Daily briefing error:", error);
       return {
