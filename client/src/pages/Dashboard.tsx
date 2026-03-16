@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
+import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -172,7 +173,7 @@ export default function Dashboard() {
 
   // Generate today's priorities based on program health analysis
   const generateTodaysPriorities = () => {
-    const priorities = [];
+    const priorities: Array<{type: string; title: string; description: string; priority?: string; pmiReference?: string; urgency?: string; action?: string}> = [];
     
     // Critical risks that need immediate attention
     const criticalRisks = risks.filter(r => r.severity === 'critical' || r.severity === 'high').slice(0, 3);
@@ -404,9 +405,9 @@ export default function Dashboard() {
     }
 
     // Sort by priority and return top recommendations
-    const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+    const priorityOrder: Record<string, number> = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
     return recommendations
-      .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+      .sort((a, b) => (priorityOrder[b.priority] ?? 0) - (priorityOrder[a.priority] ?? 0))
       .slice(0, 15); // Top 15 recommendations
   };
 
@@ -553,7 +554,7 @@ export default function Dashboard() {
       programMilestoneIds.includes(s.milestoneId || "")
     ).map(s => s.id);
     
-    const programBepics = jiraBepics.filter(b => programStepIds.includes(b.stepId || ""));
+    const programBepics = jiraBepics.filter(b => programMilestoneIds.includes(b.milestoneId || ""));
     const programBepicIds = programBepics.map(b => b.id);
     const programEpics = jiraEpics.filter(e => programBepicIds.includes(e.bepicId || ""));
     const programEpicIds = programEpics.map(e => e.id);
@@ -1118,6 +1119,11 @@ export default function Dashboard() {
             <GitBranch className="h-5 w-5" />
             <span className="text-sm">Dependencies</span>
           </Button>
+        </div>
+
+        {/* PMP Recommendations - always visible */}
+        <div className="mt-6">
+          <PMPRecommendationsPanel />
         </div>
       </main>
 

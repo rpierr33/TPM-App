@@ -9,7 +9,7 @@ interface ActiveRisksTableProps {
 }
 
 export function ActiveRisksTable({ programId }: ActiveRisksTableProps) {
-  const { data: risks = [] } = useQuery({
+  const { data: risks = [] } = useQuery<any[]>({
     queryKey: programId ? ["/api/risks", { programId }] : ["/api/risks"],
   });
 

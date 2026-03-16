@@ -24,6 +24,9 @@ import {
 } from "@shared/schema";
 import { aiService } from "./services/ai";
 import { integrationService } from "./services/integrations";
+import { PMPService } from "./services/pmp";
+
+const pmpService = new PMPService();
 import { WebSocketServer, WebSocket } from "ws";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1856,6 +1859,49 @@ ${programs.map(p => {
     }
   });
 
+  app.put("/api/stakeholders/:id", async (req, res) => {
+    try {
+      const stakeholder = await storage.updateStakeholder(req.params.id, req.body);
+      res.json(stakeholder);
+    } catch (error) {
+      console.error("Error updating stakeholder:", error);
+      res.status(500).json({ message: "Failed to update stakeholder" });
+    }
+  });
+
+  app.delete("/api/stakeholders/:id", async (req, res) => {
+    try {
+      await storage.deleteStakeholder(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting stakeholder:", error);
+      res.status(500).json({ message: "Failed to delete stakeholder" });
+    }
+  });
+
+  app.get("/api/stakeholders/:id/interactions", async (req, res) => {
+    try {
+      const interactions = await storage.getStakeholderInteractions(req.params.id);
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching interactions:", error);
+      res.status(500).json({ message: "Failed to fetch interactions" });
+    }
+  });
+
+  app.post("/api/stakeholders/:id/interactions", async (req, res) => {
+    try {
+      const interaction = await storage.createStakeholderInteraction({
+        ...req.body,
+        stakeholderId: req.params.id,
+      });
+      res.json(interaction);
+    } catch (error) {
+      console.error("Error creating interaction:", error);
+      res.status(500).json({ message: "Failed to create interaction" });
+    }
+  });
+
   // PMP recommendations routes
   app.get("/api/pmp-recommendations", async (req, res) => {
     try {
@@ -1868,6 +1914,77 @@ ${programs.map(p => {
     } catch (error) {
       console.error("Error fetching PMP recommendations:", error);
       res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  app.post("/api/pmp-recommendations/generate", async (req, res) => {
+    try {
+      const { programId } = req.body;
+      const program = programId ? await storage.getProgram(programId) : undefined;
+      const recommendations = await pmpService.generateRecommendations({ program });
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating PMP recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  app.post("/api/pmp-recommendations/:id/drill-deeper", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const recommendations = await storage.getPmpRecommendations();
+      const rec = recommendations.find(r => r.id === id);
+      if (!rec) return res.status(404).json({ message: "Recommendation not found" });
+
+      const prompt = `You are a PMI-certified PMP expert. A TPM is asking for a deeper explanation of this recommendation:
+
+Recommendation: "${rec.recommendation}"
+Phase: ${rec.pmpPhase}
+Knowledge Area: ${rec.knowledgeArea}
+Reasoning: ${rec.reasoning}
+
+Provide:
+1. Why this is critical at this stage (2-3 sentences)
+2. Specific action steps (3-5 bullet points)
+3. Common pitfalls to avoid (2-3 points)
+4. Success metrics to track (2-3 points)
+
+Be concise and actionable. No markdown headers, use plain text with numbered/bulleted structure.`;
+
+      const deeperExplanation = await aiService.chatWithAI(prompt, {});
+      res.json({ explanation: deeperExplanation });
+    } catch (error) {
+      console.error("Error generating deeper explanation:", error);
+      res.status(500).json({ message: "Failed to get explanation" });
+    }
+  });
+
+  app.post("/api/pmp-recommendations/:id/alternatives", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const recommendations = await storage.getPmpRecommendations();
+      const rec = recommendations.find(r => r.id === id);
+      if (!rec) return res.status(404).json({ message: "Recommendation not found" });
+
+      const prompt = `You are a PMI-certified PMP expert. A TPM wants alternative approaches to this recommendation:
+
+Recommendation: "${rec.recommendation}"
+Phase: ${rec.pmpPhase}
+Knowledge Area: ${rec.knowledgeArea}
+
+Provide 3 alternative approaches, each with:
+- Approach name (1 line)
+- What it involves (2 sentences)
+- When to use it (1 sentence)
+- Trade-offs (1 sentence)
+
+Format: numbered list 1-3. Be practical and specific.`;
+
+      const alternatives = await aiService.chatWithAI(prompt, {});
+      res.json({ alternatives });
+    } catch (error) {
+      console.error("Error generating alternatives:", error);
+      res.status(500).json({ message: "Failed to get alternatives" });
     }
   });
 

@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Plus, FlaskConical } from "lucide-react";
-import { useMode } from "@/hooks/useMode";
+import { Plus } from "lucide-react";
 
 interface HeaderProps {
   title: string;
@@ -11,8 +10,6 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, showNewButton = true, onNewClick, newButtonText = "New Program" }: HeaderProps) {
-  const { isTestMode } = useMode();
-
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -21,15 +18,8 @@ export function Header({ title, subtitle, showNewButton = true, onNewClick, newB
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Test Mode Indicator */}
-          {isTestMode && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
-              <FlaskConical size={14} />
-              <span className="text-sm font-medium">Test Mode Active</span>
-            </div>
-          )}
           {showNewButton && (
-            <Button 
+            <Button
               onClick={onNewClick}
               className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
             >

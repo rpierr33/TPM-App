@@ -56,7 +56,7 @@ export function ProgramsList() {
     }
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case "active": return "bg-green-100 text-green-800";
       case "planning": return "bg-blue-100 text-blue-800";

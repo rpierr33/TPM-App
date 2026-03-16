@@ -17,7 +17,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Flag, Calendar, User, ExternalLink, Plus, Filter, AlertTriangle, Users, GitBranch, BarChart3, Eye } from "lucide-react";
-import { useMode } from "@/hooks/useMode";
 import type { Milestone, Program, MilestoneStep, JiraBepic, JiraEpic, JiraStory } from "@shared/schema";
 import { MilestoneHierarchy } from "@/components/milestones/MilestoneHierarchy";
 
@@ -39,7 +38,6 @@ export default function Milestones() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isTestMode } = useMode();
   const [, setLocation] = useLocation();
 
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
@@ -118,14 +116,9 @@ export default function Milestones() {
   };
 
   // Handlers for hierarchical item creation
-  const handleAddStep = (milestoneId: string) => {
-    // TODO: Implement step creation modal
-    console.log("Add step to milestone:", milestoneId);
-  };
-
-  const handleAddBepic = (stepId: string) => {
+  const handleAddBepic = (milestoneId: string) => {
     // TODO: Implement bepic creation modal
-    console.log("Add bepic to step:", stepId);
+    console.log("Add business epic to milestone:", milestoneId);
   };
 
   const handleAddEpic = (bepicId: string) => {
@@ -419,11 +412,9 @@ export default function Milestones() {
                   <MilestoneHierarchy
                     key={milestone.id}
                     milestone={milestone}
-                    steps={milestoneSteps}
                     bepics={jiraBepics}
                     epics={jiraEpics}
                     stories={jiraStories}
-                    onAddStep={handleAddStep}
                     onAddBepic={handleAddBepic}
                     onAddEpic={handleAddEpic}
                     onAddStory={handleAddStory}
@@ -509,18 +500,16 @@ export default function Milestones() {
               />
             </div>
 
-            {!isTestMode && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="pushToJira"
-                  checked={formData.pushToJira}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, pushToJira: !!checked }))}
-                />
-                <Label htmlFor="pushToJira" className="text-sm">
-                  Push to JIRA as Epic
-                </Label>
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="pushToJira"
+                checked={formData.pushToJira}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, pushToJira: !!checked }))}
+              />
+              <Label htmlFor="pushToJira" className="text-sm">
+                Push to JIRA as Epic
+              </Label>
+            </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>

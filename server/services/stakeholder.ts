@@ -119,8 +119,8 @@ export class StakeholderService {
     const responseTimes = interactions
       .filter(i => i.actualResponse)
       .map(i => {
-        const created = new Date(i.createdAt);
-        const updated = new Date(i.updatedAt);
+        const created = new Date(i.createdAt ?? Date.now());
+        const updated = new Date(i.updatedAt ?? Date.now());
         return updated.getTime() - created.getTime();
       });
     
@@ -281,11 +281,11 @@ export class StakeholderService {
     
     const updated = await storage.updateStakeholderInteraction(id, {
       actualResponse,
-      accuracy: accuracy ? Number(accuracy.toFixed(2)) : null
+      accuracy: accuracy ? accuracy.toFixed(2) : null
     });
     
     // Update stakeholder's predictive score
-    if (accuracy !== null) {
+    if (accuracy !== null && interaction.stakeholderId) {
       await this.updateStakeholderPredictiveScore(interaction.stakeholderId, accuracy);
     }
     
@@ -315,7 +315,7 @@ export class StakeholderService {
     const updatedScore = (currentScore * 0.8) + (newAccuracy * 0.2); // Weighted average
     
     await storage.updateStakeholder(stakeholderId, {
-      predictiveScore: Number(updatedScore.toFixed(2))
+      predictiveScore: updatedScore.toFixed(2)
     });
   }
   

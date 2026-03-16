@@ -164,24 +164,24 @@ export default function RiskManagement() {
     mitigated: filteredRisks.filter(r => r.status === 'mitigated').length
   };
 
-  const getSeverityBadge = (severity: string) => {
+  const getSeverityBadge = (severity: string | null) => {
     const variants: { [key: string]: string } = {
       critical: "bg-red-600 text-white",
       high: "bg-orange-500 text-white", 
       medium: "bg-yellow-500 text-black",
       low: "bg-green-500 text-white"
     };
-    return variants[severity] || variants.medium;
+    return (severity ? variants[severity] : null) || variants.medium;
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     const variants: { [key: string]: string } = {
       identified: "bg-blue-500 text-white",
       in_progress: "bg-purple-500 text-white",
       mitigated: "bg-green-600 text-white",
       resolved: "bg-gray-500 text-white"
     };
-    return variants[status] || variants.identified;
+    return (status ? variants[status] : null) || variants.identified;
   };
 
   const handleAddRisk = () => {
@@ -204,7 +204,7 @@ export default function RiskManagement() {
     importJiraRisksMutation.mutate(programId);
   };
 
-  const getProgramName = (programId: string) => {
+  const getProgramName = (programId: string | null) => {
     const program = programs.find(p => p.id === programId);
     return program?.name || "Unknown Program";
   };
@@ -212,7 +212,7 @@ export default function RiskManagement() {
   if (programsLoading || risksLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header />
+        <Header title="Risk Management" subtitle="Identify and mitigate program risks" />
         <div className="flex items-center justify-center h-64">
           <div className="text-lg">Loading...</div>
         </div>
@@ -222,8 +222,8 @@ export default function RiskManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
-      
+      <Header title="Risk Management" subtitle="Identify and mitigate program risks" />
+
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Risk Management</h1>

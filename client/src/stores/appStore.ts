@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type AppMode = 'test' | 'live';
-
 interface ChatMessage {
   id: string;
   type: 'user' | 'ai';
@@ -27,8 +25,6 @@ interface ChatMessage {
 }
 
 interface AppState {
-  mode: AppMode;
-  setMode: (mode: AppMode) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   sidebarCollapsed: boolean;
@@ -43,8 +39,6 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      mode: 'test', // Default to test mode
-      setMode: (mode) => set({ mode }),
       isLoading: false,
       setIsLoading: (isLoading) => set({ isLoading }),
       sidebarCollapsed: false,
@@ -77,10 +71,9 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'tpm-app-storage',
-      partialize: (state) => ({ 
-        mode: state.mode,
+      partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
-        chatMessages: state.chatMessages 
+        chatMessages: state.chatMessages
       }),
     }
   )

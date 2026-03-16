@@ -7,7 +7,7 @@ interface RiskHeatmapProps {
 }
 
 export function RiskHeatmap({ programId }: RiskHeatmapProps) {
-  const { data: risks = [] } = useQuery({
+  const { data: risks = [] } = useQuery<any[]>({
     queryKey: programId ? ["/api/risks", { programId }] : ["/api/risks"],
   });
 

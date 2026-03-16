@@ -28,8 +28,6 @@ import {
   AlertTriangle,
   CheckCircle
 } from "lucide-react";
-import { useMode } from "@/hooks/useMode";
-
 export default function ExecutiveReports() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState("weekly");
@@ -38,17 +36,16 @@ export default function ExecutiveReports() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isTestMode } = useMode();
 
-  const { data: reports = [], isLoading: reportsLoading } = useQuery({
+  const { data: reports = [], isLoading: reportsLoading } = useQuery<any[]>({
     queryKey: ["/api/reports"],
   });
 
-  const { data: programs = [] } = useQuery({
+  const { data: programs = [] } = useQuery<any[]>({
     queryKey: ["/api/programs"],
   });
 
-  const { data: dashboardMetrics } = useQuery({
+  const { data: dashboardMetrics } = useQuery<any>({
     queryKey: ["/api/dashboard/metrics"],
   });
 

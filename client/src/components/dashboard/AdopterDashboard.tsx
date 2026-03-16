@@ -8,7 +8,7 @@ interface AdopterDashboardProps {
 }
 
 export function AdopterDashboard({ programId }: AdopterDashboardProps) {
-  const { data: adopters = [] } = useQuery({
+  const { data: adopters = [] } = useQuery<any[]>({
     queryKey: programId ? ["/api/adopters", { programId }] : ["/api/adopters"],
   });
 

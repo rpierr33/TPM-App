@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version && npm --version)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(lsof -i:5000 && pkill -9 -f \"node\" 2>/dev/null; sleep 3; lsof -i:5000)",
+      "Bash(open http://localhost:3000)",
+      "Bash(git add:*)",
+      "Bash(ls -la /Users/ralphpierre/Downloads/TPM_APP/server/*.ts)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(printf '\\\\n' | npx drizzle-kit push 2>&1 | tail -10)",
+      "Bash(node --env-file=/Users/ralphpierre/Downloads/TPM_APP/.env -e \"\nconst { Pool } = require\\('@neondatabase/serverless'\\);\nconst pool = new Pool\\({ connectionString: process.env.DATABASE_URL }\\);\nasync function run\\(\\) {\n  await pool.query\\('ALTER TABLE jira_bepics ADD COLUMN IF NOT EXISTS milestone_id varchar REFERENCES milestones\\(id\\)'\\);\n  await pool.query\\('ALTER TABLE jira_bepics ADD COLUMN IF NOT EXISTS program_id varchar REFERENCES programs\\(id\\)'\\);\n  console.log\\('Schema updated successfully'\\);\n  await pool.end\\(\\);\n}\nrun\\(\\).catch\\(e => { console.error\\(e\\); process.exit\\(1\\); }\\);\n\" 2>&1)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s http://localhost:3000/api/programs | head -100)",
+      "Bash(curl -s -X POST http://localhost:3000/api/pmp-recommendations/generate -H \"Content-Type: application/json\" -d '{}' | head -200)"
+    ]
+  }
+}

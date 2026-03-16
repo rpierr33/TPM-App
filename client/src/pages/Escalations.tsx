@@ -31,13 +31,13 @@ export default function Escalations() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: escalations = [], isLoading } = useQuery({
+  const { data: escalations = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/escalations"],
   });
 
   const updateEscalationMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest("PUT", `/api/escalations/${id}`, { status });
+      return await apiRequest(`/api/escalations/${id}`, "PUT", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
@@ -350,13 +350,13 @@ export default function Escalations() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex gap-1">
                                 {escalation.sendToSlack && (
-                                  <MessageSquare size={14} className="text-blue-500" title="Slack" />
+                                  <span title="Slack"><MessageSquare size={14} className="text-blue-500" /></span>
                                 )}
                                 {escalation.sendToTeams && (
-                                  <MessageSquare size={14} className="text-purple-500" title="Teams" />
+                                  <span title="Teams"><MessageSquare size={14} className="text-purple-500" /></span>
                                 )}
                                 {escalation.sendToEmail && (
-                                  <Mail size={14} className="text-green-500" title="Email" />
+                                  <span title="Email"><Mail size={14} className="text-green-500" /></span>
                                 )}
                               </div>
                             </td>

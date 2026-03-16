@@ -257,12 +257,14 @@ export const milestoneSteps = pgTable("milestone_steps", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Bepics within steps (JIRA integration)
+// Business Epics — can be linked to a Milestone (and/or standalone)
+// Hierarchy: Initiative → Program → Milestone → Business Epic → Epic → Story
 export const jiraBepics = pgTable("jira_bepics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title").notNull(),
   description: text("description"),
-  stepId: varchar("step_id").references(() => milestoneSteps.id),
+  milestoneId: varchar("milestone_id").references(() => milestones.id), // optional — standalone if null
+  programId: varchar("program_id").references(() => programs.id),       // optional — for standalone bepics
   jiraBepicKey: varchar("jira_bepic_key").unique(), // JIRA Bepic key
   status: bepicStatusEnum("status").default("new"),
   assigneeId: varchar("assignee_id").references(() => users.id),

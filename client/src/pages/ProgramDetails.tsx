@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,12 +49,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const queryClient = useQueryClient();
 
   // Fetch program data
-  const { data: programs = [] } = useQuery({ queryKey: ["/api/programs"] });
-  const { data: stakeholders = [] } = useQuery({ queryKey: ["/api/stakeholders"] });
-  const { data: risks = [] } = useQuery({ queryKey: ["/api/risks"] });
-  const { data: milestones = [] } = useQuery({ queryKey: ["/api/milestones"] });
-  const { data: dependencies = [] } = useQuery({ queryKey: ["/api/dependencies"] });
-  const { data: adopters = [] } = useQuery({ queryKey: ["/api/adopters"] });
+  const { data: programs = [] } = useQuery<any[]>({ queryKey: ["/api/programs"] });
+  const { data: stakeholders = [] } = useQuery<any[]>({ queryKey: ["/api/stakeholders"] });
+  const { data: risks = [] } = useQuery<any[]>({ queryKey: ["/api/risks"] });
+  const { data: milestones = [] } = useQuery<any[]>({ queryKey: ["/api/milestones"] });
+  const { data: dependencies = [] } = useQuery<any[]>({ queryKey: ["/api/dependencies"] });
+  const { data: adopters = [] } = useQuery<any[]>({ queryKey: ["/api/adopters"] });
 
   const program = programs.find(p => p.id === programId);
 
@@ -797,7 +798,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                                 <div className="mb-3">
                                   <span className="text-xs text-gray-500">Current Blockers</span>
                                   <div className="mt-1 space-y-1">
-                                    {adopter.blockers.map((blocker, index) => (
+                                    {adopter.blockers.map((blocker: string, index: number) => (
                                       <div key={index} className="text-sm text-red-600 flex items-center gap-1">
                                         <AlertTriangle className="h-3 w-3" />
                                         {blocker}
@@ -1154,6 +1155,11 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* PMP Recommendations for this program */}
+        <div className="mt-6">
+          <PMPRecommendationsPanel programId={programId} />
+        </div>
       </main>
     </div>
   );

@@ -15,6 +15,7 @@ import Dependencies from "@/pages/Dependencies";
 import AdopterSupport from "@/pages/AdopterSupport";
 import Escalations from "@/pages/Escalations";
 import ExecutiveReports from "@/pages/ExecutiveReports";
+import Stakeholders from "@/pages/Stakeholders";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/adopter-support" component={AdopterSupport} />
           <Route path="/escalations" component={Escalations} />
           <Route path="/executive-reports" component={ExecutiveReports} />
+          <Route path="/stakeholders" component={Stakeholders} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

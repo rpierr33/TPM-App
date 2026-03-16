@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { 
   Users, 
   Plus, 
@@ -29,6 +30,7 @@ import {
 import type { Adopter, Program } from "@shared/schema";
 
 export default function AdopterSupport() {
+  const [, setLocation] = useLocation();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [formData, setFormData] = useState({

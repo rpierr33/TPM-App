@@ -113,10 +113,7 @@ export function ProgramPhaseManager({ program }: ProgramPhaseManagerProps) {
 
   const updatePhaseMutation = useMutation({
     mutationFn: (data: { phaseId: string; updates: any }) =>
-      apiRequest(`/api/program-phases/${data.phaseId}`, {
-        method: "PATCH",
-        body: JSON.stringify(data.updates),
-      }),
+      apiRequest(`/api/program-phases/${data.phaseId}`, "PATCH", data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/program-phases"] });
       toast({ title: "Phase updated successfully" });
@@ -125,10 +122,7 @@ export function ProgramPhaseManager({ program }: ProgramPhaseManagerProps) {
 
   const updateStageMutation = useMutation({
     mutationFn: (data: { stageId: string; updates: any }) =>
-      apiRequest(`/api/phase-stages/${data.stageId}`, {
-        method: "PATCH", 
-        body: JSON.stringify(data.updates),
-      }),
+      apiRequest(`/api/phase-stages/${data.stageId}`, "PATCH", data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/phase-stages"] });
       toast({ title: "Stage updated successfully" });

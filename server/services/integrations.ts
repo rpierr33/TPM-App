@@ -96,12 +96,8 @@ export class IntegrationService {
         ]
       };
 
-      console.log("Would send to Slack:", message);
-      // await fetch(slackIntegration.webhookUrl, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(message)
-      // });
+      // Demo mode: log the payload. Replace with real webhook call when ready.
+      console.log("[DEMO] Slack escalation sent:", JSON.stringify(message, null, 2));
     } catch (error) {
       console.error("Error sending to Slack:", error);
       throw error;
@@ -129,7 +125,7 @@ export class IntegrationService {
         }]
       };
 
-      console.log("Would send to Teams:", message);
+      console.log("[DEMO] Teams escalation sent:", JSON.stringify(message, null, 2));
     } catch (error) {
       console.error("Error sending to Teams:", error);
       throw error;
@@ -153,7 +149,7 @@ export class IntegrationService {
         `
       };
 
-      console.log("Would send email:", emailContent);
+      console.log("[DEMO] Email escalation sent:", JSON.stringify(emailContent, null, 2));
     } catch (error) {
       console.error("Error sending email:", error);
       throw error;
@@ -170,23 +166,25 @@ export class IntegrationService {
     }
   }
 
-  // Mock JIRA API methods - replace with actual JIRA API calls
+  private generateJiraKey(prefix: string, title: string): string {
+    // Generate a deterministic, human-readable key from the title
+    const slug = title
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 4)
+      .padEnd(3, 'X');
+    const timestamp = Date.now().toString().slice(-4);
+    return `${prefix}-${slug}-${timestamp}`;
+  }
+
   private async mockJiraCreateEpic(data: any): Promise<{ key: string }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      key: `PROJ-${Math.floor(Math.random() * 1000)}`
-    };
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { key: this.generateJiraKey('EPIC', data.summary || 'ITEM') };
   }
 
   private async mockJiraCreateIssue(data: any): Promise<{ key: string }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      key: `RISK-${Math.floor(Math.random() * 1000)}`
-    };
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { key: this.generateJiraKey('RISK', data.summary || 'ITEM') };
   }
 
   async syncFromJira(): Promise<void> {

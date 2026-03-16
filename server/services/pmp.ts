@@ -129,7 +129,7 @@ export class PMPService {
     
     // Generate phase-specific recommendations
     for (const area of relevantAreas) {
-      const phaseRecommendations = PMP_BEST_PRACTICES[currentPhase]?.[area] || [];
+      const phaseRecommendations = (PMP_BEST_PRACTICES as Record<string, Record<string, string[]>>)[currentPhase]?.[area] || [];
       
       for (const rec of phaseRecommendations) {
         recommendations.push({
@@ -216,7 +216,7 @@ export class PMPService {
       areas.push('Stakeholder Management', 'Communications Management', 'Risk Management');
     }
     
-    return [...new Set(areas)]; // Remove duplicates
+    return Array.from(new Set(areas)); // Remove duplicates
   }
   
   private calculatePriority(recommendation: string, context: ProjectContext): number {

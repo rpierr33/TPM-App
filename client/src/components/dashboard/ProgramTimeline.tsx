@@ -7,7 +7,7 @@ interface ProgramTimelineProps {
 }
 
 export function ProgramTimeline({ programId }: ProgramTimelineProps) {
-  const { data: milestones = [] } = useQuery({
+  const { data: milestones = [] } = useQuery<any[]>({
     queryKey: programId ? ["/api/milestones", { programId }] : ["/api/milestones"],
   });
 

@@ -16,7 +16,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { GitBranch, Plus, Filter, Eye, AlertTriangle, Clock, CheckCircle, XCircle } from "lucide-react";
-import { useMode } from "@/hooks/useMode";
 import type { Dependency, Program } from "@shared/schema";
 
 export default function Dependencies() {
@@ -41,7 +40,6 @@ export default function Dependencies() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isTestMode } = useMode();
   const [, setLocation] = useLocation();
 
   const { data: dependencies = [], isLoading } = useQuery<Dependency[]>({

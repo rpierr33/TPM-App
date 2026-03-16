@@ -1,44 +1,56 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { Brain, Lightbulb, Users, TrendingUp } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Brain, Lightbulb, Users, TrendingUp, RefreshCw } from "lucide-react";
 
 interface AIInsightsProps {
   programId?: string;
 }
 
 export function AIInsights({ programId }: AIInsightsProps) {
-  const { data: insights, isLoading } = useQuery({
-    queryKey: programId ? ["/api/ai/insights", { programId }] : ["/api/ai/insights"],
-    enabled: false, // Manual trigger for AI insights
+  const { toast } = useToast();
+
+  const { data: insights, isLoading, refetch } = useQuery({
+    queryKey: programId ? ["/api/ai/insights", programId] : ["/api/ai/insights"],
+    queryFn: () => apiRequest(
+      programId ? `/api/ai/insights?programId=${programId}` : `/api/ai/insights`,
+      "GET"
+    ),
+    staleTime: 5 * 60 * 1000,
   });
 
-  const handleGenerateReport = async () => {
-    try {
-      // This would trigger report generation
-      console.log("Generating AI report...");
-    } catch (error) {
-      console.error("Error generating report:", error);
-    }
-  };
+  const generateReportMutation = useMutation({
+    mutationFn: () => apiRequest("/api/reports/generate", "POST", {
+      type: "weekly",
+      programId: programId || null,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      toast({ title: "Report generated", description: "Weekly report is ready in Executive Reports." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to generate report.", variant: "destructive" });
+    },
+  });
 
-  const handleRunScenarioAnalysis = async () => {
-    try {
-      // This would run scenario analysis
-      console.log("Running scenario analysis...");
-    } catch (error) {
-      console.error("Error running scenario analysis:", error);
-    }
-  };
+  const analyzeScenarioMutation = useMutation({
+    mutationFn: () => apiRequest("/api/ai/analyze", "POST", { programId: programId || null }),
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Analysis complete", description: "AI insights have been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to run scenario analysis.", variant: "destructive" });
+    },
+  });
 
-  // Default insights for demo - in production these would come from AI service
-  const defaultInsights = {
-    riskPrediction: "Based on current velocity, the \"API Gateway Migration\" milestone has a 78% chance of delay. Consider adding 2 more engineers or extending deadline by 1 week.",
-    adopterSupport: "Data Analytics Team shows concerning progress. Recommend immediate escalation and technical deep-dive session with platform team.",
-    programHealth: "Overall program health score is 84%. Top performing area: Mobile integration. Area needing attention: Legacy system migration."
+  const displayInsights = insights || {
+    riskPrediction: "Run analysis to get AI-powered risk predictions for your programs.",
+    adopterSupport: "Run analysis to assess adopter readiness and identify teams that need support.",
+    programHealth: "Run analysis to get an overall program health score and recommendations.",
   };
-
-  const displayInsights = insights || defaultInsights;
 
   return (
     <Card className="gradient-purple-blue border border-purple-200">
@@ -48,13 +60,24 @@ export function AIInsights({ programId }: AIInsightsProps) {
             <Brain className="text-purple-500" size={20} />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Insights & Recommendations</h3>
-            
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">AI Insights & Recommendations</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="text-purple-600 hover:text-purple-700"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+
             {isLoading ? (
               <div className="space-y-3">
                 <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-5/6"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-4/6"></div>
               </div>
             ) : (
               <div className="space-y-3 text-sm text-gray-700">
@@ -78,20 +101,22 @@ export function AIInsights({ programId }: AIInsightsProps) {
                 </div>
               </div>
             )}
-            
+
             <div className="mt-4 flex gap-2">
-              <Button 
-                onClick={handleGenerateReport}
+              <Button
+                onClick={() => generateReportMutation.mutate()}
+                disabled={generateReportMutation.isPending}
                 className="bg-purple-500 text-white hover:bg-purple-600"
               >
-                Generate Report
+                {generateReportMutation.isPending ? "Generating..." : "Generate Report"}
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleRunScenarioAnalysis}
+              <Button
+                variant="outline"
+                onClick={() => analyzeScenarioMutation.mutate()}
+                disabled={analyzeScenarioMutation.isPending}
                 className="bg-white text-purple-600 border-purple-200 hover:bg-purple-50"
               >
-                Run Scenario Analysis
+                {analyzeScenarioMutation.isPending ? "Analyzing..." : "Run Scenario Analysis"}
               </Button>
             </div>
           </div>

@@ -355,8 +355,8 @@ Command: "${input}"`
             programId: command.parameters.programId,
             status: 'not_started',
             ownerId: null,
-            dueDate: command.parameters.dueDate ? new Date(command.parameters.dueDate) : null,
-            completedDate: null,
+            dueDate: command.parameters.dueDate ? new Date(command.parameters.dueDate) : undefined,
+            completedDate: undefined,
             jiraEpicKey: null
           });
 
@@ -447,8 +447,8 @@ Program data:\n${JSON.stringify(programData, null, 2)}`
             description: riskDescription,
             programId: programId || null,
             severity: riskScore > 70 ? 'critical' : riskScore > 50 ? 'high' : riskScore > 30 ? 'medium' : 'low',
-            probability: Math.round(riskScore),
-            impact: Math.round(riskScore * 0.8),
+            probability: Math.max(1, Math.min(5, Math.round(riskScore / 20))),
+            impact: Math.max(1, Math.min(5, Math.round((riskScore * 0.8) / 20))),
             status: 'identified',
             ownerId: null,
             mitigationPlan: `AI Suggestion: ${riskDescription}`,

@@ -161,7 +161,6 @@ export default function Settings() {
       <Header
         title="Settings"
         subtitle="Manage platforms, initiatives, and programs"
-        icon={SettingsIcon}
       />
 
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
@@ -228,7 +227,7 @@ export default function Settings() {
                         <div className="flex items-center gap-2">
                           <div 
                             className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: platform.color }}
+                            style={{ backgroundColor: platform.color ?? undefined }}
                           />
                           <h3 className="font-medium text-gray-900">{platform.name}</h3>
                         </div>

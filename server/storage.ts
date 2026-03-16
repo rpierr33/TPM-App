@@ -302,8 +302,8 @@ export class DatabaseStorage implements IStorage {
         const stepIds = (await db.select({ id: milestoneSteps.id }).from(milestoneSteps).where(eq(milestoneSteps.milestoneId, milestoneId))).map(s => s.id);
         
         for (const stepId of stepIds) {
-          // Delete jira_bepics related to this step
-          await db.delete(jiraBepics).where(eq(jiraBepics.stepId, stepId));
+          // stepId no longer foreign-keys jira_bepics (bepics now link to milestoneId)
+          void stepId; // keep loop for potential future step-level cleanup
         }
         
         // Delete milestone steps
@@ -414,9 +414,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // JIRA Bepic operations
-  async getJiraBepics(stepId?: string): Promise<JiraBepic[]> {
-    if (stepId) {
-      return await db.select().from(jiraBepics).where(eq(jiraBepics.stepId, stepId));
+  async getJiraBepics(milestoneId?: string): Promise<JiraBepic[]> {
+    if (milestoneId) {
+      return await db.select().from(jiraBepics).where(eq(jiraBepics.milestoneId, milestoneId));
     }
     return await db.select().from(jiraBepics).orderBy(desc(jiraBepics.dueDate));
   }
