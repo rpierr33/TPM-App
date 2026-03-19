@@ -1727,6 +1727,128 @@ ${sections}
     }
   });
 
+  // --- Missing DELETE endpoints ---
+
+  app.delete("/api/risks/:id", async (req, res) => {
+    try {
+      await storage.deleteRisk(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'risk_deleted', id: req.params.id });
+      res.json({ message: "Risk deleted" });
+    } catch (error) {
+      console.error("Error deleting risk:", error);
+      res.status(500).json({ message: "Failed to delete risk" });
+    }
+  });
+
+  app.delete("/api/milestones/:id", async (req, res) => {
+    try {
+      await storage.deleteMilestone(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'milestone_deleted', id: req.params.id });
+      res.json({ message: "Milestone deleted" });
+    } catch (error) {
+      console.error("Error deleting milestone:", error);
+      res.status(500).json({ message: "Failed to delete milestone" });
+    }
+  });
+
+  app.delete("/api/dependencies/:id", async (req, res) => {
+    try {
+      await storage.deleteDependency(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'dependency_deleted', id: req.params.id });
+      res.json({ message: "Dependency deleted" });
+    } catch (error) {
+      console.error("Error deleting dependency:", error);
+      res.status(500).json({ message: "Failed to delete dependency" });
+    }
+  });
+
+  app.delete("/api/adopters/:id", async (req, res) => {
+    try {
+      await storage.deleteAdopter(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'adopter_deleted', id: req.params.id });
+      res.json({ message: "Adopter deleted" });
+    } catch (error) {
+      console.error("Error deleting adopter:", error);
+      res.status(500).json({ message: "Failed to delete adopter" });
+    }
+  });
+
+  app.delete("/api/escalations/:id", async (req, res) => {
+    try {
+      await storage.deleteEscalation(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'escalation_deleted', id: req.params.id });
+      res.json({ message: "Escalation deleted" });
+    } catch (error) {
+      console.error("Error deleting escalation:", error);
+      res.status(500).json({ message: "Failed to delete escalation" });
+    }
+  });
+
+  app.delete("/api/jira-bepics/:id", async (req, res) => {
+    try {
+      await storage.deleteJiraBepic(req.params.id);
+      res.json({ message: "JIRA Bepic deleted" });
+    } catch (error) {
+      console.error("Error deleting JIRA bepic:", error);
+      res.status(500).json({ message: "Failed to delete JIRA bepic" });
+    }
+  });
+
+  app.delete("/api/jira-epics/:id", async (req, res) => {
+    try {
+      await storage.deleteJiraEpic(req.params.id);
+      res.json({ message: "JIRA Epic deleted" });
+    } catch (error) {
+      console.error("Error deleting JIRA epic:", error);
+      res.status(500).json({ message: "Failed to delete JIRA epic" });
+    }
+  });
+
+  app.delete("/api/jira-stories/:id", async (req, res) => {
+    try {
+      await storage.deleteJiraStory(req.params.id);
+      res.json({ message: "JIRA Story deleted" });
+    } catch (error) {
+      console.error("Error deleting JIRA story:", error);
+      res.status(500).json({ message: "Failed to delete JIRA story" });
+    }
+  });
+
+  app.delete("/api/initiatives/:id", async (req, res) => {
+    try {
+      await storage.deleteInitiative(req.params.id);
+      res.json({ message: "Initiative deleted" });
+    } catch (error) {
+      console.error("Error deleting initiative:", error);
+      res.status(500).json({ message: "Failed to delete initiative" });
+    }
+  });
+
+  app.delete("/api/program-phases/:id", async (req, res) => {
+    try {
+      await storage.deleteProgramPhase(req.params.id);
+      res.json({ message: "Program phase deleted" });
+    } catch (error) {
+      console.error("Error deleting program phase:", error);
+      res.status(500).json({ message: "Failed to delete program phase" });
+    }
+  });
+
+  app.delete("/api/phase-stages/:id", async (req, res) => {
+    try {
+      await storage.deletePhaseStage(req.params.id);
+      res.json({ message: "Phase stage deleted" });
+    } catch (error) {
+      console.error("Error deleting phase stage:", error);
+      res.status(500).json({ message: "Failed to delete phase stage" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates

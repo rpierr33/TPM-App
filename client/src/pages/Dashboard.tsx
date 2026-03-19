@@ -714,20 +714,20 @@ export default function Dashboard() {
 
       <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Program Snapshot Section */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Program Snapshot</h2>
-              <p className="text-xs text-gray-600">Overview of all programs across platforms and initiatives</p>
+              <h2 className="text-base font-semibold text-gray-900 tracking-tight">Program Snapshot</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Overview of all programs across platforms and initiatives</p>
             </div>
             <div className="flex items-center gap-2">
-              <select className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
+              <select className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
                 <option>All Platforms</option>
                 <option>Platform A</option>
                 <option>Platform B</option>
                 <option>Platform C</option>
               </select>
-              <select className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
+              <select className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
                 <option>All Initiatives</option>
                 <option>Digital Transformation</option>
                 <option>Cloud Migration</option>
@@ -736,14 +736,14 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MetricsCard
               title="Active Programs"
               value={activePendingPrograms.length}
               change={`${programs.length} total`}
               changeType="neutral"
               icon={ChartGantt}
-              iconColor="bg-green-100"
+              iconColor="bg-emerald-500"
               navigateTo="/programs?filter=active"
             />
             <MetricsCard
@@ -752,7 +752,7 @@ export default function Dashboard() {
               change="currently paused"
               changeType="neutral"
               icon={AlertTriangle}
-              iconColor="bg-yellow-100"
+              iconColor="bg-amber-500"
               navigateTo="/programs?filter=on_hold"
             />
             <MetricsCard
@@ -761,7 +761,7 @@ export default function Dashboard() {
               change="across programs"
               changeType="neutral"
               icon={AlertTriangle}
-              iconColor="bg-red-100"
+              iconColor="bg-red-500"
               navigateTo="/risk-management"
             />
             <MetricsCard
@@ -770,33 +770,37 @@ export default function Dashboard() {
               change="cross-program"
               changeType="neutral"
               icon={GitBranch}
-              iconColor="bg-purple-100"
+              iconColor="bg-violet-500"
               navigateTo="/dependencies"
             />
-            <Button 
-              variant="outline" 
-              onClick={() => setLocation("/programs")}
-              className="h-10 flex flex-col items-center justify-center gap-0.5 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs px-2"
-            >
-              <Eye className="h-3 w-3" />
-              <span>View All</span>
-            </Button>
-            <Button 
-              onClick={handleNewProgram}
-              className="h-10 flex flex-col items-center justify-center gap-0.5 bg-primary-600 text-white hover:bg-primary-700 text-xs px-2"
-            >
-              <Plus className="h-3 w-3" />
-              <span>New</span>
-            </Button>
           </div>
         </div>
 
         {/* Recently Visited Programs Section */}
-        <div className="mb-8" id="active-programs">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-6" id="active-programs">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Recent Programs</h2>
-              <p className="text-sm text-gray-600">Recently updated programs</p>
+              <h2 className="text-base font-semibold text-gray-900 tracking-tight">Recent Programs</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Recently updated programs</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/programs")}
+                className="text-xs border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                <Eye className="h-3 w-3 mr-1.5" />
+                View All
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleNewProgram}
+                className="text-xs bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20"
+              >
+                <Plus className="h-3 w-3 mr-1.5" />
+                New Program
+              </Button>
             </div>
           </div>
 
@@ -831,7 +835,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="max-h-96 overflow-y-auto space-y-4 custom-scrollbar">
+            <div className="max-h-[480px] overflow-y-auto space-y-3 custom-scrollbar pr-1">
               {programs
                 .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
                 .map((program) => {
@@ -874,8 +878,8 @@ export default function Dashboard() {
                 const healthBadge = getHealthBadge(healthMetrics.score);
 
                 return (
-                  <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200">
-                    <CardContent className="p-5">
+                  <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 overflow-hidden">
+                    <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
@@ -1060,9 +1064,9 @@ export default function Dashboard() {
 
         {/* Other Programs Summary */}
         {(completedPrograms.length > 0 || onHoldPrograms.length > 0) && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Other Programs</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-gray-900 tracking-tight mb-4">Other Programs</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {completedPrograms.length > 0 && (
                 <Card className="border border-gray-200">
                   <CardHeader>
@@ -1131,14 +1135,14 @@ export default function Dashboard() {
 
 
         {/* AI Insights Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">AI Insights & Recommendations</h2>
-              <p className="text-sm text-gray-600">AI-powered analysis and prioritized actions</p>
+              <h2 className="text-base font-semibold text-gray-900 tracking-tight">AI Insights & Recommendations</h2>
+              <p className="text-xs text-gray-500 mt-0.5">AI-powered analysis and prioritized actions</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Today's Priorities */}
             <Card className="border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setShowPrioritiesModal(true)}>
               <CardContent className="p-6">
@@ -1184,7 +1188,7 @@ export default function Dashboard() {
         </div>
 
         {/* Escalations & Reports Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
           <Card className="border border-orange-200 hover:border-orange-400 transition-colors cursor-pointer" onClick={() => setLocation("/escalations")}>
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1223,7 +1227,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Navigation to Components */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <Button
             variant="outline"
             onClick={() => setLocation("/risk-management")}
