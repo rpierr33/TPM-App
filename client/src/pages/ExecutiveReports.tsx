@@ -12,12 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  BarChart3, 
-  Plus, 
-  Download, 
-  Send, 
-  Calendar, 
+import {
+  BarChart3,
+  Plus,
+  Download,
+  Send,
+  Calendar,
   FileText,
   Share2,
   ExternalLink,
@@ -28,7 +28,13 @@ import {
   Users,
   AlertTriangle,
   CheckCircle,
-  Trash2
+  Trash2,
+  Copy,
+  Mail,
+  MessageSquare,
+  Shield,
+  Activity,
+  Target
 } from "lucide-react";
 export default function ExecutiveReports() {
   const search = useSearch();
@@ -592,28 +598,324 @@ export default function ExecutiveReports() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
-            <Card className="border border-gray-200/80 bg-white shadow-sm">
-              <CardContent className="p-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <BarChart3 size={48} className="text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Program Analytics</h3>
-                  <p className="text-sm text-gray-500 max-w-md">
-                    Velocity trends, resource utilization, stakeholder engagement, and ROI metrics are coming soon.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Report Generation Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Total Reports</p>
+                      <p className="text-3xl font-bold text-gray-900">{reports.length}</p>
+                    </div>
+                    <FileText className="text-blue-500" size={24} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Reports This Month</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {reports.filter((r: any) => {
+                          const d = new Date(r.createdAt);
+                          const now = new Date();
+                          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                        }).length}
+                      </p>
+                    </div>
+                    <Calendar className="text-green-500" size={24} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Programs Tracked</p>
+                      <p className="text-3xl font-bold text-gray-900">{programs.length}</p>
+                    </div>
+                    <Activity className="text-purple-500" size={24} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Risk Mgmt Score</p>
+                      <p className="text-3xl font-bold text-gray-900">{riskMgmtScore}%</p>
+                    </div>
+                    <Shield className="text-orange-500" size={24} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Reports by Type + Program Coverage */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 size={18} className="text-blue-500" />
+                    Reports by Type
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {reports.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-6">No reports generated yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {["weekly", "monthly", "quarterly"].map((type) => {
+                        const count = reports.filter((r: any) => r.type?.toLowerCase() === type).length;
+                        const percentage = reports.length > 0 ? Math.round((count / reports.length) * 100) : 0;
+                        return (
+                          <div key={type} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-700 capitalize">{type}</span>
+                              <span className="text-sm text-gray-500">{count} reports ({percentage}%)</span>
+                            </div>
+                            <Progress value={percentage} className="h-2" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target size={18} className="text-purple-500" />
+                    Program Coverage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {programs.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-6">No programs created yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {programs.map((program: any) => {
+                        const hasReports = reports.some((r: any) => r.programId === program.id || r.programName === program.name);
+                        const reportCount = reports.filter((r: any) => r.programId === program.id || r.programName === program.name).length;
+                        return (
+                          <div key={program.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${hasReports ? "bg-green-500" : "bg-gray-300"}`} />
+                              <span className="text-sm font-medium text-gray-700">{program.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {hasReports ? (
+                                <Badge className="bg-green-100 text-green-800">{reportCount} report{reportCount !== 1 ? "s" : ""}</Badge>
+                              ) : (
+                                <Badge className="bg-gray-100 text-gray-500">No reports</Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Risk Trend + Milestone Completion */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle size={18} className="text-yellow-500" />
+                    Risk Trend Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {totalRisks === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-6">No risks tracked yet</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { label: "Critical", count: criticalCount, color: "border-red-300 bg-red-50", textColor: "text-red-700", icon: "bg-red-500" },
+                        { label: "High", count: highCount, color: "border-orange-300 bg-orange-50", textColor: "text-orange-700", icon: "bg-orange-400" },
+                        { label: "Medium", count: mediumCount, color: "border-yellow-300 bg-yellow-50", textColor: "text-yellow-700", icon: "bg-yellow-400" },
+                        { label: "Low", count: lowCount, color: "border-green-300 bg-green-50", textColor: "text-green-700", icon: "bg-green-400" },
+                      ].map(({ label, count, color, textColor, icon }) => (
+                        <div key={label} className={`p-4 rounded-lg border ${color}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-3 h-3 rounded-full ${icon}`} />
+                            <span className={`text-sm font-medium ${textColor}`}>{label}</span>
+                          </div>
+                          <p className={`text-2xl font-bold ${textColor}`}>{count}</p>
+                          <p className="text-xs text-gray-500">{pct(count)}% of total</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle size={18} className="text-green-500" />
+                    Milestone Completion
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const completed = dashboardMetrics?.completedMilestones ?? 0;
+                    const total = dashboardMetrics?.totalMilestones ?? 0;
+                    const upcoming = dashboardMetrics?.upcomingMilestones ?? 0;
+                    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                    return (
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                            <span className="text-sm font-semibold text-gray-900">{completed}/{total} completed</span>
+                          </div>
+                          <Progress value={percentage} className="h-3" />
+                          <p className="text-xs text-gray-500 text-right">{percentage}% complete</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 pt-2">
+                          <div className="text-center p-3 bg-green-50 rounded-lg">
+                            <p className="text-2xl font-bold text-green-700">{completed}</p>
+                            <p className="text-xs text-green-600">Completed</p>
+                          </div>
+                          <div className="text-center p-3 bg-blue-50 rounded-lg">
+                            <p className="text-2xl font-bold text-blue-700">{upcoming}</p>
+                            <p className="text-xs text-blue-600">Upcoming</p>
+                          </div>
+                          <div className="text-center p-3 bg-gray-50 rounded-lg">
+                            <p className="text-2xl font-bold text-gray-700">{total > 0 ? total - completed : 0}</p>
+                            <p className="text-xs text-gray-600">Remaining</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="distribution" className="space-y-6">
+            {/* Integration Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {(() => {
+                const integrationConfigs = [
+                  { name: "slack", label: "Slack", icon: <MessageSquare size={24} className="text-purple-500" />, color: "border-purple-300" },
+                  { name: "teams", label: "Microsoft Teams", icon: <Users size={24} className="text-blue-500" />, color: "border-blue-300" },
+                  { name: "email", label: "Email (SMTP)", icon: <Mail size={24} className="text-green-500" />, color: "border-green-300" },
+                  { name: "confluence", label: "Confluence", icon: <ExternalLink size={24} className="text-orange-500" />, color: "border-orange-300" },
+                ];
+                return integrationConfigs.map((config) => (
+                  <Card key={config.name} className={`border bg-white shadow-sm hover:shadow-md transition-all ${config.color}`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        {config.icon}
+                        <Badge className="bg-gray-100 text-gray-500">Not Connected</Badge>
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">{config.label}</h3>
+                      <p className="text-xs text-gray-500 mt-1">Configure in Settings to enable auto-distribution</p>
+                    </CardContent>
+                  </Card>
+                ));
+              })()}
+            </div>
+
+            {/* Share Reports */}
             <Card className="border border-gray-200/80 bg-white shadow-sm">
-              <CardContent className="p-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <Send size={48} className="text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Auto-Distribution</h3>
-                  <p className="text-sm text-gray-500 max-w-md">
-                    Scheduled report distribution to Slack, Teams, email, and Confluence is coming soon.
-                  </p>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 size={18} className="text-blue-500" />
+                  Share Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {reports.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <FileText size={48} className="mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No reports to share</h3>
+                    <p className="text-sm text-gray-500 mb-4">Generate a report first to share it with your team.</p>
+                    <Button onClick={handleNewReport} className="bg-primary-500 text-white hover:bg-primary-600">
+                      <Plus size={16} className="mr-2" />
+                      Generate Report
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {[...reports].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((report: any) => (
+                      <div key={report.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <FileText size={20} className="text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{report.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge className={`${getReportTypeColor(report.type)} text-xs capitalize`}>{report.type}</Badge>
+                              <span className="text-xs text-gray-500">{formatDate(report.createdAt)}</span>
+                              <span className="text-xs text-gray-400">{report.programName || "All Programs"}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/executive-reports?tab=reports&view=${report.id}`);
+                              toast({ title: "Copied", description: "Report link copied to clipboard" });
+                            }}
+                          >
+                            <Copy size={14} className="mr-1" />
+                            Copy Link
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/api/reports/${report.id}/pdf`, "_blank")}
+                          >
+                            <Download size={14} className="mr-1" />
+                            PDF
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const subject = encodeURIComponent(report.title);
+                              const body = encodeURIComponent(`Please review the following report: ${report.title}\n\nGenerated on ${formatDate(report.createdAt)}\nProgram: ${report.programName || "All Programs"}\n\nView report: ${window.location.origin}/executive-reports?tab=reports&view=${report.id}`);
+                              window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
+                            }}
+                          >
+                            <Mail size={14} className="mr-1" />
+                            Email
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Schedule Distribution */}
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock size={18} className="text-purple-500" />
+                  Scheduled Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-6 text-center bg-gray-50 rounded-lg">
+                  <Send size={32} className="mx-auto text-gray-400 mb-3" />
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">No active schedules</h3>
+                  <p className="text-xs text-gray-500 mb-4">Connect an integration above to set up automatic report distribution on a recurring schedule.</p>
+                  <Button variant="outline" size="sm" onClick={handleScheduleDistribution}>
+                    <Plus size={14} className="mr-1" />
+                    Create Schedule
+                  </Button>
                 </div>
               </CardContent>
             </Card>

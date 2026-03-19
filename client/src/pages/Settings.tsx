@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -41,16 +42,27 @@ export default function Settings() {
     color: "#3B82F6"
   });
 
-  const [initiativeForm, setInitiativeForm] = useState({
+  const [initiativeForm, setInitiativeForm] = useState<{
+    name: string;
+    description: string;
+    status: "planning" | "active" | "completed";
+  }>({
     name: "",
     description: "",
-    status: "planning" as const
+    status: "planning"
   });
 
-  const [programForm, setProgramForm] = useState({
+  const [programForm, setProgramForm] = useState<{
+    name: string;
+    description: string;
+    status: "planning" | "active" | "completed";
+    platformId: string;
+    actualStartDate: string;
+    estimatedCompletionPercentage: number;
+  }>({
     name: "",
     description: "",
-    status: "planning" as const,
+    status: "planning",
     platformId: "",
     actualStartDate: "",
     estimatedCompletionPercentage: 0
@@ -142,6 +154,144 @@ export default function Settings() {
       });
     } else {
       createPlatformMutation.mutate(platformForm);
+    }
+  };
+
+  // Initiative mutations
+  const createInitiativeMutation = useMutation({
+    mutationFn: async (data: { name: string; description: string; status: string }) => {
+      return apiRequest("/api/initiatives", "POST", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Initiative created successfully" });
+      setShowInitiativeModal(false);
+      setInitiativeForm({ name: "", description: "", status: "planning" });
+      queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create initiative", variant: "destructive" });
+    },
+  });
+
+  const updateInitiativeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Initiative> }) => {
+      return apiRequest(`/api/initiatives/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Initiative updated successfully" });
+      setShowInitiativeModal(false);
+      setEditingInitiative(null);
+      setInitiativeForm({ name: "", description: "", status: "planning" });
+      queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update initiative", variant: "destructive" });
+    },
+  });
+
+  const deleteInitiativeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/initiatives/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Initiative deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete initiative", variant: "destructive" });
+    },
+  });
+
+  // Program mutations
+  const updateProgramMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Program> }) => {
+      return apiRequest(`/api/programs/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Program updated successfully" });
+      setShowProgramModal(false);
+      setEditingProgram(null);
+      setProgramForm({ name: "", description: "", status: "planning", platformId: "", actualStartDate: "", estimatedCompletionPercentage: 0 });
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update program", variant: "destructive" });
+    },
+  });
+
+  const deleteProgramMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/programs/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Program deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete program", variant: "destructive" });
+    },
+  });
+
+  const handleEditInitiative = (initiative: Initiative) => {
+    setEditingInitiative(initiative);
+    setInitiativeForm({
+      name: initiative.name,
+      description: initiative.description || "",
+      status: (initiative.status as "planning" | "active" | "completed") || "planning"
+    });
+    setShowInitiativeModal(true);
+  };
+
+  const handleInitiativeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!initiativeForm.name.trim()) {
+      toast({ title: "Error", description: "Initiative name is required", variant: "destructive" });
+      return;
+    }
+    if (editingInitiative) {
+      updateInitiativeMutation.mutate({ id: editingInitiative.id, data: initiativeForm });
+    } else {
+      createInitiativeMutation.mutate(initiativeForm);
+    }
+  };
+
+  const handleEditProgram = (program: Program) => {
+    setEditingProgram(program);
+    setProgramForm({
+      name: program.name,
+      description: program.description || "",
+      status: (program.status as "planning" | "active" | "completed") || "planning",
+      platformId: program.platformId || "",
+      actualStartDate: "",
+      estimatedCompletionPercentage: program.estimatedCompletionPercentage || 0
+    });
+    setShowProgramModal(true);
+  };
+
+  const handleProgramSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProgram) return;
+    if (!programForm.name.trim()) {
+      toast({ title: "Error", description: "Program name is required", variant: "destructive" });
+      return;
+    }
+    updateProgramMutation.mutate({
+      id: editingProgram.id,
+      data: {
+        name: programForm.name,
+        description: programForm.description,
+        status: programForm.status,
+        platformId: programForm.platformId || null,
+      }
+    });
+  };
+
+  const getStatusBadgeClass = (status: string | null) => {
+    switch (status) {
+      case "active": return "bg-green-100 text-green-800";
+      case "completed": return "bg-blue-100 text-blue-800";
+      case "planning": return "bg-amber-100 text-amber-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -281,9 +431,62 @@ export default function Settings() {
               </Button>
             </div>
 
-            <div className="text-center py-8 text-gray-500">
-              <Target className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p>Initiative management coming soon...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {initiativesLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="border border-gray-200/80 bg-white shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : initiatives.length === 0 ? (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p>No initiatives yet. Create one to get started.</p>
+                </div>
+              ) : (
+                initiatives.map((initiative) => (
+                  <Card key={initiative.id} className="border border-gray-200/80 bg-white shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-medium text-gray-900">{initiative.name}</h3>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditInitiative(initiative)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteInitiativeMutation.mutate(initiative.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {initiative.description && (
+                        <p className="text-sm text-gray-600 mb-3">{initiative.description}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <Badge className={getStatusBadgeClass(initiative.status)}>
+                          {initiative.status || "planning"}
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          Created {initiative.createdAt ? new Date(initiative.createdAt).toLocaleDateString() : "N/A"}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -302,9 +505,73 @@ export default function Settings() {
               </Button>
             </div>
 
-            <div className="text-center py-8 text-gray-500">
-              <ChartGantt className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p>Advanced program management coming soon...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {programsLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="border border-gray-200/80 bg-white shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : programs.length === 0 ? (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <ChartGantt className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p>No programs yet. Create one to get started.</p>
+                </div>
+              ) : (
+                programs.map((program) => {
+                  const platform = platforms.find(p => p.id === program.platformId);
+                  return (
+                    <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="font-medium text-gray-900">{program.name}</h3>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEditProgram(program)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteProgramMutation.mutate(program.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        {program.description && (
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{program.description}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStatusBadgeClass(program.status)}>
+                              {program.status || "planning"}
+                            </Badge>
+                            {platform && (
+                              <Badge variant="outline" className="flex items-center gap-1">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: platform.color ?? undefined }}
+                                />
+                                {platform.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -383,6 +650,170 @@ export default function Settings() {
                     ? "Update Platform" 
                     : "Create Platform"
                 }
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Initiative Modal */}
+      <Dialog open={showInitiativeModal} onOpenChange={(open) => {
+        setShowInitiativeModal(open);
+        if (!open) {
+          setEditingInitiative(null);
+          setInitiativeForm({ name: "", description: "", status: "planning" });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingInitiative ? "Edit Initiative" : "Create New Initiative"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleInitiativeSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="initiative-name">Initiative Name</Label>
+              <Input
+                id="initiative-name"
+                value={initiativeForm.name}
+                onChange={(e) => setInitiativeForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter initiative name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="initiative-description">Description</Label>
+              <Textarea
+                id="initiative-description"
+                value={initiativeForm.description}
+                onChange={(e) => setInitiativeForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter initiative description"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="initiative-status">Status</Label>
+              <Select
+                value={initiativeForm.status}
+                onValueChange={(value) => setInitiativeForm(prev => ({ ...prev, status: value as "planning" | "active" | "completed" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowInitiativeModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createInitiativeMutation.isPending || updateInitiativeMutation.isPending}
+              >
+                {(createInitiativeMutation.isPending || updateInitiativeMutation.isPending)
+                  ? "Saving..."
+                  : editingInitiative
+                    ? "Update Initiative"
+                    : "Create Initiative"
+                }
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Program Modal */}
+      <Dialog open={showProgramModal} onOpenChange={(open) => {
+        setShowProgramModal(open);
+        if (!open) {
+          setEditingProgram(null);
+          setProgramForm({ name: "", description: "", status: "planning", platformId: "", actualStartDate: "", estimatedCompletionPercentage: 0 });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProgram ? "Edit Program" : "Program Details"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleProgramSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="program-name">Program Name</Label>
+              <Input
+                id="program-name"
+                value={programForm.name}
+                onChange={(e) => setProgramForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter program name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="program-description">Description</Label>
+              <Textarea
+                id="program-description"
+                value={programForm.description}
+                onChange={(e) => setProgramForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter program description"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="program-status">Status</Label>
+              <Select
+                value={programForm.status}
+                onValueChange={(value) => setProgramForm(prev => ({ ...prev, status: value as "planning" | "active" | "completed" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="program-platform">Platform</Label>
+              <Select
+                value={programForm.platformId}
+                onValueChange={(value) => setProgramForm(prev => ({ ...prev, platformId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {platforms.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowProgramModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateProgramMutation.isPending}
+              >
+                {updateProgramMutation.isPending ? "Saving..." : "Update Program"}
               </Button>
             </div>
           </form>

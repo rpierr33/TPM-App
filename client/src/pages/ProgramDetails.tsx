@@ -468,11 +468,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                         size="sm" 
                         className="mt-3 bg-yellow-600 hover:bg-yellow-700"
                         onClick={() => {
-                          // TODO: Navigate to stakeholder form/wizard
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "Stakeholder management wizard will be available shortly.",
-                          });
+                          setLocation("/stakeholders");
                         }}
                       >
                         <Plus className="h-4 w-4 mr-2" />

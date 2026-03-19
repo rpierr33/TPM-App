@@ -29,6 +29,14 @@ export default function Milestones() {
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{ title: string; description: string; status: string; dueDate: string }>({ title: "", description: "", status: "", dueDate: "" });
 
+  // Bepic/Epic/Story creation modals
+  const [showBepicModal, setShowBepicModal] = useState(false);
+  const [showEpicModal, setShowEpicModal] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [bepicFormData, setBepicFormData] = useState({ title: "", description: "", milestoneId: "", status: "not_started" });
+  const [epicFormData, setEpicFormData] = useState({ title: "", description: "", bepicId: "", status: "not_started" });
+  const [storyFormData, setStoryFormData] = useState({ title: "", description: "", epicId: "", status: "not_started", storyPoints: 0 });
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -155,20 +163,65 @@ export default function Milestones() {
     });
   };
 
+  const createBepicMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/jira-bepics", "POST", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Business Epic created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/jira-bepics"] });
+      setShowBepicModal(false);
+      setBepicFormData({ title: "", description: "", milestoneId: "", status: "not_started" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create Business Epic", variant: "destructive" });
+    },
+  });
+
+  const createEpicMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/jira-epics", "POST", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Epic created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/jira-epics"] });
+      setShowEpicModal(false);
+      setEpicFormData({ title: "", description: "", bepicId: "", status: "not_started" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create Epic", variant: "destructive" });
+    },
+  });
+
+  const createStoryMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/jira-stories", "POST", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Story created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/jira-stories"] });
+      setShowStoryModal(false);
+      setStoryFormData({ title: "", description: "", epicId: "", status: "not_started", storyPoints: 0 });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create Story", variant: "destructive" });
+    },
+  });
+
   // Handlers for hierarchical item creation
   const handleAddBepic = (milestoneId: string) => {
-    // TODO: Implement bepic creation modal
-    console.log("Add business epic to milestone:", milestoneId);
+    setBepicFormData({ title: "", description: "", milestoneId, status: "not_started" });
+    setShowBepicModal(true);
   };
 
   const handleAddEpic = (bepicId: string) => {
-    // TODO: Implement epic creation modal
-    console.log("Add epic to bepic:", bepicId);
+    setEpicFormData({ title: "", description: "", bepicId, status: "not_started" });
+    setShowEpicModal(true);
   };
 
   const handleAddStory = (epicId: string) => {
-    // TODO: Implement story creation modal
-    console.log("Add story to epic:", epicId);
+    setStoryFormData({ title: "", description: "", epicId, status: "not_started", storyPoints: 0 });
+    setShowStoryModal(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -839,6 +892,169 @@ export default function Milestones() {
               </Card>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Business Epic Modal */}
+      <Dialog open={showBepicModal} onOpenChange={setShowBepicModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Business Epic</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); createBepicMutation.mutate(bepicFormData); }} className="space-y-4">
+            <div>
+              <Label htmlFor="bepic-title">Title</Label>
+              <Input
+                id="bepic-title"
+                value={bepicFormData.title}
+                onChange={(e) => setBepicFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Business Epic title"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="bepic-description">Description</Label>
+              <Textarea
+                id="bepic-description"
+                value={bepicFormData.description}
+                onChange={(e) => setBepicFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe the business epic"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="bepic-status">Status</Label>
+              <Select value={bepicFormData.status} onValueChange={(value) => setBepicFormData(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_started">Not Started</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowBepicModal(false)}>Cancel</Button>
+              <Button type="submit" className="bg-primary-500 text-white hover:bg-primary-600" disabled={createBepicMutation.isPending}>
+                {createBepicMutation.isPending ? "Creating..." : "Create Business Epic"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Epic Modal */}
+      <Dialog open={showEpicModal} onOpenChange={setShowEpicModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Epic</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); createEpicMutation.mutate(epicFormData); }} className="space-y-4">
+            <div>
+              <Label htmlFor="epic-title">Title</Label>
+              <Input
+                id="epic-title"
+                value={epicFormData.title}
+                onChange={(e) => setEpicFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Epic title"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="epic-description">Description</Label>
+              <Textarea
+                id="epic-description"
+                value={epicFormData.description}
+                onChange={(e) => setEpicFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe the epic"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="epic-status">Status</Label>
+              <Select value={epicFormData.status} onValueChange={(value) => setEpicFormData(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_started">Not Started</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowEpicModal(false)}>Cancel</Button>
+              <Button type="submit" className="bg-primary-500 text-white hover:bg-primary-600" disabled={createEpicMutation.isPending}>
+                {createEpicMutation.isPending ? "Creating..." : "Create Epic"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Story Modal */}
+      <Dialog open={showStoryModal} onOpenChange={setShowStoryModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Story</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); createStoryMutation.mutate(storyFormData); }} className="space-y-4">
+            <div>
+              <Label htmlFor="story-title">Title</Label>
+              <Input
+                id="story-title"
+                value={storyFormData.title}
+                onChange={(e) => setStoryFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Story title"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="story-description">Description</Label>
+              <Textarea
+                id="story-description"
+                value={storyFormData.description}
+                onChange={(e) => setStoryFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe the story"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="story-status">Status</Label>
+                <Select value={storyFormData.status} onValueChange={(value) => setStoryFormData(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not_started">Not Started</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="story-points">Story Points</Label>
+                <Input
+                  id="story-points"
+                  type="number"
+                  min={0}
+                  value={storyFormData.storyPoints}
+                  onChange={(e) => setStoryFormData(prev => ({ ...prev, storyPoints: parseInt(e.target.value) || 0 }))}
+                  placeholder="Points"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowStoryModal(false)}>Cancel</Button>
+              <Button type="submit" className="bg-primary-500 text-white hover:bg-primary-600" disabled={createStoryMutation.isPending}>
+                {createStoryMutation.isPending ? "Creating..." : "Create Story"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
