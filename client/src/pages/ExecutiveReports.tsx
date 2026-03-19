@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearch, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -26,13 +27,21 @@ import {
   Clock,
   Users,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Trash2
 } from "lucide-react";
 export default function ExecutiveReports() {
+  const search = useSearch();
+  const [, setLocation] = useLocation();
+  const searchParams = new URLSearchParams(search);
+  const defaultTab = searchParams.get("tab") || "dashboard";
+
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [viewingReport, setViewingReport] = useState<any>(null);
   const [selectedReportType, setSelectedReportType] = useState("weekly");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportTypeFilter, setReportTypeFilter] = useState("all");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -47,6 +56,10 @@ export default function ExecutiveReports() {
 
   const { data: dashboardMetrics } = useQuery<any>({
     queryKey: ["/api/dashboard/metrics"],
+  });
+
+  const { data: risks = [] } = useQuery<any[]>({
+    queryKey: ["/api/risks"],
   });
 
   const generateReportMutation = useMutation({
@@ -71,6 +84,30 @@ export default function ExecutiveReports() {
       setGeneratingReport(false);
     },
   });
+
+  const deleteReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      return await apiRequest("DELETE", `/api/reports/${reportId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Deleted",
+        description: "Report deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete report",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredReports = reportTypeFilter === "all"
+    ? reports
+    : reports.filter((r: any) => r.type?.toLowerCase() === reportTypeFilter);
 
   const handleGenerateReport = async () => {
     setGeneratingReport(true);
@@ -142,27 +179,42 @@ export default function ExecutiveReports() {
     });
   };
 
-  // Mock dashboard data for visualization
+  // Real data derived from live metrics
+  const totalRisks = risks.length;
+  const criticalCount = risks.filter((r: any) => r.severity === "critical").length;
+  const highCount = risks.filter((r: any) => r.severity === "high").length;
+  const mediumCount = risks.filter((r: any) => r.severity === "medium").length;
+  const lowCount = risks.filter((r: any) => r.severity === "low").length;
+  const mitigatedCount = risks.filter((r: any) => r.status === "mitigated").length;
+  const pct = (n: number) => totalRisks > 0 ? Math.round((n / totalRisks) * 100) : 0;
+
+  const riskMgmtScore = totalRisks > 0
+    ? Math.max(0, Math.round(100 - ((criticalCount * 25 + highCount * 15) / totalRisks * 10)))
+    : 100;
+  const onTrackPrograms = programs.filter((p: any) => p.status === "active").length;
+  const timelineScore = programs.length > 0
+    ? Math.round((onTrackPrograms / programs.length) * 100)
+    : 0;
+
   const programHealthData = {
-    overall: dashboardMetrics?.adopterScore || 87,
+    overall: dashboardMetrics?.adopterScore ?? 0,
     areas: [
-      { name: "Technical Progress", score: 92, status: "excellent" },
-      { name: "Risk Management", score: 78, status: "good" },
-      { name: "Timeline Adherence", score: 85, status: "good" },
-      { name: "Stakeholder Satisfaction", score: 90, status: "excellent" },
+      { name: "Risk Management", score: riskMgmtScore, status: riskMgmtScore >= 80 ? "excellent" : riskMgmtScore >= 60 ? "good" : "at risk" },
+      { name: "Adopter Readiness", score: dashboardMetrics?.adopterScore ?? 0, status: (dashboardMetrics?.adopterScore ?? 0) >= 80 ? "excellent" : (dashboardMetrics?.adopterScore ?? 0) >= 60 ? "good" : "at risk" },
+      { name: "Active Programs", score: programs.length > 0 ? Math.round(((dashboardMetrics?.activePrograms ?? 0) / programs.length) * 100) : 0, status: "good" },
     ]
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Executive Reports"
         subtitle="Auto-generated status reports with shareable dashboards and analytics"
         onNewClick={handleNewReport}
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <Tabs defaultValue="dashboard" className="space-y-6">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dashboard">Executive Dashboard</TabsTrigger>
             <TabsTrigger value="reports">Generated Reports</TabsTrigger>
@@ -173,12 +225,12 @@ export default function ExecutiveReports() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* Executive Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-green-300 transition-all" onClick={() => setLocation("/programs")}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Program Health</p>
-                      <p className="text-3xl font-bold text-gray-900">{programHealthData.overall}%</p>
+                      <p className="text-3xl font-bold text-gray-900">{programHealthData.overall > 0 ? `${programHealthData.overall}%` : "—"}</p>
                       <p className="text-sm text-success mt-1">
                         <TrendingUp size={14} className="inline mr-1" />
                         +3% this month
@@ -189,12 +241,12 @@ export default function ExecutiveReports() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all" onClick={() => setLocation("/programs?filter=active")}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Active Programs</p>
-                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.activePrograms || 12}</p>
+                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.activePrograms ?? programs.length}</p>
                       <p className="text-sm text-blue-600 mt-1">
                         <Users size={14} className="inline mr-1" />
                         On track
@@ -205,12 +257,12 @@ export default function ExecutiveReports() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all" onClick={() => setLocation("/risk-management")}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Critical Issues</p>
-                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.criticalRisks || 7}</p>
+                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.criticalRisks ?? 0}</p>
                       <p className="text-sm text-warning mt-1">
                         <AlertTriangle size={14} className="inline mr-1" />
                         Requires attention
@@ -221,12 +273,12 @@ export default function ExecutiveReports() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm cursor-pointer hover:shadow-md hover:border-purple-300 transition-all" onClick={() => setLocation("/milestones")}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Upcoming Milestones</p>
-                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.upcomingMilestones || 23}</p>
+                      <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.upcomingMilestones ?? 0}</p>
                       <p className="text-sm text-gray-600 mt-1">
                         <Clock size={14} className="inline mr-1" />
                         Next 30 days
@@ -240,7 +292,7 @@ export default function ExecutiveReports() {
 
             {/* Program Health Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Program Health Breakdown</CardTitle>
                 </CardHeader>
@@ -268,40 +320,44 @@ export default function ExecutiveReports() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Risk Profile Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                    <div className="text-center">
-                      <PieChart size={48} className="mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Risk Distribution</h3>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="w-4 h-4 bg-danger rounded mx-auto mb-1"></div>
-                          <div className="font-medium">High: 15%</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-4 h-4 bg-warning rounded mx-auto mb-1"></div>
-                          <div className="font-medium">Medium: 35%</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-4 h-4 bg-success rounded mx-auto mb-1"></div>
-                          <div className="font-medium">Low: 40%</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-4 h-4 bg-gray-300 rounded mx-auto mb-1"></div>
-                          <div className="font-medium">Mitigated: 10%</div>
-                        </div>
+                  {totalRisks === 0 ? (
+                    <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                      <div className="text-center text-gray-500">
+                        <PieChart size={48} className="mx-auto text-gray-400 mb-2" />
+                        No risks tracked yet
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-500">{totalRisks} total risks</p>
+                      {[
+                        { label: "Critical", count: criticalCount, color: "bg-red-500" },
+                        { label: "High", count: highCount, color: "bg-orange-400" },
+                        { label: "Medium", count: mediumCount, color: "bg-yellow-400" },
+                        { label: "Low", count: lowCount, color: "bg-green-400" },
+                        { label: "Mitigated", count: mitigatedCount, color: "bg-gray-300" },
+                      ].map(({ label, count, color }) => (
+                        <div key={label} className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${color} shrink-0`}></div>
+                          <span className="text-sm text-gray-700 w-20">{label}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2">
+                            <div className={`${color} h-2 rounded-full`} style={{ width: `${pct(count)}%` }}></div>
+                          </div>
+                          <span className="text-sm font-medium w-12 text-right">{count} ({pct(count)}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* AI Insights for Executives */}
+            {/* Live Executive Insights */}
             <Card className="gradient-purple-blue border border-purple-200">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
@@ -309,25 +365,78 @@ export default function ExecutiveReports() {
                     <Brain className="text-purple-500" size={20} />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Executive AI Insights</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
-                      <div className="space-y-2">
-                        <div className="font-medium text-purple-700">Strategic Recommendations</div>
-                        <ul className="space-y-1 text-purple-600">
-                          <li>• Accelerate mobile integration to maintain Q2 delivery</li>
-                          <li>• Allocate additional resources to security compliance</li>
-                          <li>• Schedule stakeholder alignment meeting for API changes</li>
-                        </ul>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Executive Insights</h3>
+                    {programs.length === 0 && risks.length === 0 ? (
+                      <p className="text-sm text-gray-500">No insights available yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
+                        {/* Program RAG Status */}
+                        <div className="space-y-2">
+                          <div className="font-medium text-purple-700">Program Status</div>
+                          {programs.length === 0 ? (
+                            <p className="text-sm text-gray-400">No programs yet</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {programs.map((p: any) => (
+                                <li key={p.id} className="flex items-center gap-2">
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                    p.status === "active" ? "bg-green-500" :
+                                    p.status === "at_risk" ? "bg-yellow-500" :
+                                    p.status === "blocked" ? "bg-red-500" :
+                                    "bg-gray-400"
+                                  }`} />
+                                  <span
+                                    className="text-purple-600 truncate cursor-pointer hover:text-purple-800 hover:underline"
+                                    onClick={() => setLocation(`/programs/${p.id}`)}
+                                  >{p.name}</span>
+                                  <span className="text-purple-400 capitalize text-xs">({p.status?.replace("_", " ") || "unknown"})</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+
+                        {/* Top Critical Risks */}
+                        <div className="space-y-2">
+                          <div className="font-medium text-purple-700">Top Critical Risks</div>
+                          {(() => {
+                            const criticalRisks = risks
+                              .filter((r: any) => r.severity === "critical" || r.severity === "high")
+                              .slice(0, 3);
+                            return criticalRisks.length === 0 ? (
+                              <p className="text-sm text-gray-400">No critical risks</p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {criticalRisks.map((r: any) => (
+                                  <li key={r.id} className="flex items-center gap-2">
+                                    <AlertTriangle size={12} className={r.severity === "critical" ? "text-red-500" : "text-orange-400"} />
+                                    <span
+                                      className="text-purple-600 truncate cursor-pointer hover:text-purple-800 hover:underline"
+                                      onClick={() => setLocation("/risk-management")}
+                                    >{r.title}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Upcoming Milestones */}
+                        <div className="space-y-2">
+                          <div className="font-medium text-purple-700">Upcoming Milestones</div>
+                          <p className="text-purple-600">
+                            {dashboardMetrics?.upcomingMilestones != null
+                              ? `${dashboardMetrics.upcomingMilestones} milestone${dashboardMetrics.upcomingMilestones === 1 ? "" : "s"} due in next 30 days`
+                              : "No milestone data available"}
+                          </p>
+                          <p className="text-purple-600">
+                            {dashboardMetrics?.completedMilestones != null && dashboardMetrics?.totalMilestones != null
+                              ? `${dashboardMetrics.completedMilestones}/${dashboardMetrics.totalMilestones} milestones completed`
+                              : ""}
+                          </p>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <div className="font-medium text-purple-700">Performance Outlook</div>
-                        <ul className="space-y-1 text-purple-600">
-                          <li>• 92% probability of on-time Q2 delivery</li>
-                          <li>• Revenue impact: $2.3M if delayed beyond Q2</li>
-                          <li>• Recommend 15% budget increase for risk mitigation</li>
-                        </ul>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -339,7 +448,7 @@ export default function ExecutiveReports() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Label className="text-sm font-medium">Filter by type:</Label>
-                <Select defaultValue="all">
+                <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -358,7 +467,7 @@ export default function ExecutiveReports() {
             </div>
 
             {/* Reports Table */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle>Generated Reports</CardTitle>
               </CardHeader>
@@ -371,7 +480,7 @@ export default function ExecutiveReports() {
                       ))}
                     </div>
                   </div>
-                ) : reports.length === 0 ? (
+                ) : filteredReports.length === 0 ? (
                   <div className="p-12 text-center">
                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No reports generated yet</h3>
@@ -406,13 +515,13 @@ export default function ExecutiveReports() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {reports.map((report: any) => (
-                          <tr key={report.id}>
+                        {filteredReports.map((report: any) => (
+                          <tr key={report.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setViewingReport(report)}>
                             <td className="px-6 py-4">
                               <div>
-                                <div className="text-sm font-medium text-gray-900">{report.title}</div>
+                                <div className="text-sm font-medium text-gray-900 hover:text-blue-600">{report.title}</div>
                                 <div className="text-sm text-gray-500">
-                                  Generated by {report.generatedBy?.name || "AI System"}
+                                  Generated by AI System
                                 </div>
                               </div>
                             </td>
@@ -425,33 +534,50 @@ export default function ExecutiveReports() {
                               {formatDate(report.createdAt)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {report.program?.name || "All Programs"}
+                              {report.programName || "All Programs"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm">
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(`/api/reports/${report.id}/pdf`, "_blank")}
+                                >
                                   <Download size={14} className="mr-1" />
                                   PDF
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => handleExportToSmartsheet(report.id)}
+                                  disabled
+                                  title="Smartsheet integration not configured"
                                 >
                                   <ExternalLink size={14} className="mr-1" />
                                   Smartsheet
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => handleExportToConfluence(report.id)}
+                                  disabled
+                                  title="Confluence integration not configured"
                                 >
                                   <ExternalLink size={14} className="mr-1" />
                                   Confluence
                                 </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" disabled title="Share not yet available">
                                   <Share2 size={14} className="mr-1" />
                                   Share
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteReportMutation.mutate(report.id);
+                                  }}
+                                >
+                                  <Trash2 size={14} />
                                 </Button>
                               </div>
                             </td>
@@ -466,228 +592,31 @@ export default function ExecutiveReports() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>Program Velocity Trends</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                    <div className="text-center">
-                      <TrendingUp size={48} className="mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Velocity Analytics</h3>
-                      <p className="text-sm text-gray-600">
-                        Sprint velocity, burndown rates, and completion trends would be visualized here
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>Resource Utilization</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Engineering Teams:</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={85} className="w-24 h-2" />
-                        <span className="text-sm font-medium">85%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">QA Resources:</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={92} className="w-24 h-2" />
-                        <span className="text-sm font-medium">92%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">DevOps Capacity:</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={78} className="w-24 h-2" />
-                        <span className="text-sm font-medium">78%</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Product Management:</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={95} className="w-24 h-2" />
-                        <span className="text-sm font-medium">95%</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>Stakeholder Engagement</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-green-700">Executive Leadership</span>
-                        <Badge className="bg-green-100 text-green-800">Highly Engaged</Badge>
-                      </div>
-                      <p className="text-sm text-green-600 mt-1">Regular updates, active participation</p>
-                    </div>
-                    
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-blue-700">Product Teams</span>
-                        <Badge className="bg-blue-100 text-blue-800">Engaged</Badge>
-                      </div>
-                      <p className="text-sm text-blue-600 mt-1">Good collaboration, minor coordination needs</p>
-                    </div>
-                    
-                    <div className="p-3 bg-yellow-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-yellow-700">External Partners</span>
-                        <Badge className="bg-yellow-100 text-yellow-800">Moderate</Badge>
-                      </div>
-                      <p className="text-sm text-yellow-600 mt-1">Requires more frequent check-ins</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>ROI & Business Impact</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-green-600 mb-1">$4.2M</div>
-                      <div className="text-sm text-gray-600">Projected Annual Savings</div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div>
-                        <div className="text-xl font-semibold text-blue-600">156%</div>
-                        <div className="text-xs text-gray-600">ROI</div>
-                      </div>
-                      <div>
-                        <div className="text-xl font-semibold text-purple-600">8.3 mo</div>
-                        <div className="text-xs text-gray-600">Payback Period</div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-gray-200">
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <div>• 35% reduction in manual processes</div>
-                        <div>• 50% faster time-to-market</div>
-                        <div>• 90% improvement in compliance</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
+              <CardContent className="p-12">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <BarChart3 size={48} className="text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Program Analytics</h3>
+                  <p className="text-sm text-gray-500 max-w-md">
+                    Velocity trends, resource utilization, stakeholder engagement, and ROI metrics are coming soon.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="distribution" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>Auto-Distribution Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">Weekly Executive Summary</h4>
-                        <Badge className="bg-green-100 text-green-800">Active</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">Every Monday at 9:00 AM</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">Pause</Button>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">Monthly Program Review</h4>
-                        <Badge className="bg-green-100 text-green-800">Active</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">First Monday of each month</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">Pause</Button>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">Quarterly Business Review</h4>
-                        <Badge className="bg-gray-100 text-gray-800">Inactive</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">End of each quarter</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Configure</Button>
-                        <Button variant="outline" size="sm">Activate</Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200">
-                <CardHeader>
-                  <CardTitle>Distribution Channels</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Send className="text-blue-500" size={16} />
-                        <span className="font-medium text-blue-700">Slack #executives</span>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Send className="text-purple-500" size={16} />
-                        <span className="font-medium text-purple-700">Teams Leadership</span>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Send className="text-green-500" size={16} />
-                        <span className="font-medium text-green-700">Email Distribution</span>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <ExternalLink className="text-gray-500" size={16} />
-                        <span className="font-medium text-gray-700">Confluence Publication</span>
-                      </div>
-                      <Badge className="bg-yellow-100 text-yellow-800">Limited</Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <Button 
-                      onClick={handleScheduleDistribution}
-                      className="w-full bg-primary-500 text-white hover:bg-primary-600"
-                    >
-                      <Calendar size={16} className="mr-2" />
-                      Schedule New Distribution
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
+              <CardContent className="p-12">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <Send size={48} className="text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Auto-Distribution</h3>
+                  <p className="text-sm text-gray-500 max-w-md">
+                    Scheduled report distribution to Slack, Teams, email, and Confluence is coming soon.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
@@ -759,6 +688,146 @@ export default function ExecutiveReports() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Viewer Modal */}
+      <Dialog open={!!viewingReport} onOpenChange={() => setViewingReport(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          {viewingReport && (() => {
+            const c = viewingReport.content as any;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{viewingReport.title}</DialogTitle>
+                  <p className="text-sm text-gray-500">
+                    {viewingReport.programName || "Portfolio"} &middot; {formatDate(viewingReport.createdAt)}
+                  </p>
+                </DialogHeader>
+                <div className="space-y-6 pt-2">
+                  {/* RAG + Summary */}
+                  {c?.ragStatus && (
+                    <div className="flex items-center gap-3">
+                      <Badge className={
+                        c.ragStatus === "Green" ? "bg-green-100 text-green-800" :
+                        c.ragStatus === "Amber" ? "bg-yellow-100 text-yellow-800" :
+                        "bg-red-100 text-red-800"
+                      }>
+                        RAG: {c.ragStatus}
+                      </Badge>
+                    </div>
+                  )}
+                  {c?.executiveSummary && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-1">Executive Summary</h4>
+                      <p className="text-sm text-gray-700">{c.executiveSummary}</p>
+                    </div>
+                  )}
+
+                  {/* Program Breakdowns (portfolio reports) */}
+                  {c?.programBreakdowns?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Program Breakdown</h4>
+                      <div className="space-y-2">
+                        {c.programBreakdowns.map((pb: any, i: number) => (
+                          <div key={i} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-gray-900">{pb.name}</span>
+                              <span className="text-sm text-gray-500 ml-2">({pb.status})</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm">
+                              <Badge className={
+                                pb.rag === "Green" ? "bg-green-100 text-green-800" :
+                                pb.rag === "Amber" ? "bg-yellow-100 text-yellow-800" :
+                                "bg-red-100 text-red-800"
+                              }>{pb.rag}</Badge>
+                              <span>{pb.risks?.criticalHigh || 0} critical risks</span>
+                              <span>{pb.milestones?.completed || 0}/{pb.milestones?.total || 0} milestones</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key Metrics */}
+                  {c?.keyMetrics && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Key Metrics</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="p-3 bg-gray-50 rounded-lg text-center">
+                          <div className="text-xl font-bold">{c.keyMetrics.totalRisks}</div>
+                          <div className="text-xs text-gray-500">Total Risks</div>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg text-center">
+                          <div className="text-xl font-bold">{c.keyMetrics.criticalRisks}</div>
+                          <div className="text-xs text-gray-500">Critical/High</div>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg text-center">
+                          <div className="text-xl font-bold">{c.keyMetrics.milestoneCompletion}%</div>
+                          <div className="text-xs text-gray-500">Milestones Done</div>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg text-center">
+                          <div className="text-xl font-bold">{c.keyMetrics.adopterReadiness}%</div>
+                          <div className="text-xs text-gray-500">Adopter Readiness</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Risk Summary */}
+                  {c?.riskSummary?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Top Risks</h4>
+                      <div className="space-y-1">
+                        {c.riskSummary.map((r: any, i: number) => (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <Badge className={
+                              r.severity === "critical" ? "bg-red-100 text-red-800" :
+                              r.severity === "high" ? "bg-orange-100 text-orange-800" :
+                              "bg-yellow-100 text-yellow-800"
+                            }>{r.severity}</Badge>
+                            <span className="text-gray-700">{r.title}</span>
+                            <span className="text-gray-400">({r.status})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Milestone Progress */}
+                  {c?.milestoneProgress?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Milestone Progress</h4>
+                      <div className="space-y-1">
+                        {c.milestoneProgress.map((m: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-700">{m.title}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{m.status}</Badge>
+                              {m.dueDate && <span className="text-gray-400">{formatDate(m.dueDate)}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Next Steps */}
+                  {c?.nextSteps?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Next Steps</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                        {c.nextSteps.map((s: string, i: number) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

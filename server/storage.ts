@@ -720,16 +720,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Report operations
-  async getReports(programId?: string): Promise<Report[]> {
+  async getReports(programId?: string): Promise<any[]> {
+    const query = db
+      .select({
+        id: reports.id,
+        title: reports.title,
+        type: reports.type,
+        programId: reports.programId,
+        generatedBy: reports.generatedBy,
+        content: reports.content,
+        createdAt: reports.createdAt,
+        programName: programs.name,
+      })
+      .from(reports)
+      .leftJoin(programs, eq(reports.programId, programs.id))
+      .orderBy(desc(reports.createdAt));
+
     if (programId) {
-      return await db.select().from(reports).where(eq(reports.programId, programId));
+      return await query.where(eq(reports.programId, programId));
     }
-    return await db.select().from(reports).orderBy(desc(reports.createdAt));
+    return await query;
   }
 
   async createReport(reportData: InsertReport): Promise<Report> {
     const [report] = await db.insert(reports).values(reportData).returning();
     return report;
+  }
+
+  async deleteReport(id: string): Promise<void> {
+    await db.delete(reports).where(eq(reports.id, id));
+  }
+
+  async deleteAllReports(): Promise<number> {
+    const all = await db.select({ id: reports.id }).from(reports);
+    if (all.length > 0) {
+      await db.delete(reports);
+    }
+    return all.length;
   }
 
   // Dashboard metrics

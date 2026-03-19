@@ -21,7 +21,7 @@ import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[hsl(220,14%,96%)]">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Switch>

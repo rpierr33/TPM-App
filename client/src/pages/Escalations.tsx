@@ -5,39 +5,52 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EscalationModal } from "@/components/modals/EscalationModal";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  TrendingUp, 
-  Plus, 
-  Filter, 
-  Clock, 
-  CheckCircle, 
+import { useLocation } from "wouter";
+import {
+  TrendingUp,
+  Plus,
+  Filter,
+  Clock,
+  CheckCircle,
   AlertCircle,
   MessageSquare,
   Mail,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
+import type { Program } from "@shared/schema";
 
 export default function Escalations() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterUrgency, setFilterUrgency] = useState("all");
+  const [editingEscalationId, setEditingEscalationId] = useState<string | null>(null);
+  const [editSummary, setEditSummary] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: escalations = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/escalations"],
   });
 
+  const { data: programs = [] } = useQuery<Program[]>({
+    queryKey: ["/api/programs"],
+  });
+
   const updateEscalationMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest(`/api/escalations/${id}`, "PUT", { status });
+      return await apiRequest(`/api/escalations/${id}`, "PATCH", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
@@ -54,6 +67,41 @@ export default function Escalations() {
       });
     },
   });
+
+  const updateEscalationSummaryMutation = useMutation({
+    mutationFn: async ({ id, summary }: { id: string; summary: string }) => {
+      return await apiRequest(`/api/escalations/${id}`, "PATCH", { summary });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
+      toast({ title: "Success", description: "Escalation updated successfully" });
+      setEditingEscalationId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update escalation", variant: "destructive" });
+    },
+  });
+
+  const startEditingEscalation = (escalation: any) => {
+    setEditingEscalationId(escalation.id);
+    setEditSummary(escalation.summary || "");
+  };
+
+  const cancelEditingEscalation = () => {
+    setEditingEscalationId(null);
+    setEditSummary("");
+  };
+
+  const saveEscalationSummary = (id: string) => {
+    if (editSummary.trim()) {
+      updateEscalationSummaryMutation.mutate({ id, summary: editSummary.trim() });
+    }
+  };
+
+  const getProgramName = (programId: string | null) => {
+    if (!programId) return null;
+    return programs.find((p: any) => p.id === programId);
+  };
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency?.toLowerCase()) {
@@ -121,14 +169,14 @@ export default function Escalations() {
   const metrics = getEscalationMetrics();
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Escalation Workflow"
         subtitle="Structured escalation management with multi-channel communication"
         onNewClick={handleNewEscalation}
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
@@ -140,7 +188,7 @@ export default function Escalations() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -152,7 +200,7 @@ export default function Escalations() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -164,7 +212,7 @@ export default function Escalations() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -176,7 +224,7 @@ export default function Escalations() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -190,7 +238,7 @@ export default function Escalations() {
             </div>
 
             {/* Recent Escalations */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle>Recent Escalations</CardTitle>
               </CardHeader>
@@ -207,9 +255,23 @@ export default function Escalations() {
                           } />
                           <div>
                             <h4 className="font-medium text-gray-900">{escalation.summary}</h4>
-                            <p className="text-sm text-gray-600">
-                              Created {formatDate(escalation.createdAt)}
-                            </p>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <span>Created {formatDate(escalation.createdAt)}</span>
+                              {(() => {
+                                const prog = getProgramName(escalation.programId);
+                                return prog ? (
+                                  <>
+                                    <span>|</span>
+                                    <button
+                                      className="text-primary-600 hover:text-primary-700 hover:underline"
+                                      onClick={() => setLocation(`/programs/${prog.id}`)}
+                                    >
+                                      {prog.name}
+                                    </button>
+                                  </>
+                                ) : null;
+                              })()}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -269,7 +331,7 @@ export default function Escalations() {
             </div>
 
             {/* Escalations Table */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Escalation Management</CardTitle>
@@ -312,6 +374,9 @@ export default function Escalations() {
                             Escalation
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Program
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Urgency
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -329,15 +394,67 @@ export default function Escalations() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredEscalations.map((escalation: any) => (
+                        {filteredEscalations.map((escalation: any) => {
+                          const isEditing = editingEscalationId === escalation.id;
+                          const program = getProgramName(escalation.programId);
+                          return (
                           <tr key={escalation.id}>
                             <td className="px-6 py-4">
                               <div>
-                                <div className="text-sm font-medium text-gray-900">{escalation.summary}</div>
+                                {isEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      value={editSummary}
+                                      onChange={(e) => setEditSummary(e.target.value)}
+                                      className="text-sm font-medium h-8"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") saveEscalationSummary(escalation.id);
+                                        if (e.key === "Escape") cancelEditingEscalation();
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => saveEscalationSummary(escalation.id)}
+                                      className="text-green-600 hover:text-green-700"
+                                      disabled={updateEscalationSummaryMutation.isPending}
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                    <button
+                                      onClick={cancelEditingEscalation}
+                                      className="text-gray-400 hover:text-gray-600"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-sm font-medium text-gray-900">{escalation.summary}</div>
+                                    <button
+                                      onClick={() => startEditingEscalation(escalation)}
+                                      className="text-gray-400 hover:text-gray-600"
+                                      title="Edit summary"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                  </div>
+                                )}
                                 <div className="text-sm text-gray-500">
                                   {formatDate(escalation.createdAt)}
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {program ? (
+                                <button
+                                  className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                                  onClick={() => setLocation(`/programs/${program.id}`)}
+                                >
+                                  {program.name}
+                                </button>
+                              ) : (
+                                <span className="text-gray-400">--</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <Badge className={`${getUrgencyColor(escalation.urgency)} font-semibold capitalize`}>
@@ -361,8 +478,8 @@ export default function Escalations() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <Select 
-                                value={escalation.status} 
+                              <Select
+                                value={escalation.status}
                                 onValueChange={(value) => handleStatusChange(escalation.id, value)}
                               >
                                 <SelectTrigger className="w-32">
@@ -382,14 +499,18 @@ export default function Escalations() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="sm">Edit</Button>
+                                <Button variant="ghost" size="sm" onClick={() => startEditingEscalation(escalation)}>
+                                  <Pencil size={14} className="mr-1" />
+                                  Edit
+                                </Button>
                                 <Button variant="ghost" size="sm">
                                   <ExternalLink size={14} />
                                 </Button>
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -400,7 +521,7 @@ export default function Escalations() {
 
           <TabsContent value="templates" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Escalation Templates</CardTitle>
                 </CardHeader>
@@ -433,7 +554,7 @@ export default function Escalations() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Communication Channels</CardTitle>
                 </CardHeader>
@@ -478,7 +599,7 @@ export default function Escalations() {
 
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Resolution Time Trends</CardTitle>
                 </CardHeader>
@@ -492,7 +613,7 @@ export default function Escalations() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Escalation Categories</CardTitle>
                 </CardHeader>

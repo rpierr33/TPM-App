@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
@@ -16,10 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  ChartGantt, 
-  AlertTriangle, 
-  Flag, 
+import {
+  ChartGantt,
+  AlertTriangle,
+  Flag,
   Users,
   GitBranch,
   Calendar,
@@ -33,10 +33,14 @@ import {
   ChevronRight,
   Plus,
   Pause,
-  ExternalLink
+  ExternalLink,
+  Pencil,
+  Megaphone,
+  Check,
+  X
 } from "lucide-react";
 import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
-import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory } from "@shared/schema";
+import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory, Escalation, Report } from "@shared/schema";
 
 export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -52,8 +56,11 @@ export default function Dashboard() {
     platform: "",
     initiative: ""
   });
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+  const [editingProgramName, setEditingProgramName] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const qc = useQueryClient();
   
   // Auto-generate missing component risks on component mount
   useEffect(() => {
@@ -102,6 +109,8 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: ["/api/platforms"] });
           queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
           
           // Show toast notification for data changes
           toast({
@@ -165,6 +174,14 @@ export default function Dashboard() {
 
   const { data: milestoneSteps = [] } = useQuery<any[]>({
     queryKey: ["/api/milestone-steps"],
+  });
+
+  const { data: escalations = [] } = useQuery<Escalation[]>({
+    queryKey: ["/api/escalations"],
+  });
+
+  const { data: reports = [] } = useQuery<Report[]>({
+    queryKey: ["/api/reports"],
   });
 
   const activePendingPrograms = programs.filter(p => p.status === 'active' || p.status === 'planning');
@@ -462,6 +479,35 @@ export default function Dashboard() {
     },
   });
 
+  const renameProgramMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return apiRequest(`/api/programs/${id}`, "PATCH", { name });
+    },
+    onSuccess: () => {
+      toast({ title: "Renamed", description: "Program name updated" });
+      setEditingProgramId(null);
+      qc.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to rename program", variant: "destructive" });
+      setEditingProgramId(null);
+    },
+  });
+
+  const startEditing = (program: Program) => {
+    setEditingProgramId(program.id);
+    setEditingProgramName(program.name);
+  };
+
+  const commitRename = (programId: string) => {
+    const trimmed = editingProgramName.trim();
+    if (!trimmed) {
+      setEditingProgramId(null);
+      return;
+    }
+    renameProgramMutation.mutate({ id: programId, name: trimmed });
+  };
+
   const handleNewProgram = () => {
     setShowNewProgramModal(true);
   };
@@ -659,14 +705,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Program Dashboard"
         subtitle="Overview of all active programs and initiatives"
         onNewClick={handleNewProgram}
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Program Snapshot Section */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
@@ -828,13 +874,49 @@ export default function Dashboard() {
                 const healthBadge = getHealthBadge(healthMetrics.score);
 
                 return (
-                  <Card key={program.id} className="border border-gray-200 hover:border-primary-300 transition-colors">
-                    <CardContent className="p-6">
+                  <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200">
+                    <CardContent className="p-5">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             {getStatusIcon(program.status || 'active')}
-                            <h3 className="text-lg font-semibold text-gray-900">{program.name}</h3>
+                            {editingProgramId === program.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  value={editingProgramName}
+                                  onChange={(e) => setEditingProgramName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') commitRename(program.id);
+                                    if (e.key === 'Escape') setEditingProgramId(null);
+                                  }}
+                                  onBlur={() => commitRename(program.id)}
+                                  autoFocus
+                                  className="h-7 text-lg font-semibold w-56"
+                                />
+                                <button onClick={() => commitRename(program.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button onClick={() => setEditingProgramId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded">
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 group">
+                                <h3
+                                  className="text-lg font-semibold text-primary-700 hover:underline cursor-pointer"
+                                  onClick={() => setLocation(`/programs/${program.id}`)}
+                                >
+                                  {program.name}
+                                </h3>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditing(program); }}
+                                  className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Rename program"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
                             <Badge className={getStatusColor(program.status || 'active')}>
                               {program.status?.replace('_', ' ') || 'active'}
                             </Badge>
@@ -993,7 +1075,12 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       {completedPrograms.slice(0, 3).map(program => (
                         <div key={program.id} className="flex items-center justify-between py-2">
-                          <span className="text-sm text-gray-700">{program.name}</span>
+                          <span
+                            className="text-sm text-primary-700 hover:underline cursor-pointer"
+                            onClick={() => setLocation(`/programs/${program.id}`)}
+                          >
+                            {program.name}
+                          </span>
                           <Badge className="bg-green-100 text-green-800">Completed</Badge>
                         </div>
                       ))}
@@ -1019,7 +1106,12 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       {onHoldPrograms.slice(0, 3).map(program => (
                         <div key={program.id} className="flex items-center justify-between py-2">
-                          <span className="text-sm text-gray-700">{program.name}</span>
+                          <span
+                            className="text-sm text-primary-700 hover:underline cursor-pointer"
+                            onClick={() => setLocation(`/programs/${program.id}`)}
+                          >
+                            {program.name}
+                          </span>
                           <Badge className="bg-yellow-100 text-yellow-800">On Hold</Badge>
                         </div>
                       ))}
@@ -1091,33 +1183,90 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Escalations & Reports Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card className="border border-orange-200 hover:border-orange-400 transition-colors cursor-pointer" onClick={() => setLocation("/escalations")}>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <Megaphone className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-700">Open Escalations</div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {escalations.filter((e: Escalation) => e.status !== 'resolved' && e.status !== 'closed').length}
+                  </div>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700" onClick={(e) => { e.stopPropagation(); setLocation("/escalations"); }}>
+                View All <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-indigo-200 hover:border-indigo-400 transition-colors cursor-pointer" onClick={() => setLocation("/executive-reports?tab=reports")}>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-700">Generated Reports</div>
+                  <div className="text-2xl font-bold text-indigo-600">{reports.length}</div>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700" onClick={(e) => { e.stopPropagation(); setLocation("/executive-reports?tab=reports"); }}>
+                View All <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Quick Navigation to Components */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button 
-            variant="outline" 
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Button
+            variant="outline"
             onClick={() => setLocation("/risk-management")}
             className="h-16 flex flex-col items-center justify-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
           >
             <AlertTriangle className="h-5 w-5" />
             <span className="text-sm">All Risks</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             onClick={() => setLocation("/milestones")}
             className="h-16 flex flex-col items-center justify-center gap-2 border-yellow-200 text-yellow-700 hover:bg-yellow-50"
           >
             <Flag className="h-5 w-5" />
             <span className="text-sm">All Milestones</span>
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             onClick={() => setLocation("/dependencies")}
             className="h-16 flex flex-col items-center justify-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
           >
             <GitBranch className="h-5 w-5" />
             <span className="text-sm">Dependencies</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/escalations")}
+            className="h-16 flex flex-col items-center justify-center gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
+          >
+            <Megaphone className="h-5 w-5" />
+            <span className="text-sm">Escalations</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/executive-reports?tab=reports")}
+            className="h-16 flex flex-col items-center justify-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+          >
+            <FileText className="h-5 w-5" />
+            <span className="text-sm">Reports</span>
           </Button>
         </div>
 
@@ -1221,7 +1370,15 @@ export default function Dashboard() {
           </DialogHeader>
           <div className="space-y-4">
             {generateTodaysPriorities().map((priority, index) => (
-              <Card key={index} className="border border-gray-200">
+              <Card
+                key={index}
+                className="border border-gray-200 hover:border-primary-300 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowPrioritiesModal(false);
+                  if (priority.type === 'risk') setLocation('/risk-management');
+                  else if (priority.type === 'milestone') setLocation('/milestones');
+                }}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">

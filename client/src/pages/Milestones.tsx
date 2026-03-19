@@ -16,7 +16,7 @@ import { ComponentAnalytics } from "@/components/layout/ComponentAnalytics";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Flag, Calendar, User, ExternalLink, Plus, Filter, AlertTriangle, Users, GitBranch, BarChart3, Eye } from "lucide-react";
+import { Flag, Calendar, User, ExternalLink, Plus, Filter, AlertTriangle, Users, GitBranch, BarChart3, Eye, Pencil, Check, X } from "lucide-react";
 import type { Milestone, Program, MilestoneStep, JiraBepic, JiraEpic, JiraStory } from "@shared/schema";
 import { MilestoneHierarchy } from "@/components/milestones/MilestoneHierarchy";
 
@@ -26,6 +26,9 @@ export default function Milestones() {
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [contextData, setContextData] = useState<any>(null);
   const [showContextModal, setShowContextModal] = useState(false);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<{ title: string; description: string; status: string; dueDate: string }>({ title: "", description: "", status: "", dueDate: "" });
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -102,6 +105,43 @@ export default function Milestones() {
       });
     },
   });
+
+  const updateMilestoneMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      return await apiRequest(`/api/milestones/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Milestone updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+      setEditingMilestoneId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update milestone", variant: "destructive" });
+    },
+  });
+
+  const startEditing = (milestone: any) => {
+    setEditingMilestoneId(milestone.id);
+    setEditFormData({
+      title: milestone.title || "",
+      description: milestone.description || "",
+      status: milestone.status || "not_started",
+      dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().split("T")[0] : "",
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingMilestoneId(null);
+  };
+
+  const saveEditing = (milestoneId: string) => {
+    const payload: Record<string, any> = {};
+    if (editFormData.title) payload.title = editFormData.title;
+    if (editFormData.description !== undefined) payload.description = editFormData.description;
+    if (editFormData.status) payload.status = editFormData.status;
+    if (editFormData.dueDate) payload.dueDate = editFormData.dueDate;
+    updateMilestoneMutation.mutate({ id: milestoneId, data: payload });
+  };
 
   const resetForm = () => {
     setFormData({
@@ -183,7 +223,7 @@ export default function Milestones() {
         setLocation(`/programs`);
         break;
       case 'projects':
-        setLocation(`/program-planning${programId ? `?programId=${programId}` : ''}`);
+        setLocation(programId ? `/programs/${programId}` : '/programs');
         break;
     }
   };
@@ -199,7 +239,7 @@ export default function Milestones() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Milestone Management"
         subtitle="Track and manage program milestones with critical path visualization"
@@ -207,7 +247,7 @@ export default function Milestones() {
         newButtonText="Add Milestone"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Filters */}
         <div className="mb-6 flex items-start justify-between">
           <div className="flex items-center gap-4">
@@ -256,7 +296,7 @@ export default function Milestones() {
             ))}
           </div>
         ) : filteredMilestones.length === 0 ? (
-          <Card className="border border-gray-200">
+          <Card className="border border-gray-200/80 bg-white shadow-sm">
             <CardContent className="p-12 text-center">
               <Flag size={48} className="mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No milestones found</h3>
@@ -273,7 +313,7 @@ export default function Milestones() {
                               <span className="font-medium">Program "</span>
                               <button 
                                 className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
-                                onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                                onClick={() => setLocation(`/programs/${program.id}`)}
                               >
                                 {program.name}
                               </button>
@@ -297,17 +337,48 @@ export default function Milestones() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMilestones.map((milestone: any) => (
+            {filteredMilestones.map((milestone: any) => {
+              const isEditing = editingMilestoneId === milestone.id;
+              return (
               <Card key={milestone.id} className="border border-gray-200">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {milestone.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {milestone.description || "No description provided"}
-                      </p>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={editFormData.title}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                            className="text-lg font-semibold"
+                            autoFocus
+                          />
+                          <Textarea
+                            value={editFormData.description}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                            className="text-sm"
+                            rows={2}
+                            placeholder="Description"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              {milestone.title}
+                            </h3>
+                            <button
+                              onClick={() => startEditing(milestone)}
+                              className="text-gray-400 hover:text-gray-600 mb-2"
+                              title="Edit milestone"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {milestone.description || "No description provided"}
+                          </p>
+                        </>
+                      )}
                     </div>
                     {milestone.jiraEpicKey && (
                       <Button variant="ghost" size="sm" className="text-primary-500 hover:text-primary-600">
@@ -319,17 +390,41 @@ export default function Milestones() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Status:</span>
-                      <Badge className={`${getStatusColor(milestone.status)} font-medium capitalize`}>
-                        {milestone.status?.replace("_", " ") || "not started"}
-                      </Badge>
+                      {isEditing ? (
+                        <Select value={editFormData.status} onValueChange={(value) => setEditFormData(prev => ({ ...prev, status: value }))}>
+                          <SelectTrigger className="w-36 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_started">Not Started</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="at_risk">At Risk</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="delayed">Delayed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className={`${getStatusColor(milestone.status)} font-medium capitalize`}>
+                          {milestone.status?.replace("_", " ") || "not started"}
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Due Date:</span>
-                      <div className="flex items-center gap-1 text-sm text-gray-900">
-                        <Calendar size={14} />
-                        {formatMilestoneDate(milestone.dueDate)}
-                      </div>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={editFormData.dueDate}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                          className="w-40 h-8"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-1 text-sm text-gray-900">
+                          <Calendar size={14} />
+                          {formatMilestoneDate(milestone.dueDate)}
+                        </div>
+                      )}
                     </div>
 
                     {milestone.owner && (
@@ -345,33 +440,76 @@ export default function Milestones() {
                     {milestone.program && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Program:</span>
-                        <span className="text-sm font-medium text-gray-900">
+                        <button
+                          className="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                          onClick={() => setLocation(`/programs/${milestone.program.id}`)}
+                        >
                           {milestone.program.name}
-                        </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {!milestone.program && milestone.programId && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Program:</span>
+                        <button
+                          className="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                          onClick={() => setLocation(`/programs/${milestone.programId}`)}
+                        >
+                          {programs.find((p: any) => p.id === milestone.programId)?.name || "View Program"}
+                        </button>
                       </div>
                     )}
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => handleViewMilestoneContext(milestone)}
-                        disabled={fetchContextMutation.isPending}
-                      >
-                        <Eye size={14} className="mr-1" />
-                        {fetchContextMutation.isPending ? "Loading..." : "View Context"}
-                      </Button>
+                      {isEditing ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => saveEditing(milestone.id)}
+                            disabled={updateMilestoneMutation.isPending}
+                          >
+                            <Check size={14} className="mr-1" />
+                            {updateMilestoneMutation.isPending ? "Saving..." : "Save"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={cancelEditing}
+                          >
+                            <X size={14} className="mr-1" />
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => startEditing(milestone)}>
+                            <Pencil size={14} className="mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleViewMilestoneContext(milestone)}
+                            disabled={fetchContextMutation.isPending}
+                          >
+                            <Eye size={14} className="mr-1" />
+                            {fetchContextMutation.isPending ? "Loading..." : "View Context"}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
           </TabsContent>
@@ -393,7 +531,7 @@ export default function Milestones() {
                 ))}
               </div>
             ) : filteredMilestones.length === 0 ? (
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-12 text-center">
                   <GitBranch size={48} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No milestone hierarchy found</h3>

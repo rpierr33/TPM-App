@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +31,9 @@ import {
   Star,
   Eye,
   Edit,
+  Pencil,
+  Check,
+  X,
   Plus,
   Flag,
   ChartGantt,
@@ -47,6 +52,29 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+
+  const updateProgramMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      return await apiRequest(`/api/programs/${id}`, "PUT", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Program name updated successfully",
+      });
+      setIsEditingName(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update program name",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fetch program data
   const { data: programs = [] } = useQuery<any[]>({ queryKey: ["/api/programs"] });
@@ -247,7 +275,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -262,7 +290,58 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
               Back to Dashboard
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{program.name}</h1>
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <>
+                    <Input
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="text-2xl font-bold h-10 w-80"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editedName.trim()) {
+                          updateProgramMutation.mutate({ id: programId, data: { ...program, name: editedName.trim() } });
+                        }
+                        if (e.key === "Escape") setIsEditingName(false);
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (editedName.trim()) {
+                          updateProgramMutation.mutate({ id: programId, data: { ...program, name: editedName.trim() } });
+                        }
+                      }}
+                      disabled={updateProgramMutation.isPending}
+                    >
+                      <Check size={16} className="text-green-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingName(false)}
+                    >
+                      <X size={16} className="text-gray-500" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-2xl font-bold text-gray-900">{program.name}</h1>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditedName(program.name);
+                        setIsEditingName(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  </>
+                )}
+              </div>
               <p className="text-gray-600 mt-1">{program.description}</p>
             </div>
           </div>
@@ -275,7 +354,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Program Snapshot</TabsTrigger>
@@ -310,7 +389,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                     </div>
                     <div className="text-sm text-gray-600">
                       <p><strong>{stakeholderCompleteness.completed}</strong> of 7 PMI requirements completed</p>
-                      <p><strong>{programStakeholders.length}</strong> stakeholders identified</p>
+                      <p
+                        className="cursor-pointer hover:text-blue-700"
+                        onClick={() => setLocation("/stakeholders")}
+                      >
+                        <strong>{programStakeholders.length}</strong> stakeholders identified
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -451,7 +535,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                                   <UserCheck className="h-5 w-5 text-blue-600" />
                                 </div>
                                 <div>
-                                  <h4 className="font-medium text-gray-900">{stakeholder.name}</h4>
+                                  <h4
+                                    className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                                    onClick={() => setLocation("/stakeholders")}
+                                  >
+                                    {stakeholder.name}
+                                  </h4>
                                   <p className="text-sm text-gray-500">{stakeholder.role || "Role not defined"}</p>
                                 </div>
                               </div>
@@ -575,9 +664,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="text-center">
+                    <div
+                      className="text-center cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setLocation(`/adopter-support?programId=${programId}`)}
+                    >
                       <div className="text-3xl font-bold text-blue-600">{programAdopters.length}</div>
-                      <div className="text-sm text-gray-600">Teams Adopting</div>
+                      <div className="text-sm text-gray-600 hover:text-blue-700">Teams Adopting</div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -762,7 +854,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-3">
                                 <div>
-                                  <h4 className="font-medium text-gray-900">{adopter.teamName}</h4>
+                                  <h4
+                                    className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                                    onClick={() => setLocation(`/adopter-support?programId=${programId}`)}
+                                  >
+                                    {adopter.teamName}
+                                  </h4>
                                   <p className="text-sm text-gray-600">{adopter.department}</p>
                                 </div>
                               </div>
@@ -866,9 +963,24 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                     <Progress value={healthMetrics.score} className="w-full" />
                     <div className="text-sm text-gray-600 space-y-1">
                       <p>• {programMilestones.length + programRisks.length + programDependencies.length + programStakeholders.length} components tracked</p>
-                      <p>• {healthMetrics.breakdown.criticalRisks} high-severity risks</p>
-                      <p>• {healthMetrics.breakdown.overdueMilestones} overdue milestones</p>
-                      <p>• {healthMetrics.breakdown.blockedDependencies} blocked dependencies</p>
+                      <p
+                        className="cursor-pointer hover:text-blue-700"
+                        onClick={() => setLocation(`/risk-management?programId=${programId}`)}
+                      >
+                        • {healthMetrics.breakdown.criticalRisks} high-severity risks
+                      </p>
+                      <p
+                        className="cursor-pointer hover:text-blue-700"
+                        onClick={() => setLocation(`/milestones?programId=${programId}`)}
+                      >
+                        • {healthMetrics.breakdown.overdueMilestones} overdue milestones
+                      </p>
+                      <p
+                        className="cursor-pointer hover:text-blue-700"
+                        onClick={() => setLocation(`/dependencies?programId=${programId}`)}
+                      >
+                        • {healthMetrics.breakdown.blockedDependencies} blocked dependencies
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -884,50 +996,62 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
+                      onClick={() => setLocation(`/risk-management?programId=${programId}`)}
+                    >
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <span className="text-sm">Risks</span>
+                        <span className="text-sm hover:text-blue-700">Risks</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{programRisks.length}</Badge>
-                        <Badge className="bg-red-100 text-red-800 text-xs">
+                        <Badge variant="outline" className="cursor-pointer">{programRisks.length}</Badge>
+                        <Badge className="bg-red-100 text-red-800 text-xs cursor-pointer">
                           {programRisks.filter(r => r.severity === 'high' || r.severity === 'critical').length} high
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
+                      onClick={() => setLocation(`/milestones?programId=${programId}`)}
+                    >
                       <div className="flex items-center gap-2">
                         <Flag className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm">Milestones</span>
+                        <span className="text-sm hover:text-blue-700">Milestones</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{programMilestones.length}</Badge>
-                        <Badge className="bg-green-100 text-green-800 text-xs">
+                        <Badge variant="outline" className="cursor-pointer">{programMilestones.length}</Badge>
+                        <Badge className="bg-green-100 text-green-800 text-xs cursor-pointer">
                           {programMilestones.filter(m => m.status === 'completed').length} done
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
+                      onClick={() => setLocation(`/dependencies?programId=${programId}`)}
+                    >
                       <div className="flex items-center gap-2">
                         <ChartGantt className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm">Dependencies</span>
+                        <span className="text-sm hover:text-blue-700">Dependencies</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{programDependencies.length}</Badge>
-                        <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                        <Badge variant="outline" className="cursor-pointer">{programDependencies.length}</Badge>
+                        <Badge className="bg-yellow-100 text-yellow-800 text-xs cursor-pointer">
                           {programDependencies.filter(d => d.status === 'blocked').length} blocked
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded p-1 -m-1 transition-colors"
+                      onClick={() => setLocation("/stakeholders")}
+                    >
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">Stakeholders</span>
+                        <span className="text-sm hover:text-blue-700">Stakeholders</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{programStakeholders.length}</Badge>
-                        <Badge className="bg-blue-100 text-blue-800 text-xs">
+                        <Badge variant="outline" className="cursor-pointer">{programStakeholders.length}</Badge>
+                        <Badge className="bg-blue-100 text-blue-800 text-xs cursor-pointer">
                           {programStakeholders.filter(s => s.influenceLevel >= 4).length} high influence
                         </Badge>
                       </div>
@@ -952,7 +1076,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                       upcoming.upcomingMilestones.slice(0, 4).map((milestone) => (
                         <div key={milestone.id} className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{milestone.title}</span>
+                            <span
+                              className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                              onClick={() => setLocation(`/milestones?programId=${programId}`)}
+                            >
+                              {milestone.title}
+                            </span>
                             <Badge className="text-xs">{milestone.status}</Badge>
                           </div>
                           <div className="text-xs text-gray-500">
@@ -1003,7 +1132,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                           <h4 className="font-medium text-red-800">High-Severity Risks</h4>
                           <p className="text-sm text-red-600">{healthMetrics.breakdown.criticalRisks} risks require immediate mitigation</p>
                         </div>
-                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700" onClick={() => setLocation(`/risk-management?programId=${programId}`)}>
                           Review Risks
                         </Button>
                       </div>
@@ -1014,7 +1143,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                           <h4 className="font-medium text-red-800">Overdue Milestones</h4>
                           <p className="text-sm text-red-600">{healthMetrics.breakdown.overdueMilestones} milestones past due date</p>
                         </div>
-                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700" onClick={() => setLocation(`/milestones?programId=${programId}`)}>
                           Review Timeline
                         </Button>
                       </div>
@@ -1025,7 +1154,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                           <h4 className="font-medium text-red-800">Blocked Dependencies</h4>
                           <p className="text-sm text-red-600">{healthMetrics.breakdown.blockedDependencies} dependencies blocking progress</p>
                         </div>
-                        <Button size="sm" variant="outline" className="border-red-300 text-red-700">
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700" onClick={() => setLocation(`/dependencies?programId=${programId}`)}>
                           Resolve Blocks
                         </Button>
                       </div>
@@ -1091,7 +1220,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                     {programRisks.map((risk) => (
                       <div key={risk.id} className="flex items-center justify-between p-3 border rounded">
                         <div>
-                          <h4 className="font-medium">{risk.title}</h4>
+                          <h4
+                            className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                            onClick={() => setLocation(`/risk-management?programId=${programId}`)}
+                          >
+                            {risk.title}
+                          </h4>
                           <p className="text-sm text-gray-600">{risk.description}</p>
                         </div>
                         <Badge className={`${risk.severity === 'high' ? 'bg-red-100 text-red-800' : risk.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
@@ -1118,7 +1252,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                     {programMilestones.map((milestone) => (
                       <div key={milestone.id} className="flex items-center justify-between p-3 border rounded">
                         <div>
-                          <h4 className="font-medium">{milestone.title}</h4>
+                          <h4
+                            className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                            onClick={() => setLocation(`/milestones?programId=${programId}`)}
+                          >
+                            {milestone.title}
+                          </h4>
                           <p className="text-sm text-gray-600">{milestone.description}</p>
                         </div>
                         <Badge>{milestone.status}</Badge>
@@ -1143,7 +1282,12 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                     {programDependencies.map((dependency) => (
                       <div key={dependency.id} className="flex items-center justify-between p-3 border rounded">
                         <div>
-                          <h4 className="font-medium">{dependency.title}</h4>
+                          <h4
+                            className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                            onClick={() => setLocation(`/dependencies?programId=${programId}`)}
+                          >
+                            {dependency.title}
+                          </h4>
                           <p className="text-sm text-gray-600">{dependency.description}</p>
                         </div>
                         <Badge>{dependency.status}</Badge>

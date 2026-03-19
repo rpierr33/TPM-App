@@ -13,9 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   UserCheck, Plus, ChevronDown, ChevronRight, Calendar, MessageSquare,
-  CheckCircle, Clock, Star, TrendingUp, Edit, Trash2, AlertCircle
+  CheckCircle, Clock, Star, TrendingUp, Edit, Trash2, AlertCircle,
+  Pencil, Check, X
 } from "lucide-react";
 import type { Stakeholder, StakeholderInteraction, Program } from "@shared/schema";
 
@@ -30,11 +32,14 @@ const SUPPORT_COLORS: Record<number, string> = {
 };
 
 export default function Stakeholders() {
+  const [, setLocation] = useLocation();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInteractionModal, setShowInteractionModal] = useState(false);
   const [selectedStakeholder, setSelectedStakeholder] = useState<Stakeholder | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterProgram, setFilterProgram] = useState("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ name: string; role: string }>({ name: "", role: "" });
 
   const [stakeholderForm, setStakeholderForm] = useState({
     name: "", email: "", role: "", department: "",
@@ -103,6 +108,29 @@ export default function Stakeholders() {
     onError: () => toast({ title: "Error", description: "Failed to log interaction", variant: "destructive" }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest(`/api/stakeholders/${id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stakeholders"] });
+      setEditingId(null);
+      toast({ title: "Stakeholder updated" });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update stakeholder", variant: "destructive" }),
+  });
+
+  const startEditingStakeholder = (s: Stakeholder) => {
+    setEditingId(s.id);
+    setEditValues({ name: s.name, role: s.role || "" });
+  };
+
+  const saveEditingStakeholder = (id: string) => {
+    updateMutation.mutate({ id, data: editValues });
+  };
+
+  const cancelEditingStakeholder = () => {
+    setEditingId(null);
+  };
+
   const handleCreateStakeholder = () => {
     const payload = {
       ...stakeholderForm,
@@ -137,7 +165,7 @@ export default function Stakeholders() {
   const needsFollowUp = interactions.filter(i => i.followUpRequired && i.followUpDate && new Date(i.followUpDate) <= new Date(Date.now() + 7 * 86400000)).length;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Stakeholders"
         subtitle="Track stakeholder relationships, engagement steps, and planned actions"
@@ -146,7 +174,7 @@ export default function Stakeholders() {
         newButtonText="Add Stakeholder"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-6">
         {/* Summary cards */}
         <div className="grid grid-cols-4 gap-4">
           <Card><CardContent className="p-4 flex items-center gap-3">
@@ -197,8 +225,11 @@ export default function Stakeholders() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {filtered.map(stakeholder => (
-              <Card key={stakeholder.id} className="border border-gray-200">
+            {filtered.map(stakeholder => {
+              const isEditing = editingId === stakeholder.id;
+              const linkedProgram = programs.find(p => p.id === stakeholder.programId);
+              return (
+              <Card key={stakeholder.id} className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-4">
                   {/* Header row */}
                   <div className="flex items-center justify-between">
@@ -212,11 +243,43 @@ export default function Stakeholders() {
                           : <ChevronRight className="h-5 w-5" />}
                       </button>
                       <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center font-semibold text-primary-700 text-sm">
-                        {stakeholder.name.charAt(0).toUpperCase()}
+                        {(isEditing ? editValues.name : stakeholder.name).charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{stakeholder.name}</p>
-                        <p className="text-xs text-gray-500">{stakeholder.role}{stakeholder.department ? ` · ${stakeholder.department}` : ""}</p>
+                        {isEditing ? (
+                          <div className="flex flex-col gap-1">
+                            <Input
+                              value={editValues.name}
+                              onChange={(e) => setEditValues(prev => ({ ...prev, name: e.target.value }))}
+                              className="h-7 text-sm font-semibold"
+                              autoFocus
+                            />
+                            <Input
+                              value={editValues.role}
+                              onChange={(e) => setEditValues(prev => ({ ...prev, role: e.target.value }))}
+                              className="h-7 text-xs"
+                              placeholder="Role / Title"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <p className="font-semibold text-gray-900">{stakeholder.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {stakeholder.role}{stakeholder.department ? ` · ${stakeholder.department}` : ""}
+                              {linkedProgram && (
+                                <>
+                                  {" · "}
+                                  <button
+                                    className="text-primary-600 hover:text-primary-700 hover:underline"
+                                    onClick={(e) => { e.stopPropagation(); setLocation(`/programs/${linkedProgram.id}`); }}
+                                  >
+                                    {linkedProgram.name}
+                                  </button>
+                                </>
+                              )}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -229,6 +292,20 @@ export default function Stakeholders() {
                         <Badge className={`text-xs ${SUPPORT_COLORS[stakeholder.supportLevel] ?? "bg-gray-100 text-gray-700"}`}>
                           {SUPPORT_LABELS[stakeholder.supportLevel] ?? "Unknown"}
                         </Badge>
+                      )}
+                      {isEditing ? (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => saveEditingStakeholder(stakeholder.id)} disabled={updateMutation.isPending}>
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditingStakeholder}>
+                            <X className="h-4 w-4 text-gray-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="ghost" onClick={() => startEditingStakeholder(stakeholder)}>
+                          <Pencil className="h-4 w-4 text-gray-400" />
+                        </Button>
                       )}
                       <Button
                         size="sm"
@@ -307,7 +384,8 @@ export default function Stakeholders() {
                   )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

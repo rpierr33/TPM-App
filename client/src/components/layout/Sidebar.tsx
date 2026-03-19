@@ -12,34 +12,40 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
-  BookOpen,
-  GitBranch
+  Sparkles,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const navigationItems = [
-  { path: "/", icon: Brain, label: "AI Assistant" },
-  { path: "/dashboard", icon: Activity, label: "Dashboard" },
-  { path: "/milestones", icon: Flag, label: "Milestones" },
-  { path: "/risk-management", icon: AlertTriangle, label: "Risk Management" },
-  { path: "/dependencies", icon: ChartGantt, label: "Dependencies" },
-  { path: "/adopter-support", icon: Users, label: "Adopter Support" },
-  { path: "/stakeholders", icon: UserCheck, label: "Stakeholders" },
-  { path: "/escalations", icon: TrendingUp, label: "Escalations" },
-  { path: "/executive-reports", icon: BarChart3, label: "Executive Reports" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+  { path: "/", icon: Brain, label: "AI Assistant", group: "core" },
+  { path: "/dashboard", icon: Activity, label: "Dashboard", group: "core" },
+  { path: "/programs", icon: ChartGantt, label: "Programs", group: "manage" },
+  { path: "/milestones", icon: Flag, label: "Milestones", group: "manage" },
+  { path: "/risk-management", icon: AlertTriangle, label: "Risks", group: "manage" },
+  { path: "/dependencies", icon: ChartGantt, label: "Dependencies", group: "manage" },
+  { path: "/adopter-support", icon: Users, label: "Adopters", group: "track" },
+  { path: "/stakeholders", icon: UserCheck, label: "Stakeholders", group: "track" },
+  { path: "/escalations", icon: TrendingUp, label: "Escalations", group: "track" },
+  { path: "/executive-reports", icon: BarChart3, label: "Reports", group: "track" },
 ];
+
+const groupLabels: Record<string, string> = {
+  core: "Overview",
+  manage: "Program Management",
+  track: "Tracking & Reports",
+};
 
 export function Sidebar() {
   const [location] = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    // Check localStorage for saved collapse state
     const saved = localStorage.getItem('sidebar-collapsed');
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Save collapse state to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
   }, [isCollapsed]);
@@ -55,99 +61,155 @@ export function Sidebar() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "connected": return "bg-success";
-      case "limited": return "bg-warning";
-      case "error": return "bg-danger";
-      default: return "bg-gray-300";
+      case "connected": return "bg-emerald-400";
+      case "limited": return "bg-amber-400";
+      case "error": return "bg-red-400";
+      default: return "bg-gray-600";
     }
   };
 
+  // Group navigation items
+  const groups = ["core", "manage", "track"];
+
+  const NavItem = ({ item }: { item: typeof navigationItems[0] }) => {
+    const isActive = location === item.path;
+    const content = (
+      <Link
+        href={item.path}
+        className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} ${isCollapsed ? 'px-2 py-2.5 mx-1' : 'px-3 py-2 mx-2'} rounded-lg transition-all duration-200 group relative ${
+          isActive
+            ? "bg-white/10 text-white shadow-sm shadow-white/5"
+            : "text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]"
+        }`}
+      >
+        {isActive && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-blue-400" />
+        )}
+        <item.icon size={18} className={`flex-shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'group-hover:text-gray-300'}`} />
+        {!isCollapsed && (
+          <span className={`text-[13px] ${isActive ? "font-medium" : "font-normal"}`}>{item.label}</span>
+        )}
+      </Link>
+    );
+
+    if (isCollapsed) {
+      return (
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="right" className="bg-gray-900 text-white border-gray-800 text-xs">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return content;
+  };
+
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg flex flex-col h-full transition-all duration-300 relative`}>
-      {/* Collapse Toggle Button */}
+    <div className={`${isCollapsed ? 'w-[60px]' : 'w-[240px]'} bg-gray-950 flex flex-col h-full transition-all duration-300 ease-in-out relative border-r border-white/[0.06]`}>
+      {/* Collapse Toggle */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-shadow"
+        className="absolute -right-3 top-7 z-10 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-700 transition-colors"
       >
         {isCollapsed ? (
-          <ChevronRight className="h-3 w-3 text-gray-600" />
+          <ChevronRight className="h-3 w-3 text-gray-300" />
         ) : (
-          <ChevronLeft className="h-3 w-3 text-gray-600" />
+          <ChevronLeft className="h-3 w-3 text-gray-300" />
         )}
       </button>
 
       {/* Logo */}
-      <div className={`${isCollapsed ? 'p-3' : 'p-6'} border-b border-gray-200`}>
+      <div className={`${isCollapsed ? 'px-2 py-4' : 'px-4 py-5'} border-b border-white/[0.06]`}>
         <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <ChartGantt className="text-white text-lg" size={20} />
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20">
+            <Sparkles className="text-white" size={16} />
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-xl font-bold text-gray-900">TPM Platform</h1>
-              <p className="text-sm text-gray-500">Program Management</p>
+              <h1 className="text-sm font-semibold text-white tracking-tight">TPM Platform</h1>
+              <p className="text-[11px] text-gray-500 font-medium">Program Management</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Navigation Menu */}
-      <nav className={`flex-1 ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        <ul className="space-y-2">
-          {navigationItems.map((item) => {
-            const isActive = location === item.path;
-            return (
-              <li key={item.path}>
-                <Link
-                  href={item.path}
-                  className={`flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2'} rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-primary-50 text-primary-600"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon size={20} />
-                  {!isCollapsed && (
-                    <span className={isActive ? "font-medium" : ""}>{item.label}</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 py-3 overflow-y-auto custom-scrollbar">
+        {groups.map((group) => {
+          const items = navigationItems.filter(i => i.group === group);
+          return (
+            <div key={group} className="mb-1">
+              {!isCollapsed && (
+                <div className="px-5 py-2">
+                  <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest">
+                    {groupLabels[group]}
+                  </span>
+                </div>
+              )}
+              {isCollapsed && group !== "core" && (
+                <div className="mx-3 my-2 border-t border-white/[0.06]" />
+              )}
+              <div className="space-y-0.5">
+                {items.map((item) => (
+                  <NavItem key={item.path} item={item} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
 
         {/* Integration Status */}
         {!isCollapsed && (
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Integration Status</h3>
+          <div className="mx-3 mt-4 p-3 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+            <h3 className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2.5">Integrations</h3>
             <div className="space-y-2">
-              {["jira", "smartsheet", "confluence", "slack", "teams"].map((integration) => (
-                <div key={integration} className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600 capitalize">{integration}</span>
-                  <span 
-                    className={`w-2 h-2 rounded-full ${getStatusColor(getIntegrationStatus(integration))}`}
-                    title={getIntegrationStatus(integration)}
-                  />
-                </div>
-              ))}
+              {["jira", "smartsheet", "confluence", "slack", "teams"].map((integration) => {
+                const status = getIntegrationStatus(integration);
+                return (
+                  <div key={integration} className="flex items-center justify-between">
+                    <span className="text-[11px] text-gray-400 capitalize font-medium">{integration}</span>
+                    <div className="flex items-center gap-1.5">
+                      {status === "connected" ? (
+                        <Wifi className="h-2.5 w-2.5 text-emerald-400" />
+                      ) : (
+                        <WifiOff className="h-2.5 w-2.5 text-gray-600" />
+                      )}
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status)}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
       </nav>
 
+      {/* Settings */}
+      <div className="border-t border-white/[0.06]">
+        <Link
+          href="/settings"
+          className={`flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-5 py-3'} text-gray-400 hover:text-gray-200 transition-colors`}
+        >
+          <Settings size={16} />
+          {!isCollapsed && <span className="text-[13px] font-medium">Settings</span>}
+        </Link>
+      </div>
+
       {/* User Profile */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-3">
-          <img 
-            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=150&h=150" 
-            alt="User Profile" 
-            className="w-10 h-10 rounded-full object-cover"
-          />
-          <div>
-            <p className="text-sm font-medium text-gray-900">Sarah Chen</p>
-            <p className="text-xs text-gray-500">Senior TPM</p>
+      <div className={`${isCollapsed ? 'p-2' : 'px-3 pb-4 pt-2'} border-t border-white/[0.06]`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-2'}`}>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold">
+            RP
           </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-gray-200 truncate">Ralph Pierre</p>
+              <p className="text-[11px] text-gray-500 truncate">Program Manager</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

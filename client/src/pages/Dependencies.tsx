@@ -15,7 +15,7 @@ import { ComponentAnalytics } from "@/components/layout/ComponentAnalytics";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { GitBranch, Plus, Filter, Eye, AlertTriangle, Clock, CheckCircle, XCircle } from "lucide-react";
+import { GitBranch, Plus, Filter, Eye, AlertTriangle, Clock, CheckCircle, XCircle, Pencil, Check, X } from "lucide-react";
 import type { Dependency, Program } from "@shared/schema";
 
 export default function Dependencies() {
@@ -38,6 +38,9 @@ export default function Dependencies() {
     resolution: "",
   });
 
+  const [editingDepId, setEditingDepId] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState("");
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -49,6 +52,43 @@ export default function Dependencies() {
   const { data: programs = [] } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
   });
+
+  const updateDependencyMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      return await apiRequest(`/api/dependencies/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Dependency updated successfully",
+      });
+      setEditingDepId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update dependency",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const startEditingDep = (dep: Dependency) => {
+    setEditingDepId(dep.id);
+    setEditStatus(dep.status || "on_track");
+  };
+
+  const cancelEditingDep = () => {
+    setEditingDepId(null);
+  };
+
+  const saveEditingDep = (depId: string) => {
+    updateDependencyMutation.mutate({
+      id: depId,
+      data: { status: editStatus },
+    });
+  };
 
   const createDependencyMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -133,7 +173,7 @@ export default function Dependencies() {
         setLocation(`/programs`);
         break;
       case 'projects':
-        setLocation(`/program-planning${programId ? `?programId=${programId}` : ''}`);
+        setLocation(programId ? `/programs/${programId}` : '/programs');
         break;
     }
   };
@@ -173,7 +213,7 @@ export default function Dependencies() {
   });
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Dependencies"
         subtitle="Track cross-team dependencies and unblock critical paths"
@@ -181,7 +221,7 @@ export default function Dependencies() {
         newButtonText="Add Dependency"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="dependencies" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="dependencies">Dependency Registry</TabsTrigger>
@@ -225,7 +265,7 @@ export default function Dependencies() {
             </div>
 
             {/* Dependencies Table */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Dependency Registry</CardTitle>
@@ -261,7 +301,7 @@ export default function Dependencies() {
                                     <span className="font-medium">Program "</span>
                                     <button 
                                       className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
-                                      onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                                      onClick={() => setLocation(`/programs/${program.id}`)}
                                     >
                                       {program.name}
                                     </button>
@@ -313,6 +353,7 @@ export default function Dependencies() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredDependencies.map((dependency: any) => {
                           const program = programs.find(p => p.id === dependency.programId);
+                          const isEditing = editingDepId === dependency.id;
                           return (
                             <tr key={dependency.id}>
                               <td className="px-6 py-4">
@@ -327,9 +368,16 @@ export default function Dependencies() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <Badge variant="outline" className="text-xs">
-                                  {program?.name || "N/A"}
-                                </Badge>
+                                {program ? (
+                                  <button
+                                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-xs border border-blue-200 rounded px-2 py-1"
+                                    onClick={() => setLocation(`/programs/${program.id}`)}
+                                  >
+                                    {program.name}
+                                  </button>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">N/A</Badge>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <Badge variant="outline" className="capitalize">
@@ -337,9 +385,23 @@ export default function Dependencies() {
                                 </Badge>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <Badge className={`${getStatusColor(dependency.status)} font-semibold capitalize`}>
-                                  {dependency.status?.replace("_", " ") || "open"}
-                                </Badge>
+                                {isEditing ? (
+                                  <Select value={editStatus} onValueChange={setEditStatus}>
+                                    <SelectTrigger className="w-32 h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="on_track">On Track</SelectItem>
+                                      <SelectItem value="at_risk">At Risk</SelectItem>
+                                      <SelectItem value="blocked">Blocked</SelectItem>
+                                      <SelectItem value="completed">Completed</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Badge className={`${getStatusColor(dependency.status)} font-semibold capitalize`}>
+                                    {dependency.status?.replace("_", " ") || "on_track"}
+                                  </Badge>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <Badge className={`${getPriorityColor(dependency.priority)} font-semibold capitalize`}>
@@ -350,10 +412,28 @@ export default function Dependencies() {
                                 {dependency.dueDate ? new Date(dependency.dueDate).toLocaleDateString() : "Not set"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <Button variant="ghost" size="sm" onClick={() => handleViewDependencyContext(dependency)} className="text-blue-600 hover:text-blue-800">
-                                  <Eye size={14} className="mr-1" />
-                                  View Context
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  {isEditing ? (
+                                    <>
+                                      <Button variant="ghost" size="sm" onClick={() => saveEditingDep(dependency.id)} disabled={updateDependencyMutation.isPending}>
+                                        <Check size={14} className="text-green-600" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={cancelEditingDep}>
+                                        <X size={14} className="text-red-600" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button variant="ghost" size="sm" onClick={() => startEditingDep(dependency)} className="text-gray-400 hover:text-gray-600">
+                                        <Pencil size={14} />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" onClick={() => handleViewDependencyContext(dependency)} className="text-blue-600 hover:text-blue-800">
+                                        <Eye size={14} className="mr-1" />
+                                        View Context
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -368,7 +448,7 @@ export default function Dependencies() {
 
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-gray-600">Total Dependencies</CardTitle>
                 </CardHeader>
@@ -377,7 +457,7 @@ export default function Dependencies() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-gray-600">Blocked</CardTitle>
                 </CardHeader>
@@ -388,7 +468,7 @@ export default function Dependencies() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-gray-600">Resolved</CardTitle>
                 </CardHeader>

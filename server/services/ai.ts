@@ -52,9 +52,12 @@ Always provide specific, actionable recommendations. When making suggestions, ci
 
 function parseJSON(text: string): any {
   // Strip markdown code fences if present
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = match ? match[1] : text;
-  return JSON.parse(raw.trim());
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) return JSON.parse(fenceMatch[1].trim());
+  // Fallback: extract the first {...} block (handles truncated responses)
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) return JSON.parse(jsonMatch[0]);
+  return JSON.parse(text.trim());
 }
 
 export interface AICommand {
@@ -250,35 +253,149 @@ Program data:\n${JSON.stringify(programData, null, 2)}`
       const milestones = await storage.getMilestones(programId);
       const adopters = await storage.getAdopters(programId);
 
-      const reportData = { program, risks, milestones, adopters, type };
+      const criticalRisks = risks.filter(r => r.severity === "critical" || r.severity === "high");
+      const completedMilestones = milestones.filter(m => m.status === "completed");
+      const avgAdopterReadiness = adopters.length > 0
+        ? Math.round(adopters.reduce((sum, a) => sum + (a.readinessScore || 0), 0) / adopters.length)
+        : 0;
+      const ragStatus = criticalRisks.length > 2 ? "Red" : criticalRisks.length > 0 ? "Amber" : "Green";
 
-      const response = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 2000,
-        system: TPM_SYSTEM_PROMPT,
-        messages: [
-          {
+      // Build report from actual data — no AI JSON generation
+      const reportContent = {
+        executiveSummary: "",
+        ragStatus,
+        keyMetrics: {
+          totalRisks: risks.length,
+          criticalRisks: criticalRisks.length,
+          totalMilestones: milestones.length,
+          completedMilestones: completedMilestones.length,
+          milestoneCompletion: milestones.length > 0 ? Math.round((completedMilestones.length / milestones.length) * 100) : 0,
+          adopterReadiness: avgAdopterReadiness,
+          adopterCount: adopters.length,
+        },
+        riskSummary: criticalRisks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity, status: r.status })),
+        milestoneProgress: milestones.slice(0, 5).map(m => ({ title: m.title, status: m.status, dueDate: m.dueDate })),
+        adopterReadiness: adopters.map(a => ({ name: a.teamName, readiness: a.readinessScore })),
+        nextSteps: [] as string[],
+      };
+
+      // Quick AI call for just the summary and next steps (short, won't truncate)
+      try {
+        const response = await anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 500,
+          system: TPM_SYSTEM_PROMPT,
+          messages: [{
             role: "user",
-            content: `Generate a comprehensive ${type} report following PMI reporting standards. Include: executive summary, RAG status, key metrics with variance analysis, risk assessment with RAID log summary, milestone progress vs. baseline, adopter readiness, and prioritized next steps. Return as a JSON object with clearly labeled sections.\n\nProgram data:\n${JSON.stringify(reportData, null, 2)}`
-          }
-        ]
-      });
+            content: `Write a 2-3 sentence executive summary and 3 next steps for this ${type} report. Return ONLY raw JSON (no markdown): {"executiveSummary": "...", "nextSteps": ["...", "...", "..."]}\n\nProgram: ${program?.name} (${program?.status})\nRAG: ${ragStatus}\nRisks: ${risks.length} total, ${criticalRisks.length} critical/high\nMilestones: ${completedMilestones.length}/${milestones.length} complete\nAdopters: ${adopters.length} teams, avg readiness ${avgAdopterReadiness}%`
+          }]
+        });
+        const text = response.content[0].type === "text" ? response.content[0].text : '{}';
+        const aiParts = parseJSON(text);
+        reportContent.executiveSummary = aiParts.executiveSummary || `${type} report for ${program?.name}`;
+        reportContent.nextSteps = aiParts.nextSteps || [];
+      } catch {
+        reportContent.executiveSummary = `${type} report for ${program?.name}. RAG status: ${ragStatus}.`;
+      }
 
-      const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
-      const reportContent = parseJSON(text_content);
-
+      const capType = type.charAt(0).toUpperCase() + type.slice(1);
       const report = await storage.createReport({
-        title: `${type} Report - ${program?.name}`,
+        title: `${capType} Report - ${program?.name}`,
         type,
         programId,
         content: reportContent,
-        generatedBy: "ai-system"
+        generatedBy: null
       });
 
       return report;
     } catch (error) {
       console.error("Error generating report:", error);
       throw new Error("Failed to generate report");
+    }
+  }
+
+  async generatePortfolioReport(type: string): Promise<any> {
+    try {
+      const allPrograms = await storage.getPrograms();
+      const allRisks = await storage.getRisks();
+      const allMilestones = await storage.getMilestones();
+      const allAdopters = await storage.getAdopters();
+
+      const criticalRisks = allRisks.filter(r => r.severity === "critical" || r.severity === "high");
+      const completedMilestones = allMilestones.filter(m => m.status === "completed");
+      const avgAdopterReadiness = allAdopters.length > 0
+        ? Math.round(allAdopters.reduce((sum, a) => sum + (a.readinessScore || 0), 0) / allAdopters.length)
+        : 0;
+      const ragStatus = criticalRisks.length > 4 ? "Red" : criticalRisks.length > 0 ? "Amber" : "Green";
+
+      // Per-program breakdown
+      const programBreakdowns = allPrograms.map(prog => {
+        const progRisks = allRisks.filter(r => r.programId === prog.id);
+        const progMilestones = allMilestones.filter(m => m.programId === prog.id);
+        const progAdopters = allAdopters.filter(a => a.programId === prog.id);
+        const progCritical = progRisks.filter(r => r.severity === "critical" || r.severity === "high");
+        const progCompleted = progMilestones.filter(m => m.status === "completed");
+        return {
+          name: prog.name,
+          status: prog.status,
+          rag: progCritical.length > 2 ? "Red" : progCritical.length > 0 ? "Amber" : "Green",
+          risks: { total: progRisks.length, criticalHigh: progCritical.length },
+          milestones: { total: progMilestones.length, completed: progCompleted.length },
+          adopters: progAdopters.length,
+        };
+      });
+
+      const reportContent = {
+        executiveSummary: "",
+        ragStatus,
+        programBreakdowns,
+        keyMetrics: {
+          totalPrograms: allPrograms.length,
+          totalRisks: allRisks.length,
+          criticalRisks: criticalRisks.length,
+          totalMilestones: allMilestones.length,
+          completedMilestones: completedMilestones.length,
+          milestoneCompletion: allMilestones.length > 0 ? Math.round((completedMilestones.length / allMilestones.length) * 100) : 0,
+          adopterReadiness: avgAdopterReadiness,
+          adopterCount: allAdopters.length,
+        },
+        riskSummary: criticalRisks.slice(0, 5).map(r => ({ title: r.title, severity: r.severity, status: r.status })),
+        nextSteps: [] as string[],
+      };
+
+      // Quick AI summary
+      try {
+        const programList = allPrograms.map(p => `${p.name} (${p.status})`).join(", ");
+        const response = await anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 500,
+          system: TPM_SYSTEM_PROMPT,
+          messages: [{
+            role: "user",
+            content: `Write a 2-3 sentence portfolio executive summary and 3 next steps. Return ONLY raw JSON: {"executiveSummary": "...", "nextSteps": ["...", "...", "..."]}\n\nPrograms: ${programList}\nRAG: ${ragStatus}\nRisks: ${allRisks.length} total, ${criticalRisks.length} critical/high\nMilestones: ${completedMilestones.length}/${allMilestones.length} complete\nAdopters: ${allAdopters.length} teams, avg readiness ${avgAdopterReadiness}%`
+          }]
+        });
+        const text = response.content[0].type === "text" ? response.content[0].text : '{}';
+        const aiParts = parseJSON(text);
+        reportContent.executiveSummary = aiParts.executiveSummary || "Portfolio overview";
+        reportContent.nextSteps = aiParts.nextSteps || [];
+      } catch {
+        reportContent.executiveSummary = `Portfolio ${type} report across ${allPrograms.length} programs. RAG: ${ragStatus}.`;
+      }
+
+      const capType = type.charAt(0).toUpperCase() + type.slice(1);
+      const report = await storage.createReport({
+        title: `Portfolio ${capType} Report`,
+        type,
+        programId: null,
+        content: reportContent,
+        generatedBy: null
+      });
+
+      return report;
+    } catch (error) {
+      console.error("Error generating portfolio report:", error);
+      throw new Error("Failed to generate portfolio report");
     }
   }
 
@@ -485,10 +602,11 @@ Current platform context: ${context ? JSON.stringify(context) : 'General TPM con
 
 RESPONSE STYLE:
 - Answer only what was asked. Do not volunteer unrequested data.
-- Keep responses short and direct. One or two sentences for simple factual questions.
-- Do NOT use markdown formatting (no **, no ##, no bullet dashes). Write in plain prose.
+- Use clear structure: bullet points (- item), **bold** for key terms, short paragraphs.
+- Lead with a 1-2 sentence summary, then supporting details in a list if needed.
+- Prefer scannable lists over dense prose paragraphs. Never write a wall of text.
 - When giving recommendations, reference the relevant PMI knowledge area, SDLC phase, or Agile framework.
-- Ask a clarifying question only if the request is genuinely ambiguous.`,
+- Ask a clarifying question if the request is genuinely ambiguous.`,
         messages: [
           {
             role: "user",

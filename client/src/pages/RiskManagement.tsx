@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  AlertTriangle, 
-  TrendingUp, 
-  Shield, 
-  Clock, 
+import { useLocation } from "wouter";
+import {
+  AlertTriangle,
+  TrendingUp,
+  Shield,
+  Clock,
   Plus,
   Eye,
   Filter,
@@ -24,7 +25,10 @@ import {
   Database,
   Target,
   Users,
-  Calendar
+  Calendar,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import type { Risk, Program } from "@shared/schema";
 
@@ -35,6 +39,9 @@ export default function RiskManagement() {
   const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editingRiskId, setEditingRiskId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSeverity, setEditSeverity] = useState("");
   const [newRisk, setNewRisk] = useState({
     title: "",
     description: "",
@@ -48,6 +55,7 @@ export default function RiskManagement() {
   });
 
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
@@ -144,6 +152,52 @@ export default function RiskManagement() {
     },
   });
 
+  const updateRiskMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      await apiRequest(`/api/risks/${id}`, 'PATCH', data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Risk updated successfully",
+      });
+      setEditingRiskId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update risk",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const startEditing = (risk: Risk) => {
+    setEditingRiskId(risk.id);
+    setEditTitle(risk.title || "");
+    setEditSeverity(risk.severity || "medium");
+  };
+
+  const cancelEditing = () => {
+    setEditingRiskId(null);
+    setEditTitle("");
+    setEditSeverity("");
+  };
+
+  const saveEditing = (riskId: string) => {
+    updateRiskMutation.mutate({
+      id: riskId,
+      data: { title: editTitle, severity: editSeverity },
+    });
+  };
+
+  const navigateToProgram = (programId: string | null) => {
+    if (programId) {
+      setLocation(`/programs/${programId}`);
+    }
+  };
+
   // Filter risks based on selected filters
   const filteredRisks = risks.filter(risk => {
     if (selectedProgram !== "all" && risk.programId !== selectedProgram) return false;
@@ -152,16 +206,22 @@ export default function RiskManagement() {
     return true;
   });
 
-  // Risk analytics
+  // Program-filtered risks (for analytics cards — not affected by severity/status filter)
+  const programFilteredRisks = risks.filter(risk => {
+    if (selectedProgram !== "all" && risk.programId !== selectedProgram) return false;
+    return true;
+  });
+
+  // Risk analytics (based on program filter only, so card counts stay visible)
   const riskAnalytics = {
-    total: filteredRisks.length,
-    critical: filteredRisks.filter(r => r.severity === 'critical').length,
-    high: filteredRisks.filter(r => r.severity === 'high').length,
-    medium: filteredRisks.filter(r => r.severity === 'medium').length,
-    low: filteredRisks.filter(r => r.severity === 'low').length,
-    identified: filteredRisks.filter(r => r.status === 'identified').length,
-    inProgress: filteredRisks.filter(r => r.status === 'in_progress').length,
-    mitigated: filteredRisks.filter(r => r.status === 'mitigated').length
+    total: programFilteredRisks.length,
+    critical: programFilteredRisks.filter(r => r.severity === 'critical').length,
+    high: programFilteredRisks.filter(r => r.severity === 'high').length,
+    medium: programFilteredRisks.filter(r => r.severity === 'medium').length,
+    low: programFilteredRisks.filter(r => r.severity === 'low').length,
+    identified: programFilteredRisks.filter(r => r.status === 'identified').length,
+    inProgress: programFilteredRisks.filter(r => r.status === 'in_progress').length,
+    mitigated: programFilteredRisks.filter(r => r.status === 'mitigated').length
   };
 
   const getSeverityBadge = (severity: string | null) => {
@@ -211,33 +271,35 @@ export default function RiskManagement() {
 
   if (programsLoading || risksLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header title="Risk Management" subtitle="Identify and mitigate program risks" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Risk Management" subtitle="Identify and mitigate program risks" showNewButton={false} />
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading...</div>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Loading risks...</span>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header title="Risk Management" subtitle="Identify and mitigate program risks" />
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
+      <Header
+        title="Risk Management"
+        subtitle="Identify and mitigate program risks"
+        onNewClick={() => setShowAddRiskModal(true)}
+        newButtonText="Add Risk"
+      />
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Risk Management</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowAddRiskModal(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Risk
-            </Button>
-          </div>
-        </div>
+      <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
 
         {/* Risk Analytics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-          <Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-5">
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 hover:shadow-md ${severityFilter === "all" && statusFilter === "all" ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950" : ""}`}
+            onClick={() => { setSeverityFilter("all"); setStatusFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <Shield className="w-8 h-8 text-blue-500 mr-3" />
@@ -248,8 +310,11 @@ export default function RiskManagement() {
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
+
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-red-400 hover:shadow-md ${severityFilter === "critical" ? "ring-2 ring-red-500 bg-red-50 dark:bg-red-950" : ""}`}
+            onClick={() => { setSeverityFilter(severityFilter === "critical" ? "all" : "critical"); setStatusFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <AlertTriangle className="w-8 h-8 text-red-500 mr-3" />
@@ -261,7 +326,10 @@ export default function RiskManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-orange-400 hover:shadow-md ${severityFilter === "high" ? "ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950" : ""}`}
+            onClick={() => { setSeverityFilter(severityFilter === "high" ? "all" : "high"); setStatusFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <TrendingUp className="w-8 h-8 text-orange-500 mr-3" />
@@ -273,7 +341,10 @@ export default function RiskManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-yellow-400 hover:shadow-md ${severityFilter === "medium" ? "ring-2 ring-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""}`}
+            onClick={() => { setSeverityFilter(severityFilter === "medium" ? "all" : "medium"); setStatusFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <Clock className="w-8 h-8 text-yellow-500 mr-3" />
@@ -285,7 +356,25 @@ export default function RiskManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-green-400 hover:shadow-md ${severityFilter === "low" ? "ring-2 ring-green-500 bg-green-50 dark:bg-green-950" : ""}`}
+            onClick={() => { setSeverityFilter(severityFilter === "low" ? "all" : "low"); setStatusFilter("all"); }}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Shield className="w-8 h-8 text-green-500 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Low</p>
+                  <p className="text-2xl font-bold text-green-600">{riskAnalytics.low}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-blue-400 hover:shadow-md ${statusFilter === "identified" ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === "identified" ? "all" : "identified"); setSeverityFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <Target className="w-8 h-8 text-blue-500 mr-3" />
@@ -297,7 +386,10 @@ export default function RiskManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-purple-400 hover:shadow-md ${statusFilter === "in_progress" ? "ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-950" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === "in_progress" ? "all" : "in_progress"); setSeverityFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <Users className="w-8 h-8 text-purple-500 mr-3" />
@@ -309,7 +401,10 @@ export default function RiskManagement() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:ring-2 hover:ring-green-400 hover:shadow-md ${statusFilter === "mitigated" ? "ring-2 ring-green-500 bg-green-50 dark:bg-green-950" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === "mitigated" ? "all" : "mitigated"); setSeverityFilter("all"); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center">
                 <Shield className="w-8 h-8 text-green-500 mr-3" />
@@ -414,11 +509,58 @@ export default function RiskManagement() {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-2">{risk.title}</h3>
+                    {editingRiskId === risk.id ? (
+                      <div className="space-y-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="text-lg font-semibold"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm whitespace-nowrap">Severity:</Label>
+                          <Select value={editSeverity} onValueChange={setEditSeverity}>
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="critical">Critical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" variant="ghost" onClick={() => saveEditing(risk.id)} disabled={updateRiskMutation.isPending}>
+                            <Check className="w-4 h-4 text-green-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditing}>
+                            <X className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3
+                            className="text-lg font-semibold cursor-pointer hover:text-blue-600 transition-colors"
+                            onClick={() => {
+                              setSelectedRisk(risk);
+                              setShowDetailsModal(true);
+                            }}
+                          >
+                            {risk.title}
+                          </h3>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => startEditing(risk)}>
+                            <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                     <p className="text-gray-600 dark:text-gray-400 mb-3">{risk.description}</p>
                     <div className="flex flex-wrap gap-2 mb-3">
-                      <Badge className={getSeverityBadge(risk.severity)}>
-                        {risk.severity?.toUpperCase()}
+                      <Badge className={getSeverityBadge(editingRiskId === risk.id ? editSeverity : risk.severity)}>
+                        {(editingRiskId === risk.id ? editSeverity : risk.severity)?.toUpperCase()}
                       </Badge>
                       <Badge className={getStatusBadge(risk.status)}>
                         {risk.status?.replace('_', ' ').toUpperCase()}
@@ -430,16 +572,23 @@ export default function RiskManagement() {
                       )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Program: {getProgramName(risk.programId)} | 
-                      Impact: {risk.impact}/5 | 
+                      Program:{" "}
+                      <button
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        onClick={() => navigateToProgram(risk.programId)}
+                      >
+                        {getProgramName(risk.programId)}
+                      </button>
+                      {" "}|{" "}
+                      Impact: {risk.impact}/5 |
                       Probability: {risk.probability}/5
                       {risk.createdAt && (
                         <> | Created: {new Date(risk.createdAt).toLocaleDateString()}</>
                       )}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       setSelectedRisk(risk);
@@ -611,7 +760,12 @@ export default function RiskManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Program</Label>
-                  <p className="font-medium">{getProgramName(selectedRisk.programId)}</p>
+                  <button
+                    className="block font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    onClick={() => navigateToProgram(selectedRisk.programId)}
+                  >
+                    {getProgramName(selectedRisk.programId)}
+                  </button>
                 </div>
                 <div>
                   <Label>Status</Label>

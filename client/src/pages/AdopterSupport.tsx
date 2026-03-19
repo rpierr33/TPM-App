@@ -14,18 +14,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { 
-  Users, 
-  Plus, 
-  Filter, 
-  MessageCircle, 
-  Calendar, 
-  CheckCircle, 
+import {
+  Users,
+  Plus,
+  Filter,
+  MessageCircle,
+  Calendar,
+  CheckCircle,
   AlertCircle,
   Clock,
   TrendingUp,
   FileText,
-  Mail
+  Mail,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import type { Adopter, Program } from "@shared/schema";
 
@@ -75,6 +78,36 @@ export default function AdopterSupport() {
       });
     },
   });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ teamName: string; readinessScore: number }>({ teamName: "", readinessScore: 0 });
+
+  const updateAdopterMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await apiRequest(`/api/adopters/${id}`, "PUT", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Adopter updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
+      setEditingId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update adopter", variant: "destructive" });
+    },
+  });
+
+  const startEditing = (adopter: any) => {
+    setEditingId(adopter.id);
+    setEditValues({ teamName: adopter.teamName, readinessScore: adopter.readinessScore || 0 });
+  };
+
+  const saveEditing = (id: string) => {
+    updateAdopterMutation.mutate({ id, data: editValues });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -134,7 +167,7 @@ export default function AdopterSupport() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Adopter Support"
         subtitle="Track internal feature/API adopters with onboarding status and readiness scoring"
@@ -142,7 +175,7 @@ export default function AdopterSupport() {
         newButtonText="Add Team"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -154,7 +187,7 @@ export default function AdopterSupport() {
           <TabsContent value="overview" className="space-y-6">
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -166,7 +199,7 @@ export default function AdopterSupport() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -180,7 +213,7 @@ export default function AdopterSupport() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -192,7 +225,7 @@ export default function AdopterSupport() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -208,7 +241,7 @@ export default function AdopterSupport() {
             </div>
 
             {/* Recent Activity */}
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle>Recent Adopter Activity</CardTitle>
               </CardHeader>
@@ -277,7 +310,7 @@ export default function AdopterSupport() {
                 ))}
               </div>
             ) : filteredAdopters.length === 0 ? (
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardContent className="p-12 text-center">
                   <Users size={48} className="mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No adopter teams found</h3>
@@ -294,7 +327,7 @@ export default function AdopterSupport() {
                                   <span className="font-medium">Program "</span>
                                   <button 
                                     className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
-                                    onClick={() => setLocation(`/program-planning?id=${program.id}`)}
+                                    onClick={() => setLocation(`/programs/${program.id}`)}
                                   >
                                     {program.name}
                                   </button>
@@ -321,33 +354,79 @@ export default function AdopterSupport() {
                 {filteredAdopters.map((adopter: any) => {
                   const StatusIcon = getStatusIcon(adopter.status);
                   const readinessScore = adopter.readinessScore || 0;
-                  
+                  const isEditing = editingId === adopter.id;
+                  const program = programs.find((p: any) => p.id === adopter.programId);
+
                   return (
                     <Card key={adopter.id} className="border border-gray-200">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                              {adopter.teamName}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-3">
+                            {isEditing ? (
+                              <Input
+                                value={editValues.teamName}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, teamName: e.target.value }))}
+                                className="text-lg font-semibold mb-1"
+                                autoFocus
+                              />
+                            ) : (
+                              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                {adopter.teamName}
+                              </h3>
+                            )}
+                            <p className="text-sm text-gray-600 mb-1">
                               {adopter.description || "No description provided"}
                             </p>
+                            {program && (
+                              <button
+                                className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
+                                onClick={() => setLocation(`/programs/${program.id}`)}
+                              >
+                                {program.name}
+                              </button>
+                            )}
                           </div>
-                          <StatusIcon size={20} className={getStatusColor(adopter.status).includes('green') ? 'text-green-500' : 
-                                                           getStatusColor(adopter.status).includes('red') ? 'text-red-500' : 
-                                                           getStatusColor(adopter.status).includes('blue') ? 'text-blue-500' : 'text-gray-500'} />
+                          <div className="flex items-center gap-1">
+                            {isEditing ? (
+                              <>
+                                <Button variant="ghost" size="sm" onClick={() => saveEditing(adopter.id)} disabled={updateAdopterMutation.isPending}>
+                                  <Check size={16} className="text-green-600" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                                  <X size={16} className="text-gray-500" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => startEditing(adopter)}>
+                                <Pencil size={16} className="text-gray-400 hover:text-gray-600" />
+                              </Button>
+                            )}
+                            <StatusIcon size={20} className={getStatusColor(adopter.status).includes('green') ? 'text-green-500' :
+                                                             getStatusColor(adopter.status).includes('red') ? 'text-red-500' :
+                                                             getStatusColor(adopter.status).includes('blue') ? 'text-blue-500' : 'text-gray-500'} />
+                          </div>
                         </div>
 
                         <div className="space-y-3">
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-sm text-gray-600">Readiness Score</span>
-                              <span className={`text-sm font-semibold ${getReadinessColor(readinessScore)}`}>
-                                {readinessScore}%
-                              </span>
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={editValues.readinessScore}
+                                  onChange={(e) => setEditValues(prev => ({ ...prev, readinessScore: parseInt(e.target.value) || 0 }))}
+                                  className="w-20 h-7 text-sm text-right"
+                                />
+                              ) : (
+                                <span className={`text-sm font-semibold ${getReadinessColor(readinessScore)}`}>
+                                  {readinessScore}%
+                                </span>
+                              )}
                             </div>
-                            <Progress value={readinessScore} className="h-2" />
+                            <Progress value={isEditing ? editValues.readinessScore : readinessScore} className="h-2" />
                           </div>
 
                           <div className="flex items-center justify-between">
@@ -360,9 +439,12 @@ export default function AdopterSupport() {
                           {adopter.contact && (
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-gray-500">Contact:</span>
-                              <span className="text-sm font-medium text-gray-900">
+                              <button
+                                className="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                                onClick={() => setLocation("/stakeholders")}
+                              >
                                 {adopter.contact.name}
-                              </span>
+                              </button>
                             </div>
                           )}
 
@@ -397,7 +479,7 @@ export default function AdopterSupport() {
           </TabsContent>
 
           <TabsContent value="scorecards" className="space-y-6">
-            <Card className="border border-gray-200">
+            <Card className="border border-gray-200/80 bg-white shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Readiness Scorecards</CardTitle>
@@ -466,7 +548,7 @@ export default function AdopterSupport() {
 
           <TabsContent value="feedback" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Feedback Collection</CardTitle>
                 </CardHeader>
@@ -505,7 +587,7 @@ export default function AdopterSupport() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200">
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>Support Actions</CardTitle>
                 </CardHeader>

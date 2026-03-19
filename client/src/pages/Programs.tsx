@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { 
-  ChartGantt, 
-  AlertTriangle, 
-  Flag, 
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  ChartGantt,
+  AlertTriangle,
+  Flag,
   Users,
   GitBranch,
   Eye,
   Search,
   Filter,
-  Plus
+  Plus,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
 import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
@@ -25,6 +30,31 @@ export default function Programs() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await fetch(`/api/programs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to rename");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Renamed", description: "Program name updated" });
+      setEditingId(null);
+      queryClient.refetchQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to rename", variant: "destructive" });
+      setEditingId(null);
+    },
+  });
 
   // Get filter from URL params
   const urlParams = new URLSearchParams(window.location.search);
@@ -121,7 +151,7 @@ export default function Programs() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title={getFilterTitle()}
         subtitle={getFilterSubtitle()}
@@ -129,7 +159,7 @@ export default function Programs() {
         newButtonText="New Program"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Filters and Search */}
         <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
@@ -142,10 +172,10 @@ export default function Programs() {
                 className="pl-10"
               />
             </div>
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -251,13 +281,44 @@ export default function Programs() {
               const healthBadge = getHealthBadge(healthMetrics.score);
 
               return (
-                <Card key={program.id} className="border border-gray-200 hover:border-primary-300 transition-colors">
+                <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 card-hover">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           {getStatusIcon(program.status || 'active')}
-                          <h3 className="text-lg font-semibold text-gray-900">{program.name}</h3>
+                          {editingId === program.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && editName.trim()) renameMutation.mutate({ id: program.id, name: editName.trim() });
+                                  if (e.key === 'Escape') setEditingId(null);
+                                }}
+                                autoFocus
+                                className="h-7 text-lg font-semibold w-56"
+                              />
+                              <button onClick={() => editName.trim() && renameMutation.mutate({ id: program.id, name: editName.trim() })} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-4 w-4" /></button>
+                              <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded"><X className="h-4 w-4" /></button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 group">
+                              <h3
+                                className="text-lg font-semibold text-primary-700 hover:underline cursor-pointer"
+                                onClick={() => setLocation(`/programs/${program.id}`)}
+                              >
+                                {program.name}
+                              </h3>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingId(program.id); setEditName(program.name); }}
+                                className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Rename program"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                           <Badge className={getStatusColor(program.status || 'active')}>
                             {program.status?.replace('_', ' ') || 'active'}
                           </Badge>
@@ -282,7 +343,10 @@ export default function Programs() {
                   <CardContent className="pt-0">
                     {/* Program Components Summary */}
                     <div className="grid grid-cols-4 gap-4 mb-4">
-                      <div className="text-center p-2 rounded bg-gray-50">
+                      <button
+                        className="text-center p-2 rounded bg-gray-50 hover:bg-red-50 hover:ring-1 hover:ring-red-200 transition-all cursor-pointer"
+                        onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
+                      >
                         <div className="flex items-center justify-center mb-1">
                           <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
                           <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
@@ -293,9 +357,12 @@ export default function Programs() {
                             {criticalRisks.length} critical
                           </div>
                         )}
-                      </div>
+                      </button>
 
-                      <div className="text-center p-2 rounded bg-gray-50">
+                      <button
+                        className="text-center p-2 rounded bg-gray-50 hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-200 transition-all cursor-pointer"
+                        onClick={() => setLocation(`/milestones?programId=${program.id}`)}
+                      >
                         <div className="flex items-center justify-center mb-1">
                           <Flag className="h-4 w-4 text-yellow-500 mr-1" />
                           <span className="text-lg font-semibold text-gray-900">{programMilestones.length}</span>
@@ -304,17 +371,23 @@ export default function Programs() {
                         {overdueMilestones.length > 0 && (
                           <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
                         )}
-                      </div>
+                      </button>
 
-                      <div className="text-center p-2 rounded bg-gray-50">
+                      <button
+                        className="text-center p-2 rounded bg-gray-50 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all cursor-pointer"
+                        onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
+                      >
                         <div className="flex items-center justify-center mb-1">
                           <Users className="h-4 w-4 text-blue-500 mr-1" />
                           <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
                         </div>
                         <div className="text-xs text-gray-500">Teams</div>
-                      </div>
+                      </button>
 
-                      <div className="text-center p-2 rounded bg-gray-50">
+                      <button
+                        className="text-center p-2 rounded bg-gray-50 hover:bg-purple-50 hover:ring-1 hover:ring-purple-200 transition-all cursor-pointer"
+                        onClick={() => setLocation(`/dependencies?programId=${program.id}`)}
+                      >
                         <div className="flex items-center justify-center mb-1">
                           <GitBranch className="h-4 w-4 text-purple-500 mr-1" />
                           <span className="text-lg font-semibold text-gray-900">{programDependencies.length}</span>
@@ -323,7 +396,7 @@ export default function Programs() {
                         {blockedDependencies.length > 0 && (
                           <div className="text-xs text-red-600 font-medium">{blockedDependencies.length} blocked</div>
                         )}
-                      </div>
+                      </button>
                     </div>
 
                     {/* Quick Actions */}

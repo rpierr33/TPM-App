@@ -284,6 +284,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/milestones/:id", async (req, res) => {
+    try {
+      const validatedData = insertMilestoneSchema.partial().parse(req.body);
+      const milestone = await storage.updateMilestone(req.params.id, validatedData);
+      (app as any).broadcast('data_changed', { type: 'milestone_updated', data: milestone });
+      res.json(milestone);
+    } catch (error) {
+      console.error("Error updating milestone:", error);
+      res.status(400).json({ message: "Failed to update milestone" });
+    }
+  });
+
   // Milestone Step routes
   app.get("/api/milestone-steps", async (req, res) => {
     try {
@@ -546,6 +558,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/risks/:id", async (req, res) => {
+    try {
+      const validatedData = insertRiskSchema.partial().parse(req.body);
+      const risk = await storage.updateRisk(req.params.id, validatedData);
+      res.json(risk);
+    } catch (error) {
+      console.error("Error updating risk:", error);
+      res.status(400).json({ message: "Failed to update risk" });
+    }
+  });
+
   // Dependency routes
   app.get("/api/dependencies", async (req, res) => {
     try {
@@ -569,6 +592,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/dependencies/:id", async (req, res) => {
+    try {
+      const validatedData = insertDependencySchema.partial().parse(req.body);
+      const dependency = await storage.updateDependency(req.params.id, validatedData);
+      res.json(dependency);
+    } catch (error) {
+      console.error("Error updating dependency:", error);
+      res.status(400).json({ message: "Failed to update dependency" });
+    }
+  });
+
   // Adopter routes
   app.get("/api/adopters", async (req, res) => {
     try {
@@ -589,6 +623,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating adopter:", error);
       res.status(400).json({ message: "Failed to create adopter" });
+    }
+  });
+
+  app.put("/api/adopters/:id", async (req, res) => {
+    try {
+      const adopter = await storage.updateAdopter(req.params.id, req.body);
+      res.json(adopter);
+    } catch (error) {
+      console.error("Error updating adopter:", error);
+      res.status(500).json({ message: "Failed to update adopter" });
     }
   });
 
@@ -622,6 +666,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating escalation:", error);
       res.status(400).json({ message: "Failed to create escalation" });
+    }
+  });
+
+  app.patch("/api/escalations/:id", async (req, res) => {
+    try {
+      const validatedData = insertEscalationSchema.partial().parse(req.body);
+      const escalation = await storage.updateEscalation(req.params.id, validatedData);
+      (app as any).broadcast('data_changed', { type: 'escalation_updated', data: escalation });
+      res.json(escalation);
+    } catch (error) {
+      console.error("Error updating escalation:", error);
+      res.status(400).json({ message: "Failed to update escalation" });
     }
   });
 
@@ -939,19 +995,21 @@ User request: "${request}"
 
 Return ONLY valid JSON in this exact format:
 {
-  "intent": "create_items" | "query" | "update" | "delete" | "analyze" | "other",
+  "intent": "create_items" | "query" | "update" | "delete" | "analyze" | "generate_report" | "other",
   "commands": [
     {
-      "action": "create_program" | "create_milestone" | "create_risk" | "create_dependency" | "update_program" | "delete_program" | "analyze_program",
+      "action": "create_program" | "create_milestone" | "create_risk" | "create_dependency" | "update_program" | "delete_program" | "analyze_program" | "generate_report" | "delete_report",
       "parameters": {
         "name": "...(for delete: match by name from live data)",
         "ids": ["...(for delete: use the actual IDs from live data, e.g. oldest 3 = first 3 by age_rank)"],
         "description": "...",
         "status": "planning",
-        "programId": "...(use id from live data)",
+        "programId": "...(use id from live data if a specific program is mentioned, otherwise omit)",
         "title": "...(for milestones/risks)",
         "severity": "...(low/medium/high/critical)",
-        "dueDate": "...(ISO date string if mentioned)"
+        "dueDate": "...(ISO date string if mentioned)",
+        "reportType": "...(status | executive | weekly | risk — default: status)",
+        "portfolio": "...(ONLY set to true if the user's exact words include 'portfolio', 'all programs', or 'cross-program'. NEVER infer this — if the user just says 'generate status report' without specifying a program, do NOT set portfolio. Omit this field unless explicitly triggered.)"
       }
     }
   ],
@@ -964,6 +1022,8 @@ Rules:
 - For DELETE with "newest N": use programs with highest age_rank values
 - For DELETE by name: match name from live data
 - For multiple creates, return one command per item
+- For "generate report" / "status report" / "weekly report": use action "generate_report". If a specific program is named, include its programId from live data. ONLY set portfolio: true if the user literally says "portfolio", "all programs", or "cross-program". If no program is specified and none of those portfolio keywords are used, do NOT set portfolio — omit it entirely so the system can ask the user to clarify.
+- For "delete reports" / "clear reports" / "remove reports": use action "delete_report". If user says "all reports", set parameters.all to true. If user specifies a report name, set parameters.name to match.
 - If request is a question, complaint, or conversation (not an action), set intent to "query", commands to [], conversational to true
 - If the user refers to something that was just done (e.g. "you deleted the wrong ones"), treat as "query" and explain what the system just did based on recent history`;
 
@@ -990,6 +1050,7 @@ Rules:
       if (parsedIntent.intent !== "query" && parsedIntent.commands?.length > 0) {
         const created: any[] = [];
         const errors: string[] = [];
+        let presetMessage = "";  // used by generate_report to override the default "Done." fallback
 
         for (const cmd of parsedIntent.commands) {
           try {
@@ -1058,6 +1119,52 @@ Rules:
                 (app as any).broadcast("data_changed", { type: "program_updated", data: updated });
                 created.push({ type: "updated_program", name: target.name, status: cmd.parameters.status });
               }
+
+            } else if (cmd.action === "generate_report") {
+              const reportType = cmd.parameters.reportType || "status";
+              const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+              const specificProgramId = cmd.parameters.programId;
+              const broadcastFn = (app as any).broadcast;
+
+              if (programs.length === 0) {
+                presetMessage = "No programs exist yet. Create at least one program before generating a report.";
+              } else if (cmd.parameters.portfolio || (!specificProgramId && programs.length > 1)) {
+                if (!cmd.parameters.portfolio) {
+                  // No portfolio flag and multiple programs — ask to clarify
+                  const programList = programs.map(p => `- **${p.name}** (${p.status})`).join("\n");
+                  presetMessage = `Which program should I generate the **${reportType}** report for?\n\n${programList}\n\nOr say **"generate portfolio status report"** for a cross-program overview.`;
+                } else {
+                  // Portfolio — single combined report, fire and forget
+                  presetMessage = `Generating **Portfolio ${cap(reportType)} Report** covering all ${programs.length} programs in the background. Head to Executive Reports in a moment.`;
+                  response.actions = [{ type: "navigate", target: "/executive-reports?tab=reports" }];
+                  aiService.generatePortfolioReport(reportType)
+                    .then(report => broadcastFn("data_changed", { type: "report_created", data: report }))
+                    .catch(e => console.error("Portfolio report failed:", e));
+                }
+              } else {
+                // Single program (named or only one)
+                const target = specificProgramId
+                  ? programs.find(p => p.id === specificProgramId)
+                  : programs[0];
+                if (!target) {
+                  presetMessage = "Couldn't find that program.";
+                } else {
+                  presetMessage = `Generating **${cap(reportType)} Report** for "${target.name}" in the background. Head to Executive Reports in a moment.`;
+                  response.actions = [{ type: "navigate", target: "/executive-reports?tab=reports" }];
+                  aiService.generateReport(target.id, reportType)
+                    .then(report => broadcastFn("data_changed", { type: "report_created", data: report }))
+                    .catch(e => console.error(`Report failed for ${target.name}:`, e));
+                }
+              }
+            } else if (cmd.action === "delete_report") {
+              if (cmd.parameters.all) {
+                const count = await storage.deleteAllReports();
+                created.push({ type: "deleted_reports", count });
+                presetMessage = `Deleted **${count}** report${count !== 1 ? "s" : ""}. The Executive Reports list is now empty.`;
+                (app as any).broadcast("data_changed", { type: "reports_deleted", data: {} });
+              } else {
+                presetMessage = "Please specify which reports to delete, or say **\"delete all reports\"** to clear them all.";
+              }
             }
           } catch (err) {
             console.error(`Command failed (${cmd.action}):`, err);
@@ -1073,13 +1180,13 @@ Rules:
           const gapPrompt = `You are a PMI/PMP expert TPM. These programs were just created and are empty:
 ${createdPrograms.map(p => `- ${p.name}`).join("\n")}
 
-For EACH program, list the missing required components based on PMI PMBOK standards. Be specific and concise.
-Format:
-[Program Name]
-Missing: milestones, risk register, stakeholders, dependencies, adopter/change plan, OKRs, owner assignment, schedule baseline
-Warning: [one sentence on the biggest risk of not having these]
+For EACH program, list missing PMI PMBOK required components. Use this exact format:
 
-Keep it tight — one block per program, plain text, no markdown.`;
+**[Program Name]**
+- Missing: milestones, risk register, stakeholders, dependencies, adopter plan, OKRs, owner, schedule baseline
+- ⚠️ Biggest risk: [one sentence]
+
+Keep it tight — one block per program.`;
 
           try {
             const gapAnalysis = await aiService.chatWithAI(gapPrompt, {});
@@ -1093,20 +1200,25 @@ Keep it tight — one block per program, plain text, no markdown.`;
         const newItems = created.filter(c => ["program", "milestone", "risk", "dependency"].includes(c.type));
         const deletedItems = created.filter(c => c.type === "deleted_program");
         const updatedItems = created.filter(c => c.type === "updated_program");
+        const reportItems = created.filter(c => c.type === "report");
 
-        let message = "";
-        if (newItems.length > 0)
-          message += `Created: ${newItems.map(c => `"${c.name}"`).join(", ")}.`;
-        if (deletedItems.length > 0)
-          message += `${message ? " " : ""}Deleted: ${deletedItems.map(c => `"${c.name}"`).join(", ")}.`;
-        if (updatedItems.length > 0)
-          message += `${message ? " " : ""}Updated: ${updatedItems.map(c => `"${c.name}" → ${c.status}`).join(", ")}.`;
-        if (!message) message = "Done.";
-        if (errors.length > 0) message += `\n\nErrors: ${errors.join("; ")}`;
+        let message = presetMessage;  // report handler may have already set a message
+
+        if (!message) {
+          if (newItems.length > 0)
+            message += `Created: ${newItems.map(c => `"${c.name}"`).join(", ")}.`;
+          if (deletedItems.length > 0)
+            message += `${message ? " " : ""}Deleted: ${deletedItems.map(c => `"${c.name}"`).join(", ")}.`;
+          if (updatedItems.length > 0)
+            message += `${message ? " " : ""}Updated: ${updatedItems.map(c => `"${c.name}" → ${c.status}`).join(", ")}.`;
+          if (!message) message = "Done.";
+        }
+
+        if (errors.length > 0) message += `\n\n**Errors:** ${errors.join("; ")}`;
         if (gapSummaries.length > 0) message += `\n\n${gapSummaries[0]}`;
 
         response.message = message;
-        response.success = created.length > 0;
+        response.success = created.length > 0 || !!presetMessage;
         response.createdItems = created;
 
       } else {
@@ -1513,6 +1625,105 @@ Format: numbered list 1-3. Be practical and specific.`;
     } catch (error) {
       console.error("Error generating report:", error);
       res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
+  app.delete("/api/reports/:id", async (req, res) => {
+    try {
+      await storage.deleteReport(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      res.status(500).json({ message: "Failed to delete report" });
+    }
+  });
+
+  app.delete("/api/reports", async (req, res) => {
+    try {
+      const count = await storage.deleteAllReports();
+      res.json({ message: `Deleted ${count} reports` });
+    } catch (error) {
+      console.error("Error deleting all reports:", error);
+      res.status(500).json({ message: "Failed to delete reports" });
+    }
+  });
+
+  // PDF download for reports
+  app.get("/api/reports/:id/pdf", async (req, res) => {
+    try {
+      const reports = await storage.getReports();
+      const report = reports.find((r: any) => r.id === req.params.id);
+      if (!report) return res.status(404).json({ message: "Report not found" });
+
+      const c = report.content as any;
+      const esc = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      const ragColor = c?.ragStatus === "Green" ? "#16a34a" : c?.ragStatus === "Amber" ? "#ca8a04" : "#dc2626";
+
+      let sections = "";
+
+      if (c?.executiveSummary) {
+        sections += `<h2>Executive Summary</h2><p>${esc(c.executiveSummary)}</p>`;
+      }
+      if (c?.ragStatus) {
+        sections += `<h2>RAG Status</h2><p><span style="background:${ragColor};color:white;padding:2px 12px;border-radius:4px;font-weight:bold">${esc(c.ragStatus)}</span></p>`;
+      }
+      if (c?.keyMetrics) {
+        const m = c.keyMetrics;
+        sections += `<h2>Key Metrics</h2><table><tr><th>Metric</th><th>Value</th></tr>
+          <tr><td>Total Risks</td><td>${m.totalRisks}</td></tr>
+          <tr><td>Critical/High Risks</td><td>${m.criticalRisks}</td></tr>
+          ${m.totalPrograms ? `<tr><td>Programs</td><td>${m.totalPrograms}</td></tr>` : ""}
+          <tr><td>Milestones</td><td>${m.completedMilestones}/${m.totalMilestones} (${m.milestoneCompletion}%)</td></tr>
+          <tr><td>Adopter Readiness</td><td>${m.adopterReadiness}% (${m.adopterCount} teams)</td></tr>
+        </table>`;
+      }
+      if (c?.programBreakdowns?.length) {
+        sections += `<h2>Program Breakdown</h2><table><tr><th>Program</th><th>Status</th><th>RAG</th><th>Risks (Critical)</th><th>Milestones</th></tr>`;
+        c.programBreakdowns.forEach((pb: any) => {
+          const pbColor = pb.rag === "Green" ? "#16a34a" : pb.rag === "Amber" ? "#ca8a04" : "#dc2626";
+          sections += `<tr><td>${esc(pb.name)}</td><td>${esc(pb.status)}</td><td><span style="color:${pbColor};font-weight:bold">${esc(pb.rag)}</span></td><td>${pb.risks?.total || 0} (${pb.risks?.criticalHigh || 0})</td><td>${pb.milestones?.completed || 0}/${pb.milestones?.total || 0}</td></tr>`;
+        });
+        sections += "</table>";
+      }
+      if (c?.riskSummary?.length) {
+        sections += `<h2>Top Risks</h2><table><tr><th>Severity</th><th>Risk</th><th>Status</th></tr>`;
+        c.riskSummary.forEach((r: any) => {
+          sections += `<tr><td>${esc(r.severity)}</td><td>${esc(r.title)}</td><td>${esc(r.status)}</td></tr>`;
+        });
+        sections += "</table>";
+      }
+      if (c?.milestoneProgress?.length) {
+        sections += `<h2>Milestone Progress</h2><table><tr><th>Milestone</th><th>Status</th><th>Due Date</th></tr>`;
+        c.milestoneProgress.forEach((m: any) => {
+          sections += `<tr><td>${esc(m.title)}</td><td>${esc(m.status)}</td><td>${m.dueDate ? new Date(m.dueDate).toLocaleDateString() : "—"}</td></tr>`;
+        });
+        sections += "</table>";
+      }
+      if (c?.nextSteps?.length) {
+        sections += `<h2>Next Steps</h2><ol>`;
+        c.nextSteps.forEach((s: string) => { sections += `<li>${esc(s)}</li>`; });
+        sections += "</ol>";
+      }
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(report.title)}</title>
+<style>
+  body{font-family:-apple-system,Helvetica,Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#1a1a1a;font-size:14px}
+  h1{font-size:22px;margin-bottom:4px} .meta{color:#666;font-size:13px;margin-bottom:24px}
+  h2{font-size:16px;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin-top:24px}
+  table{width:100%;border-collapse:collapse;margin:8px 0} th,td{text-align:left;padding:6px 10px;border:1px solid #e5e7eb;font-size:13px}
+  th{background:#f9fafb;font-weight:600} p{line-height:1.6} ol{padding-left:20px} li{margin:4px 0}
+  @media print{body{margin:0;padding:20px}}
+</style></head><body>
+<h1>${esc(report.title)}</h1>
+<div class="meta">${esc(report.programName || "Portfolio")} &bull; ${new Date(report.createdAt).toLocaleDateString()} &bull; ${esc(report.type)}</div>
+${sections}
+<script>window.onload=function(){window.print()}</script>
+</body></html>`;
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(html);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ message: "Failed to generate PDF" });
     }
   });
 

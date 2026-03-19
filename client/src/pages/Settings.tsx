@@ -157,13 +157,13 @@ export default function Settings() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Settings"
         subtitle="Manage platforms, initiatives, and programs"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Tab Navigation */}
         <div className="flex items-center gap-1 mb-6 bg-gray-100 rounded-lg p-1">
           <Button
@@ -209,7 +209,7 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {platformsLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <Card key={i} className="border border-gray-200">
+                  <Card key={i} className="border border-gray-200/80 bg-white shadow-sm">
                     <CardContent className="p-4">
                       <div className="animate-pulse space-y-3">
                         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -221,7 +221,7 @@ export default function Settings() {
                 ))
               ) : (
                 platforms.map((platform) => (
-                  <Card key={platform.id} className="border border-gray-200">
+                  <Card key={platform.id} className="border border-gray-200/80 bg-white shadow-sm">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">

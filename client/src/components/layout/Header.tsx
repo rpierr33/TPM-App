@@ -7,24 +7,27 @@ interface HeaderProps {
   showNewButton?: boolean;
   onNewClick?: () => void;
   newButtonText?: string;
+  actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, showNewButton = true, onNewClick, newButtonText = "New Program" }: HeaderProps) {
+export function Header({ title, subtitle, showNewButton = true, onNewClick, newButtonText = "New Program", actions }: HeaderProps) {
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+    <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-6 py-4 flex-shrink-0">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-500">{subtitle}</p>
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">{title}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {actions}
           {showNewButton && (
             <Button
               onClick={onNewClick}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+              size="sm"
+              className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all"
             >
-              <Plus size={16} />
-              <span>{newButtonText}</span>
+              <Plus size={15} className="mr-1.5" />
+              {newButtonText}
             </Button>
           )}
         </div>

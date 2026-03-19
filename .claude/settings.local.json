@@ -19,7 +19,20 @@
       "Bash(curl -s http://localhost:3000/api/programs > /dev/null 2>&1 && echo \"already running\" || echo \"not running\")",
       "Bash(curl -s -X POST http://localhost:3000/api/ai/process-request \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"message\": \"hello\"}' | python3 -m json.tool 2>/dev/null | head -20)",
       "Bash(curl -s -X POST http://localhost:3000/api/ai/process-request \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\"request\": \"hello, how are you?\"}' | python3 -m json.tool 2>/dev/null | head -20)",
-      "Bash(node -e \"\nconst fs = require\\('fs'\\);\nlet content = fs.readFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', 'utf8'\\);\nconst lines = content.split\\('\\\\n'\\);\n// Remove lines 1101-1800 \\(0-indexed: 1100-1799\\)\nconst newLines = [...lines.slice\\(0, 1100\\), ...lines.slice\\(1800\\)];\nfs.writeFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', newLines.join\\('\\\\n'\\)\\);\nconsole.log\\('Done. Lines remaining:', newLines.length\\);\n\")"
+      "Bash(node -e \"\nconst fs = require\\('fs'\\);\nlet content = fs.readFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', 'utf8'\\);\nconst lines = content.split\\('\\\\n'\\);\n// Remove lines 1101-1800 \\(0-indexed: 1100-1799\\)\nconst newLines = [...lines.slice\\(0, 1100\\), ...lines.slice\\(1800\\)];\nfs.writeFileSync\\('/Users/ralphpierre/Downloads/TPM_APP/server/routes.ts', newLines.join\\('\\\\n'\\)\\);\nconsole.log\\('Done. Lines remaining:', newLines.length\\);\n\")",
+      "Bash(npx vite:*)",
+      "Bash(grep -n \"sendMessage\\\\|refetchInterval\\\\|stopSpeaking\\\\|isSpeaking\\\\|responseMode === 'voice'\" /Users/ralphpierre/Downloads/TPM_APP/client/src/pages/AIAssistant.tsx)",
+      "Bash(lsof:*)",
+      "Bash(ls:*)",
+      "Bash(npx:*)",
+      "Bash(uipro init:*)",
+      "mcp__magic__21st_magic_component_builder",
+      "mcp__magic__21st_magic_component_refiner",
+      "mcp__magic__21st_magic_component_inspiration",
+      "Bash(xargs kill:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000)",
+      "Bash(curl -s http://localhost:5000)",
+      "Bash(curl -s -v http://localhost:5000)"
     ]
   }
 }
