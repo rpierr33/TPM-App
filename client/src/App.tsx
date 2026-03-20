@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { useAppStore } from "@/stores/appStore";
+import { useEffect } from "react";
 import Dashboard from "@/pages/Dashboard";
 
 import AIAssistant from "@/pages/AIAssistant";
@@ -20,8 +22,14 @@ import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const theme = useAppStore((s) => s.theme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
   return (
-    <div className="flex h-screen bg-[hsl(220,14%,96%)]">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Switch>

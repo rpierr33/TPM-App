@@ -29,6 +29,10 @@ interface AppState {
   setIsLoading: (loading: boolean) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  // Theme
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+  toggleTheme: () => void;
   // Chat state persistence
   chatMessages: ChatMessage[];
   setChatMessages: (messages: ChatMessage[]) => void;
@@ -43,6 +47,10 @@ export const useAppStore = create<AppState>()(
       setIsLoading: (isLoading) => set({ isLoading }),
       sidebarCollapsed: false,
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+      // Theme — default to dark
+      theme: 'dark',
+      setTheme: (theme) => set({ theme }),
+      toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       // Chat state persistence
       chatMessages: [
         {
@@ -73,6 +81,7 @@ export const useAppStore = create<AppState>()(
       name: 'tpm-app-storage',
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
+        theme: state.theme,
         chatMessages: state.chatMessages
       }),
     }

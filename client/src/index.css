@@ -56,26 +56,94 @@
 }
 
 .dark {
-  --background: hsl(224, 71%, 4%);
+  --background: hsl(222, 47%, 8%);
   --foreground: hsl(210, 20%, 98%);
-  --muted: hsl(215, 28%, 17%);
+  --muted: hsl(217, 33%, 14%);
   --muted-foreground: hsl(218, 11%, 65%);
-  --popover: hsl(224, 71%, 4%);
+  --popover: hsl(222, 47%, 10%);
   --popover-foreground: hsl(210, 20%, 98%);
-  --card: hsl(215, 28%, 17%);
+  --card: hsl(217, 33%, 12%);
   --card-foreground: hsl(210, 20%, 98%);
-  --border: hsl(215, 28%, 17%);
-  --input: hsl(215, 28%, 17%);
+  --border: hsl(215, 20%, 20%);
+  --input: hsl(217, 33%, 14%);
   --primary: hsl(221, 83%, 53%);
   --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(215, 28%, 17%);
+  --secondary: hsl(217, 33%, 14%);
   --secondary-foreground: hsl(210, 20%, 98%);
-  --accent: hsl(215, 28%, 17%);
+  --accent: hsl(217, 33%, 14%);
   --accent-foreground: hsl(210, 20%, 98%);
   --destructive: hsl(0, 62%, 30%);
   --destructive-foreground: hsl(210, 20%, 98%);
   --ring: hsl(221, 83%, 53%);
   --radius: 0.75rem;
+
+  /* Custom palette overrides for dark mode */
+  --gray-50: hsl(222, 47%, 8%);
+  --gray-100: hsl(217, 33%, 12%);
+  --gray-200: hsl(215, 20%, 20%);
+  --gray-300: hsl(215, 15%, 30%);
+  --gray-400: hsl(218, 11%, 50%);
+  --gray-500: hsl(218, 11%, 60%);
+  --gray-600: hsl(215, 12%, 75%);
+  --gray-700: hsl(210, 15%, 82%);
+  --gray-800: hsl(210, 17%, 90%);
+  --gray-900: hsl(210, 20%, 96%);
+  --gray-950: hsl(210, 20%, 98%);
+  --success-light: hsl(142, 40%, 15%);
+  --warning-light: hsl(38, 40%, 15%);
+  --danger-light: hsl(0, 40%, 15%);
+}
+
+/*
+ * Dark mode bulk overrides — flips hardcoded Tailwind color utilities
+ * so all existing bg-white, text-gray-*, border-gray-* classes
+ * automatically adapt without changing every component file.
+ */
+.dark .bg-white { background-color: hsl(217, 33%, 12%) !important; }
+.dark .bg-white\/80 { background-color: hsl(222, 47%, 10% / 0.8) !important; }
+.dark .bg-gray-50 { background-color: hsl(222, 47%, 8%) !important; }
+.dark .bg-gray-50\/30 { background-color: hsl(222, 47%, 8% / 0.3) !important; }
+.dark .bg-gray-50\/50 { background-color: hsl(222, 47%, 8% / 0.5) !important; }
+.dark .bg-gray-100 { background-color: hsl(217, 33%, 14%) !important; }
+.dark .bg-gray-200 { background-color: hsl(215, 20%, 20%) !important; }
+
+.dark .text-gray-900 { color: hsl(210, 20%, 96%) !important; }
+.dark .text-gray-800 { color: hsl(210, 17%, 90%) !important; }
+.dark .text-gray-700 { color: hsl(210, 15%, 82%) !important; }
+.dark .text-gray-600 { color: hsl(215, 12%, 75%) !important; }
+.dark .text-gray-500 { color: hsl(218, 11%, 60%) !important; }
+.dark .text-gray-400 { color: hsl(218, 11%, 50%) !important; }
+.dark .text-gray-300 { color: hsl(215, 15%, 40%) !important; }
+
+.dark .border-gray-200 { border-color: hsl(215, 20%, 20%) !important; }
+.dark .border-gray-200\/80 { border-color: hsl(215, 20%, 20% / 0.8) !important; }
+.dark .border-gray-200\/60 { border-color: hsl(215, 20%, 20% / 0.6) !important; }
+.dark .border-gray-100 { border-color: hsl(215, 20%, 16%) !important; }
+.dark .border-gray-100\/50 { border-color: hsl(215, 20%, 16% / 0.5) !important; }
+.dark .border-gray-300 { border-color: hsl(215, 15%, 25%) !important; }
+
+.dark .hover\:bg-gray-50:hover { background-color: hsl(217, 33%, 16%) !important; }
+.dark .hover\:bg-gray-100:hover { background-color: hsl(217, 33%, 18%) !important; }
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(215, 20%, 20%) !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(215, 20%, 16%) !important; }
+
+/* Gradient overrides */
+.dark .gradient-purple-blue {
+  background: linear-gradient(135deg, hsl(255, 30%, 15%) 0%, hsl(210, 30%, 15%) 100%) !important;
+}
+
+/* Scrollbar in dark mode */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(215, 15%, 25%);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(215, 15%, 35%);
+}
+
+/* Card hover in dark mode */
+.dark .card-hover:hover {
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.4), 0 4px 10px -5px rgba(0,0,0,0.3);
 }
 
 @layer base {
