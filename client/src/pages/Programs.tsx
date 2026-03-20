@@ -281,136 +281,63 @@ export default function Programs() {
               const healthBadge = getHealthBadge(healthMetrics.score);
 
               return (
-                <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 card-hover">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          {getStatusIcon(program.status || 'active')}
-                          {editingId === program.id ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && editName.trim()) renameMutation.mutate({ id: program.id, name: editName.trim() });
-                                  if (e.key === 'Escape') setEditingId(null);
-                                }}
-                                autoFocus
-                                className="h-7 text-lg font-semibold w-56"
-                              />
-                              <button onClick={() => editName.trim() && renameMutation.mutate({ id: program.id, name: editName.trim() })} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-4 w-4" /></button>
-                              <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded"><X className="h-4 w-4" /></button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1 group">
-                              <h3
-                                className="text-lg font-semibold text-primary-700 hover:underline cursor-pointer"
-                                onClick={() => setLocation(`/programs/${program.id}`)}
-                              >
-                                {program.name}
-                              </h3>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setEditingId(program.id); setEditName(program.name); }}
-                                className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Rename program"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                          <Badge className={getStatusColor(program.status || 'active')}>
-                            {program.status?.replace('_', ' ') || 'active'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">{program.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>Owner: {program.ownerId || 'Unassigned'}</span>
-                          {program.startDate && (
-                            <span>Started: {new Date(program.startDate).toLocaleDateString()}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500 mb-1">Health</div>
-                        <Badge className={healthBadge.color}>
-                          {healthBadge.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-0">
-                    {/* Program Components Summary */}
-                    <div className="grid grid-cols-4 gap-4 mb-4">
-                      <button
-                        className="text-center p-2 rounded bg-gray-50 hover:bg-red-50 hover:ring-1 hover:ring-red-200 transition-all cursor-pointer"
-                        onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
-                      >
-                        <div className="flex items-center justify-center mb-1">
-                          <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Total Risks</div>
-                        {criticalRisks.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">
-                            {criticalRisks.length} critical
+                <Card
+                  key={program.id}
+                  className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer overflow-hidden"
+                  onClick={() => setLocation(`/programs/${program.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {getStatusIcon(program.status || 'active')}
+                        {editingId === program.id ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Input value={editName} onChange={(e) => setEditName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && editName.trim()) renameMutation.mutate({ id: program.id, name: editName.trim() }); if (e.key === 'Escape') setEditingId(null); }}
+                              autoFocus className="h-7 text-sm font-semibold w-40" />
+                            <button onClick={() => editName.trim() && renameMutation.mutate({ id: program.id, name: editName.trim() })} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded"><X className="h-3.5 w-3.5" /></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 group min-w-0">
+                            <h3 className="text-sm font-semibold text-gray-900 truncate">{program.name}</h3>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingId(program.id); setEditName(program.name); }}
+                              className="p-0.5 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" title="Rename">
+                              <Pencil className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
-                      </button>
-
-                      <button
-                        className="text-center p-2 rounded bg-gray-50 hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-200 transition-all cursor-pointer"
-                        onClick={() => setLocation(`/milestones?programId=${program.id}`)}
-                      >
-                        <div className="flex items-center justify-center mb-1">
-                          <Flag className="h-4 w-4 text-yellow-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programMilestones.length}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Milestones</div>
-                        {overdueMilestones.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
-                        )}
-                      </button>
-
-                      <button
-                        className="text-center p-2 rounded bg-gray-50 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all cursor-pointer"
-                        onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
-                      >
-                        <div className="flex items-center justify-center mb-1">
-                          <Users className="h-4 w-4 text-blue-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Teams</div>
-                      </button>
-
-                      <button
-                        className="text-center p-2 rounded bg-gray-50 hover:bg-purple-50 hover:ring-1 hover:ring-purple-200 transition-all cursor-pointer"
-                        onClick={() => setLocation(`/dependencies?programId=${program.id}`)}
-                      >
-                        <div className="flex items-center justify-center mb-1">
-                          <GitBranch className="h-4 w-4 text-purple-500 mr-1" />
-                          <span className="text-lg font-semibold text-gray-900">{programDependencies.length}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Dependencies</div>
-                        {blockedDependencies.length > 0 && (
-                          <div className="text-xs text-red-600 font-medium">{blockedDependencies.length} blocked</div>
-                        )}
-                      </button>
+                        <Badge className={`${getStatusColor(program.status || 'active')} text-[10px] flex-shrink-0`}>
+                          {program.status?.replace('_', ' ') || 'active'}
+                        </Badge>
+                      </div>
+                      <Badge className={`${healthBadge.color} text-[10px] flex-shrink-0 ml-2`}>{healthBadge.label}</Badge>
                     </div>
-
-                    {/* Quick Actions */}
-                    <div className="flex items-center justify-end pt-4 border-t border-gray-100">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => setLocation(`/programs/${program.id}`)}
-                        className="text-primary-600 hover:text-primary-700"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View Details
-                      </Button>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <AlertTriangle className={`h-3 w-3 ${criticalRisks.length > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+                        <span className={criticalRisks.length > 0 ? 'text-red-600 font-medium' : ''}>{programRisks.length} risks</span>
+                        {criticalRisks.length > 0 && <span className="text-red-500">({criticalRisks.length} critical)</span>}
+                      </span>
+                      <span className="text-gray-300">|</span>
+                      <span className="flex items-center gap-1">
+                        <Flag className={`h-3 w-3 ${overdueMilestones.length > 0 ? 'text-amber-500' : 'text-gray-400'}`} />
+                        <span>{programMilestones.length} milestones</span>
+                      </span>
+                      <span className="text-gray-300">|</span>
+                      <span className="flex items-center gap-1">
+                        <GitBranch className={`h-3 w-3 ${blockedDependencies.length > 0 ? 'text-purple-500' : 'text-gray-400'}`} />
+                        <span>{programDependencies.length} deps</span>
+                      </span>
                     </div>
+                    {(criticalRisks.length > 0 || overdueMilestones.length > 0) && (
+                      <div className="mt-2 flex items-center gap-1.5 text-[10px]">
+                        <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                        <span className="text-amber-600 truncate">
+                          {[criticalRisks.length > 0 && `${criticalRisks.length} critical risks`, overdueMilestones.length > 0 && `${overdueMilestones.length} overdue`].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
