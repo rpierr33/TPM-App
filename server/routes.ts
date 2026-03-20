@@ -42,6 +42,17 @@ export function registerApiRoutes(app: Express): void {
     }
   });
 
+  // Dashboard priorities
+  app.get("/api/dashboard/priorities", async (req, res) => {
+    try {
+      const priorities = await storage.getDashboardPriorities();
+      res.json(priorities);
+    } catch (error) {
+      console.error("Error fetching dashboard priorities:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard priorities" });
+    }
+  });
+
   // Platform routes
   app.get("/api/platforms", async (req, res) => {
     try {

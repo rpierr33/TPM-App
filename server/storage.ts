@@ -182,6 +182,14 @@ export interface IStorage {
     adopterScore: number;
   }>;
 
+  getDashboardPriorities(): Promise<{
+    overdue: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysOverdue: number; severity?: string | null }>;
+    dueThisWeek: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysUntilDue: number; severity?: string | null }>;
+    criticalRisks: Array<{ id: string; title: string; severity: string | null; status: string | null; programId: string | null; programName: string }>;
+    blockedDependencies: Array<{ id: string; title: string; status: string | null; programId: string | null; programName: string }>;
+    programUrgencyScores: Array<{ programId: string; programName: string; score: number; overdueCount: number; criticalRiskCount: number; blockedDepCount: number }>;
+  }>;
+
   // Initiative operations
   getInitiatives(): Promise<Initiative[]>;
   getInitiative(id: string): Promise<Initiative | undefined>;
@@ -798,6 +806,154 @@ export class DatabaseStorage implements IStorage {
       criticalRisks: criticalRisksResult.count,
       upcomingMilestones: upcomingMilestonesResult.count,
       adopterScore: Math.round(avgAdopterScore),
+    };
+  }
+
+  async getDashboardPriorities(): Promise<{
+    overdue: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysOverdue: number; severity?: string | null }>;
+    dueThisWeek: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysUntilDue: number; severity?: string | null }>;
+    criticalRisks: Array<{ id: string; title: string; severity: string | null; status: string | null; programId: string | null; programName: string }>;
+    blockedDependencies: Array<{ id: string; title: string; status: string | null; programId: string | null; programName: string }>;
+    programUrgencyScores: Array<{ programId: string; programName: string; score: number; overdueCount: number; criticalRiskCount: number; blockedDepCount: number }>;
+  }> {
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    // Fetch all data (no JOINs — JS-side processing)
+    const allPrograms = await db.select().from(programs);
+    const allMilestones = await db.select().from(milestones);
+    const allRisks = await db.select().from(risks);
+    const allDependencies = await db.select().from(dependencies);
+
+    // Build program name lookup
+    const programNameMap = new Map<string, string>();
+    for (const p of allPrograms) {
+      programNameMap.set(p.id, p.name);
+    }
+    const getProgramName = (programId: string | null): string =>
+      (programId && programNameMap.get(programId)) || "Unknown";
+
+    // --- Overdue items ---
+    const overdue: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysOverdue: number; severity?: string | null }> = [];
+
+    for (const m of allMilestones) {
+      if (m.dueDate && m.dueDate < now && m.status !== "completed") {
+        const daysOverdue = Math.floor((now.getTime() - m.dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        overdue.push({
+          type: "milestone",
+          id: m.id,
+          title: m.title,
+          programId: m.programId,
+          programName: getProgramName(m.programId),
+          dueDate: m.dueDate,
+          daysOverdue,
+        });
+      }
+    }
+
+    for (const r of allRisks) {
+      if (r.dueDate && r.dueDate < now && r.status !== "resolved" && r.status !== "mitigated") {
+        const daysOverdue = Math.floor((now.getTime() - r.dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        overdue.push({
+          type: "risk",
+          id: r.id,
+          title: r.title,
+          programId: r.programId,
+          programName: getProgramName(r.programId),
+          dueDate: r.dueDate,
+          daysOverdue,
+          severity: r.severity,
+        });
+      }
+    }
+
+    // Sort overdue by daysOverdue descending
+    overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+    // --- Due this week ---
+    const dueThisWeek: Array<{ type: string; id: string; title: string; programId: string | null; programName: string; dueDate: Date | null; daysUntilDue: number; severity?: string | null }> = [];
+
+    for (const m of allMilestones) {
+      if (m.dueDate && m.dueDate >= now && m.dueDate <= nextWeek && m.status !== "completed") {
+        const daysUntilDue = Math.floor((m.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        dueThisWeek.push({
+          type: "milestone",
+          id: m.id,
+          title: m.title,
+          programId: m.programId,
+          programName: getProgramName(m.programId),
+          dueDate: m.dueDate,
+          daysUntilDue,
+        });
+      }
+    }
+
+    for (const r of allRisks) {
+      if (r.dueDate && r.dueDate >= now && r.dueDate <= nextWeek && r.status !== "resolved" && r.status !== "mitigated") {
+        const daysUntilDue = Math.floor((r.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        dueThisWeek.push({
+          type: "risk",
+          id: r.id,
+          title: r.title,
+          programId: r.programId,
+          programName: getProgramName(r.programId),
+          dueDate: r.dueDate,
+          daysUntilDue,
+          severity: r.severity,
+        });
+      }
+    }
+
+    // Sort dueThisWeek by daysUntilDue ascending
+    dueThisWeek.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+    // --- Critical risks (severity critical or high, not resolved) ---
+    const criticalRisksList = allRisks
+      .filter(r => (r.severity === "critical" || r.severity === "high") && r.status !== "resolved")
+      .map(r => ({
+        id: r.id,
+        title: r.title,
+        severity: r.severity,
+        status: r.status,
+        programId: r.programId,
+        programName: getProgramName(r.programId),
+      }));
+
+    // --- Blocked dependencies ---
+    const blockedDependencies = allDependencies
+      .filter(d => d.status === "blocked")
+      .map(d => ({
+        id: d.id,
+        title: d.title,
+        status: d.status,
+        programId: d.programId,
+        programName: getProgramName(d.programId),
+      }));
+
+    // --- Program urgency scores ---
+    const activePrograms = allPrograms.filter(p => p.status === "active" || p.status === "planning");
+    const programUrgencyScores = activePrograms.map(p => {
+      const overdueCount = overdue.filter(item => item.programId === p.id).length;
+      const criticalRiskCount = criticalRisksList.filter(item => item.programId === p.id).length;
+      const blockedDepCount = blockedDependencies.filter(item => item.programId === p.id).length;
+      const score = (overdueCount * 3) + (criticalRiskCount * 2) + (blockedDepCount * 1);
+      return {
+        programId: p.id,
+        programName: p.name,
+        score,
+        overdueCount,
+        criticalRiskCount,
+        blockedDepCount,
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    return {
+      overdue,
+      dueThisWeek,
+      criticalRisks: criticalRisksList,
+      blockedDependencies,
+      programUrgencyScores,
     };
   }
 

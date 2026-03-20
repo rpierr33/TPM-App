@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
+import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
 import { MetricsCard } from "@/components/dashboard/MetricsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,7 @@ export default function Dashboard() {
             queryClient.invalidateQueries({ queryKey: ["/api/platforms"] });
             queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
             queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/dashboard/priorities"] });
             queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
             queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
           }
@@ -697,11 +699,14 @@ export default function Dashboard() {
     <div className="flex-1 flex flex-col overflow-hidden page-transition">
       <Header
         title="Program Dashboard"
-        subtitle="Overview of all active programs and initiatives"
+        subtitle="Prioritized view — what needs your attention now"
         onNewClick={handleNewProgram}
       />
 
       <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        {/* Today's Focus: AI Briefing + Sequenced Action Items */}
+        <TodaysFocus />
+
         {/* Program Snapshot Section */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -769,8 +774,8 @@ export default function Dashboard() {
         <div className="mb-6" id="active-programs">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900 tracking-tight">Recent Programs</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Recently updated programs</p>
+              <h2 className="text-base font-semibold text-gray-900 tracking-tight">Programs by Priority</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Sorted by urgency — overdue items, critical risks, blocked dependencies</p>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -826,7 +831,17 @@ export default function Dashboard() {
           ) : (
             <div className="max-h-[480px] overflow-y-auto space-y-3 custom-scrollbar pr-1">
               {programs
-                .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+                .sort((a, b) => {
+                  // Sort by urgency: programs with overdue items + critical risks first
+                  const aOverdue = milestones.filter(m => m.programId === a.id && m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed').length;
+                  const bOverdue = milestones.filter(m => m.programId === b.id && m.dueDate && new Date(m.dueDate) < new Date() && m.status !== 'completed').length;
+                  const aCritical = risks.filter(r => r.programId === a.id && (r.severity === 'critical' || r.severity === 'high')).length;
+                  const bCritical = risks.filter(r => r.programId === b.id && (r.severity === 'critical' || r.severity === 'high')).length;
+                  const aScore = (aOverdue * 3) + (aCritical * 2);
+                  const bScore = (bOverdue * 3) + (bCritical * 2);
+                  if (bScore !== aScore) return bScore - aScore;
+                  return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
+                })
                 .map((program) => {
                 const programRisks = getProgramRisks(program.id);
                 const programMilestones = getProgramMilestones(program.id);
