@@ -17,7 +17,10 @@ execSync(
     "--platform=node",
     "--format=cjs",
     `--outfile=${funcDir}/index.js`,
-    "--packages=external",
+    "--external:@anthropic-ai/sdk",
+    "--external:openai",
+    "--external:bufferutil",
+    "--external:utf-8-validate",
   ].join(" "),
   { stdio: "inherit" }
 );
@@ -30,12 +33,7 @@ writeFileSync(
     private: true,
     dependencies: {
       "@anthropic-ai/sdk": "^0.37.0",
-      "@neondatabase/serverless": "^0.10.4",
-      "drizzle-orm": "^0.39.1",
-      "express": "^4.21.2",
       "openai": "^5.10.2",
-      "ws": "^8.18.0",
-      "zod": "^3.24.2",
     },
   })
 );
