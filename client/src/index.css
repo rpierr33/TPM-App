@@ -102,9 +102,9 @@
 .dark .bg-white { background-color: hsl(217, 33%, 12%) !important; }
 .dark .bg-white\/80 { background-color: hsl(222, 47%, 10% / 0.8) !important; }
 .dark .bg-gray-50 { background-color: hsl(222, 47%, 8%) !important; }
-.dark .bg-gray-50\/30 { background-color: hsl(222, 47%, 10% / 0.3) !important; }
-.dark .bg-gray-50\/50 { background-color: hsl(222, 47%, 10% / 0.5) !important; }
-.dark .bg-blue-50\/50 { background-color: hsl(221, 35%, 15% / 0.5) !important; }
+.dark .bg-gray-50\/30 { background-color: hsl(222, 47%, 9%) !important; }
+.dark .bg-gray-50\/50 { background-color: hsl(222, 47%, 9%) !important; }
+.dark .bg-blue-50\/50 { background-color: hsl(221, 35%, 14%) !important; }
 .dark .bg-gray-100 { background-color: hsl(217, 33%, 14%) !important; }
 .dark .bg-gray-200 { background-color: hsl(215, 20%, 20%) !important; }
 
@@ -137,6 +137,16 @@
 .dark .gradient-purple-blue {
   background: linear-gradient(135deg, hsl(255, 30%, 15%) 0%, hsl(210, 30%, 15%) 100%) !important;
 }
+.dark .from-blue-50 { --tw-gradient-from: hsl(221, 35%, 14%) !important; }
+.dark .to-indigo-50 { --tw-gradient-to: hsl(230, 35%, 15%) !important; }
+.dark .from-blue-500\/10 { --tw-gradient-from: hsl(221, 60%, 20%) !important; }
+.dark .to-indigo-500\/10 { --tw-gradient-to: hsl(230, 60%, 20%) !important; }
+.dark .bg-gradient-to-br.from-blue-50 {
+  background: linear-gradient(to bottom right, hsl(221, 35%, 14%), hsl(230, 35%, 15%)) !important;
+}
+.dark .border-blue-100\/80 { border-color: hsl(221, 25%, 22%) !important; }
+.dark .border-blue-100\/50 { border-color: hsl(221, 25%, 20%) !important; }
+.dark .border-blue-100 { border-color: hsl(221, 25%, 22%) !important; }
 
 /* Scrollbar in dark mode */
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
