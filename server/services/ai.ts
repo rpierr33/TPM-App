@@ -687,16 +687,19 @@ RESPONSE STYLE:
 
       const response = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 1000,
+        max_tokens: 1500,
         system: TPM_SYSTEM_PROMPT,
         messages: [
           {
             role: "user",
-            content: `Generate a concise daily TPM briefing following a staff meeting agenda format. Return ONLY a JSON object with:
-- summary: One paragraph RAG-rated overview of program portfolio health
-- priorities: Top 3-5 items requiring attention today (specific and actionable)
-- alerts: Critical issues requiring immediate escalation or action
-- recommendations: Specific next steps tied to PMI best practices or Agile ceremonies
+            content: `Generate a concise daily TPM briefing. Return ONLY raw JSON (no markdown, no code fences, no emojis). Keep the summary to 2-3 sentences max.
+
+Format: {"summary": "...", "priorities": ["...", "..."], "alerts": ["..."], "recommendations": ["..."]}
+
+- summary: 2-3 sentence overview of portfolio health (use RAG status: Green/Amber/Red in words, no emojis)
+- priorities: Top 3-5 actionable items for today
+- alerts: Critical issues only (empty array if none)
+- recommendations: 2-3 next steps
 
 Data:\n${JSON.stringify(briefingData, null, 2)}`
           }
@@ -705,12 +708,32 @@ Data:\n${JSON.stringify(briefingData, null, 2)}`
 
       const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
       try {
-        return parseJSON(text_content);
+        const parsed = parseJSON(text_content);
+        // Clean any emoji artifacts from summary
+        if (parsed.summary) {
+          parsed.summary = parsed.summary.replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/```[\s\S]*?```/g, '').trim();
+        }
+        return parsed;
       } catch {
-        // If JSON parsing fails, build a structured response from the raw text
+        // JSON parse failed (likely truncated) — extract what we can
+        const summaryMatch = text_content.match(/"summary"\s*:\s*"([^"]+)"/);
+        const cleanSummary = summaryMatch
+          ? summaryMatch[1].replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').trim()
+          : null;
+
+        if (cleanSummary) {
+          // Extract priorities array if available
+          const prioritiesMatch = text_content.match(/"priorities"\s*:\s*\[([\s\S]*?)\]/);
+          const priorities = prioritiesMatch
+            ? prioritiesMatch[1].match(/"([^"]+)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
+            : [];
+          return { summary: cleanSummary, priorities, alerts: [], recommendations: [] };
+        }
+
+        // Complete fallback — no usable JSON at all
         return {
-          summary: text_content.substring(0, 500),
-          priorities: [],
+          summary: `Portfolio status: ${programs.length} program${programs.length !== 1 ? 's' : ''} in planning with ${criticalRisks.length} critical/high risks requiring attention.`,
+          priorities: criticalRisks.length > 0 ? [`Review ${criticalRisks.length} critical/high risks across programs`] : [],
           alerts: criticalRisks.length > 0 ? [`${criticalRisks.length} critical/high risks need attention`] : [],
           recommendations: []
         };

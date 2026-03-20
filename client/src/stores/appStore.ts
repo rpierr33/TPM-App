@@ -24,6 +24,16 @@ interface ChatMessage {
   }[];
 }
 
+interface DashboardPrefs {
+  showAIBriefing: boolean;
+  showUrgencyStats: boolean;
+  showActionItems: boolean;
+  showProgramSnapshot: boolean;
+  showProgramsList: boolean;
+  showEscalations: boolean;
+  showPMPRecommendations: boolean;
+}
+
 interface AppState {
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
@@ -33,6 +43,9 @@ interface AppState {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
+  // Dashboard preferences
+  dashboardPrefs: DashboardPrefs;
+  setDashboardPrefs: (prefs: Partial<DashboardPrefs>) => void;
   // Chat state persistence
   chatMessages: ChatMessage[];
   setChatMessages: (messages: ChatMessage[]) => void;
@@ -51,6 +64,19 @@ export const useAppStore = create<AppState>()(
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+      // Dashboard preferences — all on by default
+      dashboardPrefs: {
+        showAIBriefing: true,
+        showUrgencyStats: true,
+        showActionItems: true,
+        showProgramSnapshot: true,
+        showProgramsList: true,
+        showEscalations: true,
+        showPMPRecommendations: true,
+      },
+      setDashboardPrefs: (prefs) => set((state) => ({
+        dashboardPrefs: { ...state.dashboardPrefs, ...prefs }
+      })),
       // Chat state persistence
       chatMessages: [
         {
@@ -82,6 +108,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
+        dashboardPrefs: state.dashboardPrefs,
         chatMessages: state.chatMessages
       }),
     }

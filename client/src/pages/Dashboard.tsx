@@ -41,9 +41,11 @@ import {
   X
 } from "lucide-react";
 import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
+import { useAppStore } from "@/stores/appStore";
 import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory, Escalation, Report } from "@shared/schema";
 
 export default function Dashboard() {
+  const dashboardPrefs = useAppStore((s) => s.dashboardPrefs);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
