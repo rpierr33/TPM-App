@@ -704,13 +704,38 @@ Data:\n${JSON.stringify(briefingData, null, 2)}`
       });
 
       const text_content = response.content[0].type === "text" ? response.content[0].text : '{}';
-      return parseJSON(text_content);
+      try {
+        return parseJSON(text_content);
+      } catch {
+        // If JSON parsing fails, build a structured response from the raw text
+        return {
+          summary: text_content.substring(0, 500),
+          priorities: [],
+          alerts: criticalRisks.length > 0 ? [`${criticalRisks.length} critical/high risks need attention`] : [],
+          recommendations: []
+        };
+      }
     } catch (error) {
       console.error("Daily briefing error:", error);
+      // Generate a data-driven fallback without AI
+      const programs = await storage.getPrograms().catch(() => []);
+      const risks = await storage.getRisks().catch(() => []);
+      const milestones = await storage.getMilestones().catch(() => []);
+      const today = new Date();
+      const oneWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const overdue = milestones.filter(m => m.dueDate && new Date(m.dueDate) < today && m.status !== 'completed');
+      const upcoming = milestones.filter(m => m.dueDate && new Date(m.dueDate) >= today && new Date(m.dueDate) <= oneWeek && m.status !== 'completed');
+      const critical = risks.filter(r => r.severity === 'critical' || r.severity === 'high');
+
+      const priorities: string[] = [];
+      if (overdue.length > 0) priorities.push(`${overdue.length} overdue milestone${overdue.length > 1 ? 's' : ''} need immediate attention`);
+      if (critical.length > 0) priorities.push(`${critical.length} critical/high risk${critical.length > 1 ? 's' : ''} to review`);
+      if (upcoming.length > 0) priorities.push(`${upcoming.length} milestone${upcoming.length > 1 ? 's' : ''} due this week`);
+
       return {
-        summary: "Unable to generate briefing at this time",
-        priorities: [],
-        alerts: [],
+        summary: `You have ${programs.length} program${programs.length !== 1 ? 's' : ''} with ${overdue.length} overdue item${overdue.length !== 1 ? 's' : ''}, ${critical.length} critical risk${critical.length !== 1 ? 's' : ''}, and ${upcoming.length} milestone${upcoming.length !== 1 ? 's' : ''} due this week.`,
+        priorities,
+        alerts: overdue.length > 0 ? [`${overdue.length} overdue milestone${overdue.length > 1 ? 's' : ''} — address these first`] : [],
         recommendations: []
       };
     }

@@ -102,8 +102,9 @@
 .dark .bg-white { background-color: hsl(217, 33%, 12%) !important; }
 .dark .bg-white\/80 { background-color: hsl(222, 47%, 10% / 0.8) !important; }
 .dark .bg-gray-50 { background-color: hsl(222, 47%, 8%) !important; }
-.dark .bg-gray-50\/30 { background-color: hsl(222, 47%, 8% / 0.3) !important; }
-.dark .bg-gray-50\/50 { background-color: hsl(222, 47%, 8% / 0.5) !important; }
+.dark .bg-gray-50\/30 { background-color: hsl(222, 47%, 10% / 0.3) !important; }
+.dark .bg-gray-50\/50 { background-color: hsl(222, 47%, 10% / 0.5) !important; }
+.dark .bg-blue-50\/50 { background-color: hsl(221, 35%, 15% / 0.5) !important; }
 .dark .bg-gray-100 { background-color: hsl(217, 33%, 14%) !important; }
 .dark .bg-gray-200 { background-color: hsl(215, 20%, 20%) !important; }
 
@@ -124,6 +125,10 @@
 
 .dark .hover\:bg-gray-50:hover { background-color: hsl(217, 33%, 16%) !important; }
 .dark .hover\:bg-gray-100:hover { background-color: hsl(217, 33%, 18%) !important; }
+.dark .hover\:bg-blue-50:hover { background-color: hsl(221, 30%, 18%) !important; }
+.dark .hover\:bg-red-50:hover { background-color: hsl(0, 30%, 18%) !important; }
+.dark .hover\:bg-purple-50:hover { background-color: hsl(270, 30%, 20%) !important; }
+.dark .hover\:bg-orange-50:hover { background-color: hsl(25, 30%, 18%) !important; }
 
 .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(215, 20%, 20%) !important; }
 .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(215, 20%, 16%) !important; }
@@ -145,6 +150,57 @@
 .dark .card-hover:hover {
   box-shadow: 0 8px 25px -5px rgba(0,0,0,0.4), 0 4px 10px -5px rgba(0,0,0,0.3);
 }
+
+/* Colored background overrides for dark mode (light pastels → dark tints) */
+.dark .bg-red-50, .dark .bg-red-50\/50 { background-color: hsl(0, 40%, 14%) !important; }
+.dark .bg-red-100 { background-color: hsl(0, 35%, 18%) !important; }
+.dark .bg-amber-50, .dark .bg-amber-50\/50 { background-color: hsl(38, 40%, 14%) !important; }
+.dark .bg-amber-100 { background-color: hsl(38, 35%, 18%) !important; }
+.dark .bg-violet-50, .dark .bg-violet-50\/50 { background-color: hsl(255, 35%, 16%) !important; }
+.dark .bg-violet-100 { background-color: hsl(255, 30%, 20%) !important; }
+.dark .bg-purple-50 { background-color: hsl(270, 35%, 16%) !important; }
+.dark .bg-purple-100 { background-color: hsl(270, 30%, 20%) !important; }
+.dark .bg-blue-50, .dark .bg-blue-50\/50 { background-color: hsl(221, 35%, 15%) !important; }
+.dark .bg-blue-100 { background-color: hsl(221, 30%, 19%) !important; }
+.dark .bg-emerald-50, .dark .bg-emerald-50\/50 { background-color: hsl(142, 35%, 13%) !important; }
+.dark .bg-emerald-100 { background-color: hsl(142, 30%, 17%) !important; }
+.dark .bg-green-50, .dark .bg-green-50\/50 { background-color: hsl(142, 35%, 13%) !important; }
+.dark .bg-green-100 { background-color: hsl(142, 30%, 17%) !important; }
+.dark .bg-orange-50 { background-color: hsl(25, 35%, 14%) !important; }
+.dark .bg-cyan-50 { background-color: hsl(190, 35%, 14%) !important; }
+.dark .bg-pink-50 { background-color: hsl(330, 35%, 14%) !important; }
+.dark .bg-indigo-50 { background-color: hsl(230, 35%, 15%) !important; }
+.dark .bg-yellow-50 { background-color: hsl(50, 35%, 14%) !important; }
+
+/* Colored text overrides for dark mode (dark tints → bright tints) */
+.dark .text-red-700 { color: hsl(0, 70%, 65%) !important; }
+.dark .text-red-600 { color: hsl(0, 65%, 60%) !important; }
+.dark .text-red-500 { color: hsl(0, 65%, 58%) !important; }
+.dark .text-amber-700 { color: hsl(38, 80%, 60%) !important; }
+.dark .text-amber-600 { color: hsl(38, 75%, 55%) !important; }
+.dark .text-amber-500 { color: hsl(38, 70%, 55%) !important; }
+.dark .text-violet-700 { color: hsl(255, 70%, 70%) !important; }
+.dark .text-violet-600 { color: hsl(255, 65%, 65%) !important; }
+.dark .text-purple-700 { color: hsl(270, 70%, 70%) !important; }
+.dark .text-purple-600 { color: hsl(270, 65%, 65%) !important; }
+.dark .text-blue-700 { color: hsl(221, 75%, 65%) !important; }
+.dark .text-blue-600 { color: hsl(221, 70%, 60%) !important; }
+.dark .text-emerald-700 { color: hsl(142, 60%, 55%) !important; }
+.dark .text-emerald-600 { color: hsl(142, 55%, 50%) !important; }
+.dark .text-green-700 { color: hsl(142, 60%, 55%) !important; }
+.dark .text-green-600 { color: hsl(142, 55%, 50%) !important; }
+.dark .text-orange-500, .dark .text-orange-600 { color: hsl(25, 80%, 55%) !important; }
+.dark .text-cyan-500, .dark .text-cyan-600 { color: hsl(190, 70%, 55%) !important; }
+.dark .text-pink-500, .dark .text-pink-600 { color: hsl(330, 70%, 65%) !important; }
+
+/* Colored border overrides for dark mode */
+.dark .border-red-200, .dark .border-red-100 { border-color: hsl(0, 30%, 25%) !important; }
+.dark .border-amber-200, .dark .border-amber-100 { border-color: hsl(38, 30%, 25%) !important; }
+.dark .border-violet-200, .dark .border-violet-100 { border-color: hsl(255, 25%, 28%) !important; }
+.dark .border-purple-200, .dark .border-purple-100 { border-color: hsl(270, 25%, 28%) !important; }
+.dark .border-blue-200, .dark .border-blue-100 { border-color: hsl(221, 25%, 25%) !important; }
+.dark .border-emerald-200, .dark .border-emerald-100 { border-color: hsl(142, 25%, 22%) !important; }
+.dark .border-green-200 { border-color: hsl(142, 25%, 22%) !important; }
 
 @layer base {
   * {
