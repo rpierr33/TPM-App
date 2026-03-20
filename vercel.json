@@ -1,9 +1,9 @@
 {
-  "buildCommand": "vite build",
+  "buildCommand": "vite build && esbuild api/index.ts --bundle --platform=node --packages=external --format=esm --outfile=api/index.mjs",
   "outputDirectory": "dist/public",
   "framework": null,
   "functions": {
-    "api/index.ts": {
+    "api/index.mjs": {
       "maxDuration": 60
     }
   },
