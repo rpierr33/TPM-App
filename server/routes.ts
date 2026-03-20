@@ -29,7 +29,8 @@ import { PMPService } from "./services/pmp";
 const pmpService = new PMPService();
 import { WebSocketServer, WebSocket } from "ws";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+// Register only API routes on the Express app (no HTTP server or WebSocket)
+export function registerApiRoutes(app: Express): void {
   // Dashboard metrics
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {
@@ -1849,14 +1850,24 @@ ${sections}
     }
   });
 
+  // Set a no-op broadcast by default (for serverless environments)
+  if (!(app as any).broadcast) {
+    (app as any).broadcast = (_eventType: string, _data: any) => {};
+  }
+}
+
+// Create HTTP server with WebSocket support (for local/traditional hosting)
+export async function registerRoutes(app: Express): Promise<Server> {
+  registerApiRoutes(app);
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+
   // Store connected clients for broadcasting
   const connectedClients = new Set<WebSocket>();
-  
+
   // Broadcast function for real-time updates
   const broadcast = (eventType: string, data: any) => {
     console.log(`Broadcasting ${eventType} to ${connectedClients.size} clients:`, data);
@@ -1873,17 +1884,17 @@ ${sections}
       }
     });
   };
-  
+
   // Make broadcast function available to routes
   (app as any).broadcast = broadcast;
-  
+
   wss.on('connection', (ws: WebSocket) => {
     console.log('Client connected to WebSocket');
     connectedClients.add(ws);
-    
+
     // Send initial connection confirmation
     ws.send(JSON.stringify({ type: 'connected', data: { timestamp: new Date() } }));
-    
+
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message.toString());
@@ -1892,12 +1903,12 @@ ${sections}
         console.error('Error parsing WebSocket message:', error);
       }
     });
-    
+
     ws.on('close', () => {
       console.log('Client disconnected from WebSocket');
       connectedClients.delete(ws);
     });
-    
+
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
       connectedClients.delete(ws);
