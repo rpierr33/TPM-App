@@ -247,7 +247,7 @@ export class AIService {
 
       const response = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 800,
+        max_tokens: 1200,
         system: TPM_SYSTEM_PROMPT,
         messages: [
           {
@@ -563,7 +563,7 @@ Command: "${input}"`
 
       const response = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 1500,
+        max_tokens: 2048,
         system: TPM_SYSTEM_PROMPT,
         messages: [
           {
@@ -624,7 +624,7 @@ Program data:\n${JSON.stringify(programData, null, 2)}`
     try {
       const response = await anthropic.messages.create({
         model: MODEL,
-        max_tokens: 800,
+        max_tokens: 2048,
         system: `${TPM_SYSTEM_PROMPT}
 
 Current platform context: ${context ? JSON.stringify(context) : 'General TPM conversation'}
