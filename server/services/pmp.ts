@@ -4,7 +4,7 @@ import type {
   Project, 
   PmpRecommendation, 
   InsertPmpRecommendation 
-} from "@shared/schema";
+} from "../../shared/schema";
 
 // PMI PMP Knowledge Areas and Phase mapping
 const PMP_PHASES = [

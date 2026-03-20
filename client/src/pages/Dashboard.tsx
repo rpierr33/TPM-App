@@ -80,65 +80,54 @@ export default function Dashboard() {
     generateMissingRisks();
   }, []);
 
-  // WebSocket connection for real-time updates
+  // WebSocket connection for real-time updates (gracefully skipped on serverless/Vercel)
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws`;
-    
-    const ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-      console.log('Connected to WebSocket for real-time updates');
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        
-        if (message.type === 'data_changed') {
-          console.log('Received data change notification:', message.data.type);
-          
-          // Invalidate all relevant queries to refresh dashboard data automatically
-          queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/platforms"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
-          
-          // Show toast notification for data changes
-          toast({
-            title: "Data Updated",
-            description: "Dashboard has been refreshed with latest changes",
-            duration: 2000,
-          });
+    let ws: WebSocket | null = null;
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('Connected to WebSocket for real-time updates');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+
+          if (message.type === 'data_changed') {
+            queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/risks"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/adopters"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/dependencies"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/initiatives"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/platforms"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/escalations"] });
+          }
+        } catch (error) {
+          // Silently ignore parse errors
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-    
-    // Cleanup WebSocket connection on component unmount
+      };
+
+      ws.onclose = () => {};
+      ws.onerror = () => {};
+    } catch {
+      // WebSocket not available (serverless deployment) — app works fine without it
+    }
+
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
     };
-  }, [queryClient, toast]);
+  }, [queryClient]);
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],

@@ -3,7 +3,7 @@ import type {
   Stakeholder, 
   StakeholderInteraction, 
   InsertStakeholderInteraction 
-} from "@shared/schema";
+} from "../../shared/schema";
 
 // Leadership style characteristics and response patterns
 const LEADERSHIP_STYLES = {

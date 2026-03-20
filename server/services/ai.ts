@@ -13,7 +13,7 @@ import type {
   InsertDependency,
   InsertAdopter,
   InsertEscalation
-} from "@shared/schema";
+} from "../../shared/schema";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY

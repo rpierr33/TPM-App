@@ -70,7 +70,7 @@ export default function ExecutiveReports() {
 
   const generateReportMutation = useMutation({
     mutationFn: async (data: { programId: string; type: string }) => {
-      return await apiRequest("POST", "/api/reports/generate", data);
+      return await apiRequest("/api/reports/generate", "POST", data);
     },
     onSuccess: () => {
       toast({
@@ -93,7 +93,7 @@ export default function ExecutiveReports() {
 
   const deleteReportMutation = useMutation({
     mutationFn: async (reportId: string) => {
-      return await apiRequest("DELETE", `/api/reports/${reportId}`);
+      return await apiRequest(`/api/reports/${reportId}`, "DELETE");
     },
     onSuccess: () => {
       toast({

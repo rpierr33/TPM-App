@@ -21,7 +21,7 @@ import {
   insertProjectSchema,
   type Program,
   type Project
-} from "@shared/schema";
+} from "../shared/schema";
 import { aiService } from "./services/ai";
 import { integrationService } from "./services/integrations";
 import { PMPService } from "./services/pmp";
@@ -791,6 +791,33 @@ export function registerApiRoutes(app: Express): void {
     } catch (error) {
       console.error("Error generating daily briefing:", error);
       res.status(500).json({ message: "Failed to generate briefing" });
+    }
+  });
+
+  // AI Insights endpoint
+  app.get("/api/ai/insights", async (req, res) => {
+    try {
+      const programId = req.query.programId as string;
+      if (!programId) {
+        return res.status(400).json({ message: "programId query parameter is required" });
+      }
+      const insights = await aiService.generateInsights(programId);
+      res.json(insights);
+    } catch (error) {
+      console.error("Error generating AI insights:", error);
+      res.status(500).json({ message: "Failed to generate AI insights" });
+    }
+  });
+
+  // AI Analyze endpoint (scenario analysis)
+  app.post("/api/ai/analyze", async (req, res) => {
+    try {
+      const { programId } = req.body;
+      const analysis = await aiService.analyzeProgram(programId || undefined);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error running AI analysis:", error);
+      res.status(500).json({ message: "Failed to run analysis" });
     }
   });
 

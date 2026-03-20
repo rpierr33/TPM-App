@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { Risk, Milestone, Escalation } from "@shared/schema";
+import { Risk, Milestone, Escalation } from "../../shared/schema";
 
 export class IntegrationService {
   async pushMilestoneToJira(milestone: Milestone): Promise<string> {

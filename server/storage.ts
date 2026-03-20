@@ -64,7 +64,7 @@ import {
   type InsertStakeholderInteraction,
   type PmpRecommendation,
   type InsertPmpRecommendation,
-} from "@shared/schema";
+} from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count } from "drizzle-orm";
 
