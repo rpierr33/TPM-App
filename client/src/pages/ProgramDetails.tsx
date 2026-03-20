@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -41,7 +43,10 @@ import {
   BarChart3,
   FileText,
   Link2,
-  Gauge
+  Gauge,
+  Settings,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 interface ProgramDetailsProps {
@@ -54,6 +59,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const queryClient = useQueryClient();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [showTrackingModules, setShowTrackingModules] = useState(false);
 
   const updateProgramMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
@@ -71,6 +77,26 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
       toast({
         title: "Error",
         description: "Failed to update program name",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleComponentMutation = useMutation({
+    mutationFn: async ({ id, disabledComponents }: { id: string; disabledComponents: string[] }) => {
+      return await apiRequest(`/api/programs/${id}`, "PUT", { disabledComponents });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Tracking modules updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update tracking modules",
         variant: "destructive",
       });
     },
@@ -98,6 +124,16 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
     );
   }
 
+  // Disabled components helper
+  const disabledComponents: string[] = Array.isArray(program.disabledComponents) ? program.disabledComponents : [];
+  const isComponentDisabled = (component: string) => disabledComponents.includes(component);
+  const handleToggleComponent = (component: string, enabled: boolean) => {
+    const updated = enabled
+      ? disabledComponents.filter((c: string) => c !== component)
+      : [...disabledComponents, component];
+    toggleComponentMutation.mutate({ id: programId, disabledComponents: updated });
+  };
+
   // Filter data for this program
   const programStakeholders = stakeholders.filter(s => s.programId === programId);
   const programRisks = risks.filter(r => r.programId === programId);
@@ -116,7 +152,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
     if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
     if (programRisks.length === 0) missing.push('Risks');
     if (programMilestones.length === 0) missing.push('Milestones');
-    if (programAdopters.length === 0) missing.push('Adopter Teams');
+    if (programAdopters.length === 0 && !isComponentDisabled('adopters')) missing.push('Adopter Teams');
     return missing;
   };
 
@@ -353,15 +389,76 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
         </div>
       </div>
 
+      {/* Tracking Modules Settings */}
+      <div className="mx-5 mt-4">
+        <button
+          onClick={() => setShowTrackingModules(!showTrackingModules)}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <Settings size={14} />
+          <span className="font-medium">Tracking Modules</span>
+          {showTrackingModules ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+        {showTrackingModules && (
+          <Card className="mt-2">
+            <CardContent className="pt-4">
+              <p className="text-xs text-gray-500 mb-3">Toggle which tracking modules are active for this program. Disabled modules will be hidden and excluded from gap detection.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch id="toggle-milestones" checked disabled />
+                  <Label htmlFor="toggle-milestones" className="text-sm text-gray-500">Milestones</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch id="toggle-risks" checked disabled />
+                  <Label htmlFor="toggle-risks" className="text-sm text-gray-500">Risks</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle-adopters"
+                    checked={!isComponentDisabled('adopters')}
+                    onCheckedChange={(checked) => handleToggleComponent('adopters', checked)}
+                  />
+                  <Label htmlFor="toggle-adopters" className="text-sm">Adopters</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle-dependencies"
+                    checked={!isComponentDisabled('dependencies')}
+                    onCheckedChange={(checked) => handleToggleComponent('dependencies', checked)}
+                  />
+                  <Label htmlFor="toggle-dependencies" className="text-sm">Dependencies</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle-escalations"
+                    checked={!isComponentDisabled('escalations')}
+                    onCheckedChange={(checked) => handleToggleComponent('escalations', checked)}
+                  />
+                  <Label htmlFor="toggle-escalations" className="text-sm">Escalations</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="toggle-jira"
+                    checked={!isComponentDisabled('jira')}
+                    onCheckedChange={(checked) => handleToggleComponent('jira', checked)}
+                  />
+                  <Label htmlFor="toggle-jira" className="text-sm">Jira Integration</Label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${4 + (isComponentDisabled('dependencies') ? 0 : 1) + (isComponentDisabled('adopters') ? 0 : 1)}, minmax(0, 1fr))` }}>
             <TabsTrigger value="overview">Program Snapshot</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
-            <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
-            <TabsTrigger value="adopters">Team Adoption</TabsTrigger>
+            {!isComponentDisabled('dependencies') && <TabsTrigger value="dependencies">Dependencies</TabsTrigger>}
+            {!isComponentDisabled('adopters') && <TabsTrigger value="adopters">Team Adoption</TabsTrigger>}
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
           </TabsList>
 
@@ -647,7 +744,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             )}
           </TabsContent>
 
-          <TabsContent value="adopters" className="space-y-6 mt-6">
+          {!isComponentDisabled('adopters') && <TabsContent value="adopters" className="space-y-6 mt-6">
             {/* Team Adoption Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Adoption Overview */}
@@ -937,7 +1034,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent>}
 
           <TabsContent value="overview" className="space-y-6 mt-6">
             {/* Program Health Dashboard */}
@@ -1265,35 +1362,37 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             </Card>
           </TabsContent>
 
-          <TabsContent value="dependencies" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Program Dependencies ({programDependencies.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {programDependencies.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No dependencies identified for this program.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {programDependencies.map((dependency) => (
-                      <div key={dependency.id} className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <h4
-                            className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
-                            onClick={() => setLocation(`/dependencies?programId=${programId}`)}
-                          >
-                            {dependency.title}
-                          </h4>
-                          <p className="text-sm text-gray-600">{dependency.description}</p>
+          {!isComponentDisabled('dependencies') && (
+            <TabsContent value="dependencies" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Program Dependencies ({programDependencies.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {programDependencies.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No dependencies identified for this program.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {programDependencies.map((dependency) => (
+                        <div key={dependency.id} className="flex items-center justify-between p-3 border rounded">
+                          <div>
+                            <h4
+                              className="font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                              onClick={() => setLocation(`/dependencies?programId=${programId}`)}
+                            >
+                              {dependency.title}
+                            </h4>
+                            <p className="text-sm text-gray-600">{dependency.description}</p>
+                          </div>
+                          <Badge>{dependency.status}</Badge>
                         </div>
-                        <Badge>{dependency.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* PMP Recommendations for this program */}

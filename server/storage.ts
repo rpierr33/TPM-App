@@ -1153,10 +1153,18 @@ export class DatabaseStorage implements IStorage {
 
   // Automatic gap detection and risk generation
   async detectAllProgramGaps(programId: string): Promise<void> {
+    const program = await this.getProgram(programId);
+    if (!program) return;
+    const disabled: string[] = Array.isArray(program.disabledComponents) ? (program.disabledComponents as string[]) : [];
+
     await this.generateMissingComponentRisks(programId);
     await this.generateTimelineRisks(programId);
-    await this.generateDependencyRisks(programId);
-    await this.generateResourceRisks(programId);
+    if (!disabled.includes('dependencies')) {
+      await this.generateDependencyRisks(programId);
+    }
+    if (!disabled.includes('adopters')) {
+      await this.generateResourceRisks(programId);
+    }
   }
 
   // Generate timeline-related risks
@@ -1259,11 +1267,14 @@ export class DatabaseStorage implements IStorage {
 
   // Generate resource-related risks
   async generateResourceRisks(programId: string): Promise<void> {
-    const adopters = await this.getAdopters(programId);
+    const program = await this.getProgram(programId);
+    if (!program) return;
+    const disabled: string[] = Array.isArray(program.disabledComponents) ? (program.disabledComponents as string[]) : [];
+    const adopters = disabled.includes('adopters') ? [] : await this.getAdopters(programId);
     const milestones = await this.getMilestones(programId);
     const risks = [];
 
-    // Check for adopters with poor readiness
+    // Check for adopters with poor readiness (only if adopters tracking is enabled)
     const poorReadinessAdopters = adopters.filter(a => (a.readinessScore || 0) < 50);
     if (poorReadinessAdopters.length > 0) {
       risks.push({
@@ -1314,9 +1325,10 @@ export class DatabaseStorage implements IStorage {
     const program = await this.getProgram(programId);
     if (!program) return;
 
+    const disabled: string[] = Array.isArray(program.disabledComponents) ? (program.disabledComponents as string[]) : [];
     const programRisks = await this.getRisks(programId);
     const programMilestones = await this.getMilestones(programId);
-    const programAdopters = await this.getAdopters(programId);
+    const programAdopters = disabled.includes('adopters') ? [] : await this.getAdopters(programId);
 
     // Define missing components and their corresponding risk details
     const missingComponents = [];
@@ -1398,7 +1410,7 @@ export class DatabaseStorage implements IStorage {
       });
     }
     
-    if (programAdopters.length === 0) {
+    if (programAdopters.length === 0 && !disabled.includes('adopters')) {
       missingComponents.push({
         component: 'Adopter Teams',
         title: 'Missing Adopter Teams',

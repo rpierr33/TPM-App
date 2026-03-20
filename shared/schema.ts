@@ -181,6 +181,7 @@ export const programs = pgTable("programs", {
   endDate: timestamp("end_date"),
   actualStartDate: timestamp("actual_start_date"), // For programs added mid-execution
   estimatedCompletionPercentage: integer("estimated_completion_percentage").default(0), // 0-100 for mid-execution programs
+  disabledComponents: jsonb("disabled_components").default([]), // Array of disabled tracking module names, e.g. ["adopters", "dependencies"]
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
