@@ -8,7 +8,7 @@ execSync("npx vite build", { stdio: "inherit" });
 // Step 2: Bundle the API serverless function with esbuild
 console.log("Bundling API serverless function...");
 execSync(
-  "npx esbuild api/index.ts --bundle --platform=node --packages=external --format=esm --outfile=.vercel/output/functions/api.func/index.mjs",
+  "npx esbuild server/api-entry.ts --bundle --platform=node --packages=external --format=esm --outfile=.vercel/output/functions/api.func/index.mjs",
   { stdio: "inherit" }
 );
 
