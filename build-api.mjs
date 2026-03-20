@@ -17,32 +17,13 @@ execSync(
     "--platform=node",
     "--format=cjs",
     `--outfile=${funcDir}/index.js`,
-    "--external:@anthropic-ai/sdk",
-    "--external:openai",
     "--external:bufferutil",
     "--external:utf-8-validate",
   ].join(" "),
   { stdio: "inherit" }
 );
 
-// Step 3: Install production dependencies in the function directory
-console.log("Installing function dependencies...");
-writeFileSync(
-  `${funcDir}/package.json`,
-  JSON.stringify({
-    private: true,
-    dependencies: {
-      "@anthropic-ai/sdk": "^0.37.0",
-      "openai": "^5.10.2",
-    },
-  })
-);
-execSync("npm install --production --no-package-lock", {
-  cwd: funcDir,
-  stdio: "inherit",
-});
-
-// Step 4: Write Vercel Build Output config
+// Step 3: Write Vercel Build Output config
 console.log("Writing Vercel build output config...");
 
 writeFileSync(

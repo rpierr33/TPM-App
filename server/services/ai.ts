@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { storage } from "../storage";
 import type {
   Program,
@@ -15,11 +14,41 @@ import type {
   InsertEscalation
 } from "../../shared/schema";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
-
 const MODEL = "claude-sonnet-4-6";
+
+// Direct Anthropic API via fetch() — drop-in replacement for the SDK
+// Avoids SDK bundling/shim issues on Vercel serverless
+const anthropic = {
+  messages: {
+    create: async (opts: { model: string; max_tokens: number; system: string; messages: { role: string; content: string }[] }) => {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: opts.model,
+          max_tokens: opts.max_tokens,
+          system: opts.system,
+          messages: opts.messages,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Anthropic API ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json() as any;
+      return { content: data.content || [{ type: "text", text: "" }] };
+    },
+  },
+};
 
 const TPM_SYSTEM_PROMPT = `You are an expert AI Technical Program Manager (TPM) assistant with deep expertise in:
 
