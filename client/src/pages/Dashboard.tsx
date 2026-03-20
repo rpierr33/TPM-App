@@ -831,7 +831,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="max-h-[480px] overflow-y-auto space-y-3 custom-scrollbar pr-1">
+            <div className="max-h-[480px] overflow-y-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 custom-scrollbar pr-1">
               {programs
                 .sort((a, b) => {
                   // Sort by urgency: programs with overdue items + critical risks first
@@ -884,182 +884,86 @@ export default function Dashboard() {
                 const healthBadge = getHealthBadge(healthMetrics.score);
 
                 return (
-                  <Card key={program.id} className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 overflow-hidden">
+                  <Card
+                    key={program.id}
+                    className="border border-gray-200/80 bg-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer overflow-hidden"
+                    onClick={() => setLocation(`/programs/${program.id}`)}
+                  >
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            {getStatusIcon(program.status || 'active')}
-                            {editingProgramId === program.id ? (
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  value={editingProgramName}
-                                  onChange={(e) => setEditingProgramName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') commitRename(program.id);
-                                    if (e.key === 'Escape') setEditingProgramId(null);
-                                  }}
-                                  onBlur={() => commitRename(program.id)}
-                                  autoFocus
-                                  className="h-7 text-lg font-semibold w-56"
-                                />
-                                <button onClick={() => commitRename(program.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
-                                  <Check className="h-4 w-4" />
-                                </button>
-                                <button onClick={() => setEditingProgramId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded">
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 group">
-                                <h3
-                                  className="text-lg font-semibold text-primary-700 hover:underline cursor-pointer"
-                                  onClick={() => setLocation(`/programs/${program.id}`)}
-                                >
-                                  {program.name}
-                                </h3>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); startEditing(program); }}
-                                  className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  title="Rename program"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            )}
-                            <Badge className={getStatusColor(program.status || 'active')}>
-                              {program.status?.replace('_', ' ') || 'active'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{program.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Owner: {program.ownerId || 'Unassigned'}</span>
-                            {program.startDate && (
-                              <span>Started: {new Date(program.startDate).toLocaleDateString()}</span>
-                            )}
-                            {program.endDate && (
-                              <span>Due: {new Date(program.endDate).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 mb-1">Program Health</div>
-                          <Badge className={healthBadge.color}>
-                            {healthBadge.label} ({healthMetrics.score}%)
+                      {/* Row 1: Name + Status + Health */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {getStatusIcon(program.status || 'active')}
+                          {editingProgramId === program.id ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                value={editingProgramName}
+                                onChange={(e) => setEditingProgramName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') commitRename(program.id);
+                                  if (e.key === 'Escape') setEditingProgramId(null);
+                                }}
+                                onBlur={() => commitRename(program.id)}
+                                autoFocus
+                                className="h-7 text-sm font-semibold w-40"
+                              />
+                              <button onClick={() => commitRename(program.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setEditingProgramId(null)} className="p-1 text-gray-400 hover:bg-gray-50 rounded"><X className="h-3.5 w-3.5" /></button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 group min-w-0">
+                              <h3 className="text-sm font-semibold text-gray-900 truncate">{program.name}</h3>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); startEditing(program); }}
+                                className="p-0.5 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                title="Rename"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                          <Badge className={`${getStatusColor(program.status || 'active')} text-[10px] flex-shrink-0`}>
+                            {program.status?.replace('_', ' ') || 'active'}
                           </Badge>
-                          <div className="mt-2">
-                            <div className="text-xs text-gray-500 mb-1">Current Phase</div>
-                            <div className={`text-xs font-medium ${getProgramPhase(program).color}`}>
-                              {getProgramPhase(program).name}
-                            </div>
-                          </div>
                         </div>
+                        <Badge className={`${healthBadge.color} text-[10px] flex-shrink-0 ml-2`}>
+                          {healthBadge.label}
+                        </Badge>
                       </div>
 
-
-                      {/* Program Components Summary */}
-                      <div className="grid grid-cols-4 gap-4 mb-4">
-                        <button
-                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
-                          onClick={() => setLocation(`/risk-management?programId=${program.id}`)}
-                        >
-                          <div className="flex items-center justify-center mb-1">
-                            <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programRisks.length}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Total Risks</div>
-                          {criticalRisks.length > 0 && (
-                            <div className="text-xs text-red-600 font-medium">
-                              {criticalRisks.length} critical
-                            </div>
-                          )}
-                        </button>
-
-                        <button
-                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
-                          onClick={() => setLocation(`/milestones?programId=${program.id}`)}
-                        >
-                          <div className="flex items-center justify-center mb-1">
-                            <Flag className="h-4 w-4 text-yellow-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programMilestones.length}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Milestones</div>
-                          {overdueMilestones.length > 0 && (
-                            <div className="text-xs text-red-600 font-medium">{overdueMilestones.length} overdue</div>
-                          )}
-                        </button>
-
-                        <button
-                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
-                          onClick={() => setLocation(`/adopter-support?programId=${program.id}`)}
-                        >
-                          <div className="flex items-center justify-center mb-1">
-                            <Users className="h-4 w-4 text-blue-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programAdopters.length}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Adopters</div>
-                          {programAdopters.filter(a => a.status === 'blocked' || a.status === 'not_started').length > 0 && (
-                            <div className="text-xs text-red-600 font-medium">
-                              {programAdopters.filter(a => a.status === 'blocked' || a.status === 'not_started').length} need help
-                            </div>
-                          )}
-                        </button>
-
-                        <button
-                          className="text-center p-2 rounded hover:bg-gray-50 transition-colors"
-                          onClick={() => setLocation(`/dependencies?programId=${program.id}`)}
-                        >
-                          <div className="flex items-center justify-center mb-1">
-                            <GitBranch className="h-4 w-4 text-purple-500 mr-1" />
-                            <span className="text-lg font-semibold text-gray-900">{programDependencies.length}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">Dependencies</div>
-                          {blockedDependencies.length > 0 && (
-                            <div className="text-xs text-red-600 font-medium">{blockedDependencies.length} blocked</div>
-                          )}
-                        </button>
+                      {/* Row 2: Compact inline stats */}
+                      <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <AlertTriangle className={`h-3 w-3 ${criticalRisks.length > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+                          <span className={criticalRisks.length > 0 ? 'text-red-600 font-medium' : ''}>{programRisks.length} risks</span>
+                          {criticalRisks.length > 0 && <span className="text-red-500">({criticalRisks.length} critical)</span>}
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="flex items-center gap-1">
+                          <Flag className={`h-3 w-3 ${overdueMilestones.length > 0 ? 'text-amber-500' : 'text-gray-400'}`} />
+                          <span className={overdueMilestones.length > 0 ? 'text-amber-600 font-medium' : ''}>{programMilestones.length} milestones</span>
+                          {overdueMilestones.length > 0 && <span className="text-amber-500">({overdueMilestones.length} overdue)</span>}
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="flex items-center gap-1">
+                          <GitBranch className={`h-3 w-3 ${blockedDependencies.length > 0 ? 'text-purple-500' : 'text-gray-400'}`} />
+                          <span>{programDependencies.length} deps</span>
+                        </span>
                       </div>
 
-                      {/* PMI Phase Next Steps */}
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-start gap-2">
-                          {getProgramPhase(program).icon}
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-800 mb-1">Next PMI Step</h4>
-                            <p className="text-xs text-blue-700">
-                              {getProgramPhase(program).nextStep}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Missing Components Alert */}
-                      {missingComponents.length > 0 && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <h4 className="text-sm font-medium text-red-800 mb-1">Missing Components</h4>
-                              <p className="text-xs text-red-700">
-                                This program is missing essential components: {missingComponents.join(', ')}
-                              </p>
-                            </div>
-                          </div>
+                      {/* Row 3: Alert banner (only if something needs attention) */}
+                      {(criticalRisks.length > 0 || overdueMilestones.length > 0 || missingComponents.length > 3) && (
+                        <div className="mt-2 flex items-center gap-1.5 text-[10px]">
+                          <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                          <span className="text-amber-600 truncate">
+                            {[
+                              criticalRisks.length > 0 && `${criticalRisks.length} critical risks`,
+                              overdueMilestones.length > 0 && `${overdueMilestones.length} overdue`,
+                              missingComponents.length > 3 && `${missingComponents.length} missing components`,
+                            ].filter(Boolean).join(' · ')}
+                          </span>
                         </div>
                       )}
-
-                      {/* Quick Actions */}
-                      <div className="flex items-center justify-end pt-4 border-t border-gray-100">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setLocation(`/programs/${program.id}`)}
-                          className="text-primary-600 hover:text-primary-700"
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Details
-                        </Button>
-                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -1280,10 +1184,12 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {/* PMP Recommendations - always visible */}
-        <div className="mt-6">
-          <PMPRecommendationsPanel />
-        </div>
+        {/* PMP Recommendations - collapsible */}
+        {dashboardPrefs.showPMPRecommendations && (
+          <div className="mt-6">
+            <PMPRecommendationsPanel />
+          </div>
+        )}
       </main>
 
       {/* Missing Components Modal */}
