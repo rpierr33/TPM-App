@@ -82,6 +82,7 @@ export interface IStorage {
   
   // Program operations
   getPrograms(): Promise<Program[]>;
+  getProgramsByOwner(ownerId: string): Promise<Program[]>;
   getProgram(id: string): Promise<Program | undefined>;
   createProgram(program: InsertProgram): Promise<Program>;
   updateProgram(id: string, program: Partial<InsertProgram>): Promise<Program>;
@@ -271,6 +272,10 @@ export class DatabaseStorage implements IStorage {
   // Program operations
   async getPrograms(): Promise<Program[]> {
     return await db.select().from(programs).orderBy(desc(programs.createdAt));
+  }
+
+  async getProgramsByOwner(ownerId: string): Promise<Program[]> {
+    return await db.select().from(programs).where(eq(programs.ownerId, ownerId)).orderBy(desc(programs.createdAt));
   }
 
   async getProgram(id: string): Promise<Program | undefined> {

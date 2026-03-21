@@ -123,7 +123,14 @@ export function registerApiRoutes(app: Express): void {
   // Program routes
   app.get("/api/programs", async (req, res) => {
     try {
-      const programs = await storage.getPrograms();
+      const scope = req.query.scope as string;
+      const userId = req.auth?.userId;
+      let programs;
+      if (scope === 'mine' && userId) {
+        programs = await storage.getProgramsByOwner(userId);
+      } else {
+        programs = await storage.getPrograms();
+      }
       res.json(programs);
     } catch (error) {
       console.error("Error fetching programs:", error);
@@ -146,7 +153,10 @@ export function registerApiRoutes(app: Express): void {
 
   app.post("/api/programs", async (req, res) => {
     try {
-      const validatedData = insertProgramSchema.parse(req.body);
+      const validatedData = insertProgramSchema.parse({
+        ...req.body,
+        ownerId: req.body.ownerId || req.auth?.userId || null,
+      });
       const program = await storage.createProgram(validatedData);
       
       // Broadcast real-time update

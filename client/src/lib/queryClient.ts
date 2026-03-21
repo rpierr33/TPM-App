@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getAuthToken } from "./authFetch";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -7,14 +8,22 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...extra };
+  const token = await getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
 export async function apiRequest(
   url: string,
   method: string,
   data?: unknown | undefined,
 ): Promise<any> {
+  const headers = await authHeaders(data ? { "Content-Type": "application/json" } : {});
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,7 +38,9 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers = await authHeaders();
     const res = await fetch(queryKey.join("/") as string, {
+      headers,
       credentials: "include",
     });
 

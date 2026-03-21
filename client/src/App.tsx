@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
+import { setTokenGetter } from "./lib/authFetch";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +21,59 @@ import ExecutiveReports from "@/pages/ExecutiveReports";
 import Stakeholders from "@/pages/Stakeholders";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
+
+// Conditional Clerk imports — only used when VITE_CLERK_PUBLISHABLE_KEY is set
+let useAuth: any = null;
+let useUser: any = null;
+let SignIn: any = null;
+let UserButton: any = null;
+try {
+  const clerk = require("@clerk/clerk-react");
+  useAuth = clerk.useAuth;
+  useUser = clerk.useUser;
+  SignIn = clerk.SignIn;
+  UserButton = clerk.UserButton;
+} catch {
+  // Clerk not available — dev mode without auth
+}
+
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  if (!CLERK_ENABLED || !useAuth) return <>{children}</>;
+
+  const { isSignedIn, isLoaded, getToken } = useAuth();
+
+  // Wire up the token getter for API requests
+  useEffect(() => {
+    if (getToken) {
+      setTokenGetter(() => getToken());
+    }
+  }, [getToken]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="w-full max-w-md p-8">
+          {SignIn && <SignIn routing="hash" />}
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function Router() {
   const theme = useAppStore((s) => s.theme);
@@ -59,7 +113,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <AuthGate>
+          <Router />
+        </AuthGate>
       </TooltipProvider>
     </QueryClientProvider>
   );

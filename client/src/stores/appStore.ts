@@ -43,6 +43,9 @@ interface AppState {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
+  // Program scope
+  programScope: 'mine' | 'all';
+  setProgramScope: (scope: 'mine' | 'all') => void;
   // Dashboard preferences
   dashboardPrefs: DashboardPrefs;
   setDashboardPrefs: (prefs: Partial<DashboardPrefs>) => void;
@@ -64,6 +67,9 @@ export const useAppStore = create<AppState>()(
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+      // Program scope
+      programScope: 'mine' as const,
+      setProgramScope: (programScope) => set({ programScope }),
       // Dashboard preferences — all on by default
       dashboardPrefs: {
         showAIBriefing: true,
@@ -108,6 +114,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
+        programScope: state.programScope,
         dashboardPrefs: state.dashboardPrefs,
         chatMessages: state.chatMessages
       }),
