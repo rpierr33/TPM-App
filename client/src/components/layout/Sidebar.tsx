@@ -19,6 +19,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserButton, useUser } from "@clerk/clerk-react";
 
 const navigationItems = [
   { path: "/", icon: Brain, label: "AI Assistant", group: "core" },
@@ -198,18 +199,29 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* User Profile */}
+      {/* User Profile + Sign Out */}
       <div className={`${isCollapsed ? 'p-2' : 'px-3 pb-4 pt-2'} border-t border-white/[0.06]`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-2'}`}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold">
-            RP
-          </div>
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-gray-200 truncate">Ralph Pierre</p>
-              <p className="text-[11px] text-gray-500 truncate">Program Manager</p>
-            </div>
-          )}
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "w-8 h-8",
+              },
+            }}
+          />
+          {!isCollapsed && (() => {
+            const { user } = useUser();
+            return (
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-gray-200 truncate">
+                  {user?.fullName || user?.primaryEmailAddress?.emailAddress || "User"}
+                </p>
+                <p className="text-[11px] text-gray-500 truncate">
+                  {user?.primaryEmailAddress?.emailAddress || ""}
+                </p>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
