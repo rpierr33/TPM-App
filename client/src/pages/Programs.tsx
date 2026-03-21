@@ -24,6 +24,7 @@ import {
   X
 } from "lucide-react";
 import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
+import { getMissingComponents as getMissingComponentsUtil } from "@/lib/missingComponents";
 import type { Program, Risk, Milestone, Adopter, Dependency } from "@shared/schema";
 
 export default function Programs() {
@@ -254,21 +255,12 @@ export default function Programs() {
               );
               const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
-              // Check for missing essential components
-              const getMissingComponents = () => {
-                const missing = [];
-                if (!program.description || program.description.trim().length < 10) missing.push('Description');
-                if (!program.ownerId) missing.push('Owner');
-                if (!program.startDate) missing.push('Start Date');
-                if (!program.endDate) missing.push('End Date');
-                if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
-                if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
-                if (programMilestones.length === 0) missing.push('Milestones');
-                if (programAdopters.length === 0) missing.push('Adopter Teams');
-                return missing;
-              };
-
-              const missingComponents = getMissingComponents();
+              const missingComponentsList = getMissingComponentsUtil(program, {
+                risks: programRisks.length,
+                milestones: programMilestones.length,
+                adopters: programAdopters.length,
+              });
+              const missingComponents = missingComponentsList.map(c => c.label);
 
               // Calculate program health using centralized utility
               const healthMetrics = calculateProgramHealth({

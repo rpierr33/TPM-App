@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { calculateProgramHealth, getHealthBadge } from "@/lib/healthCalculation";
 import { useAppStore } from "@/stores/appStore";
+import { getMissingComponents as getMissingComponentsUtil } from "@/lib/missingComponents";
 import type { Program, Risk, Milestone, Adopter, Dependency, JiraEpic, JiraBepic, JiraStory, Escalation, Report } from "@shared/schema";
 
 export default function Dashboard() {
@@ -856,22 +857,12 @@ export default function Dashboard() {
                 );
                 const blockedDependencies = programDependencies.filter(d => d.status === 'blocked');
 
-                // Calculate missing components for health scoring - MUST MATCH PROGRAM DETAILS EXACTLY
-                const getMissingComponents = () => {
-                  const missing = [];
-                  if (!program.description || program.description.trim().length < 10) missing.push('Description');
-                  if (!program.ownerId) missing.push('Owner');
-                  if (!program.startDate) missing.push('Start Date');
-                  if (!program.endDate) missing.push('End Date');
-                  if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
-                  if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
-                  if (programRisks.length === 0) missing.push('Risks');
-                  if (programMilestones.length === 0) missing.push('Milestones');
-                  if (programAdopters.length === 0) missing.push('Adopter Teams');
-                  return missing;
-                };
-
-                const missingComponents = getMissingComponents();
+                const missingComponentsList = getMissingComponentsUtil(program, {
+                  risks: programRisks.length,
+                  milestones: programMilestones.length,
+                  adopters: programAdopters.length,
+                });
+                const missingComponents = missingComponentsList.map(c => c.label);
 
                 // Calculate program health using centralized utility
                 const healthMetrics = calculateProgramHealth({

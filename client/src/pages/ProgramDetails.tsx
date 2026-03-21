@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
+import { getMissingComponents as getMissingComponentsUtil } from "@/lib/missingComponents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,19 +142,22 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const programDependencies = dependencies.filter(d => d.programId === programId);
   const programAdopters = adopters.filter(a => a.programId === programId);
 
-  // Calculate missing components for health scoring - MUST MATCH DASHBOARD EXACTLY
-  const getMissingComponents = () => {
-    const missing = [];
-    if (!program.description || program.description.trim().length < 10) missing.push('Description');
-    if (!program.ownerId) missing.push('Owner');
-    if (!program.startDate) missing.push('Start Date');
-    if (!program.endDate) missing.push('End Date');
-    if (!program.objectives || (Array.isArray(program.objectives) && !program.objectives.length)) missing.push('Objectives');
-    if (!program.kpis || (Array.isArray(program.kpis) && !program.kpis.length)) missing.push('KPIs');
-    if (programRisks.length === 0) missing.push('Risks');
-    if (programMilestones.length === 0) missing.push('Milestones');
-    if (programAdopters.length === 0 && !isComponentDisabled('adopters')) missing.push('Adopter Teams');
-    return missing;
+  // Calculate missing components using shared utility
+  const missingComponentsList = getMissingComponentsUtil(program, {
+    risks: programRisks.length,
+    milestones: programMilestones.length,
+    adopters: programAdopters.length,
+  });
+  const getMissingComponents = () => missingComponentsList.map(c => c.label);
+
+  const dismissWarning = (key: string) => {
+    const current: string[] = Array.isArray(program.dismissedWarnings) ? program.dismissedWarnings : [];
+    if (!current.includes(key)) {
+      updateProgramMutation.mutate({
+        id: programId,
+        data: { dismissedWarnings: [...current, key] }
+      });
+    }
   };
 
   // Calculate program health using centralized utility
@@ -1037,6 +1041,63 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
           </TabsContent>}
 
           <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Actionable Missing Components */}
+            {missingComponentsList.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <h4 className="text-sm font-semibold text-amber-800">{missingComponentsList.length} missing items</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    {missingComponentsList.map((item) => (
+                      <div key={item.key} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-amber-100/50 transition-colors">
+                        <span className="text-[12px] text-amber-800">{item.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          {item.type === 'field' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] border-amber-300 text-amber-700 hover:bg-amber-100"
+                              onClick={() => {
+                                // Scroll to the edit section or open inline edit
+                                const el = document.querySelector(`[data-field="${item.field}"]`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                else toast({ title: "Edit Program", description: `Update ${item.label} in the program details above.` });
+                              }}
+                            >
+                              Add
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] border-amber-300 text-amber-700 hover:bg-amber-100"
+                              onClick={() => {
+                                if (item.key === 'risks') setLocation('/risk-management');
+                                else if (item.key === 'milestones') setLocation('/milestones');
+                                else if (item.key === 'adopters') setLocation('/adopter-support');
+                              }}
+                            >
+                              Add
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-[10px] text-gray-400 hover:text-gray-600"
+                            onClick={() => dismissWarning(item.key)}
+                          >
+                            N/A
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Program Health Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Health Score */}
