@@ -71,19 +71,13 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
       return await apiRequest(`/api/programs/${id}`, "PUT", data);
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Program name updated successfully",
-      });
+      toast({ title: "Success", description: "Program updated successfully" });
       setIsEditingName(false);
+      setEditingField(null);
       queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update program name",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update program", variant: "destructive" });
     },
   });
 

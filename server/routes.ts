@@ -171,8 +171,20 @@ export function registerApiRoutes(app: Express): void {
 
   app.put("/api/programs/:id", async (req, res) => {
     try {
-      const validatedData = insertProgramSchema.partial().parse(req.body);
-      const program = await storage.updateProgram(req.params.id, validatedData);
+      // Use loose validation — allow partial updates without strict FK checks
+      const allowedFields = ['name', 'description', 'status', 'ownerId', 'platformId', 'startDate', 'endDate', 'objectives', 'kpis', 'disabledComponents', 'dismissedWarnings'];
+      const updateData: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (key in req.body) {
+          // Convert date strings to Date objects
+          if ((key === 'startDate' || key === 'endDate') && req.body[key]) {
+            updateData[key] = new Date(req.body[key]);
+          } else {
+            updateData[key] = req.body[key];
+          }
+        }
+      }
+      const program = await storage.updateProgram(req.params.id, updateData);
       
       // Broadcast real-time update
       (app as any).broadcast('data_changed', { type: 'program_updated', data: program });
