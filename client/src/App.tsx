@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useAppStore } from "@/stores/appStore";
 import { useEffect } from "react";
+import { useAuth, SignIn } from "@clerk/clerk-react";
 import Dashboard from "@/pages/Dashboard";
 
 import AIAssistant from "@/pages/AIAssistant";
@@ -22,25 +23,10 @@ import Stakeholders from "@/pages/Stakeholders";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
-// Conditional Clerk imports — only used when VITE_CLERK_PUBLISHABLE_KEY is set
-let useAuth: any = null;
-let useUser: any = null;
-let SignIn: any = null;
-let UserButton: any = null;
-try {
-  const clerk = require("@clerk/clerk-react");
-  useAuth = clerk.useAuth;
-  useUser = clerk.useUser;
-  SignIn = clerk.SignIn;
-  UserButton = clerk.UserButton;
-} catch {
-  // Clerk not available — dev mode without auth
-}
-
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  if (!CLERK_ENABLED || !useAuth) return <>{children}</>;
+  if (!CLERK_ENABLED) return <>{children}</>;
 
   const { isSignedIn, isLoaded, getToken } = useAuth();
 
@@ -66,7 +52,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="w-full max-w-md p-8">
-          {SignIn && <SignIn routing="hash" />}
+          <SignIn routing="hash" />
         </div>
       </div>
     );

@@ -68,7 +68,7 @@ export const useAppStore = create<AppState>()(
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
       // Program scope
-      programScope: 'mine' as const,
+      programScope: 'all' as const,
       setProgramScope: (programScope) => set({ programScope }),
       // Dashboard preferences — all on by default
       dashboardPrefs: {
