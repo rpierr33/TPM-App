@@ -51,8 +51,6 @@ export default function Dashboard() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [showMissingComponentsModal, setShowMissingComponentsModal] = useState(false);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
-  const [showPrioritiesModal, setShowPrioritiesModal] = useState(false);
-  const [showAIRecommendationsModal, setShowAIRecommendationsModal] = useState(false);
   const [newProgramForm, setNewProgramForm] = useState({
     name: "",
     description: "",
@@ -1126,111 +1124,6 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Today's Priorities Modal */}
-      <Dialog open={showPrioritiesModal} onOpenChange={setShowPrioritiesModal}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-500" />
-              Today's Priorities
-            </DialogTitle>
-            <p className="text-sm text-gray-600">Critical items requiring immediate attention based on program health analysis</p>
-          </DialogHeader>
-          <div className="space-y-4">
-            {generateTodaysPriorities().map((priority, index) => (
-              <Card
-                key={index}
-                className="border border-gray-200 hover:border-primary-300 transition-colors cursor-pointer"
-                onClick={() => {
-                  setShowPrioritiesModal(false);
-                  if (priority.type === 'risk') setLocation('/risk-management');
-                  else if (priority.type === 'milestone') setLocation('/milestones');
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {priority.type === 'risk' && <AlertTriangle className="h-4 w-4 text-red-500" />}
-                      {priority.type === 'milestone' && <Clock className="h-4 w-4 text-orange-500" />}
-                      {priority.type === 'completeness' && <CheckCircle className="h-4 w-4 text-blue-500" />}
-                      <h4 className="font-medium text-gray-900">{priority.title}</h4>
-                    </div>
-                    <Badge className={
-                      priority.urgency === 'critical' ? 'bg-red-100 text-red-800' :
-                      priority.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }>
-                      {priority.urgency}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{priority.description}</p>
-                  <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    Action: {priority.action}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {generateTodaysPriorities().length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p>No critical priorities at this time. All programs are on track!</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* PMI Recommendations Modal */}
-      <Dialog open={showAIRecommendationsModal} onOpenChange={setShowAIRecommendationsModal}>
-        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              </div>
-              PMI-Based Recommendations
-            </DialogTitle>
-            <p className="text-sm text-gray-600">Suggestions based on Project Management Institute (PMI) best practices to improve program health</p>
-          </DialogHeader>
-          <div className="space-y-4">
-            {generatePMIRecommendations().map((rec, index) => (
-              <Card key={index} className="border border-gray-200">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-xs font-medium text-blue-600">{rec.category.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{rec.title}</h4>
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{rec.category} Process</span>
-                      </div>
-                    </div>
-                    <Badge className={
-                      rec.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                      rec.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                      rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }>
-                      {rec.priority}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
-                  <div className="text-xs text-gray-500 italic">
-                    PMI Reference: {rec.pmiReference}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {generatePMIRecommendations().length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Target className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p>All programs are following PMI best practices!</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
