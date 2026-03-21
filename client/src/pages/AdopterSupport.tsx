@@ -19,13 +19,10 @@ import {
   Plus,
   Filter,
   MessageCircle,
-  Calendar,
   CheckCircle,
   AlertCircle,
   Clock,
   TrendingUp,
-  FileText,
-  Mail,
   Pencil,
   Check,
   X
@@ -458,18 +455,6 @@ export default function AdopterSupport() {
                           )}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="flex-1">
-                              <MessageCircle size={14} className="mr-1" />
-                              Message
-                            </Button>
-                            <Button variant="outline" size="sm" className="flex-1">
-                              <Calendar size={14} className="mr-1" />
-                              Schedule
-                            </Button>
-                          </div>
-                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -483,10 +468,6 @@ export default function AdopterSupport() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Readiness Scorecards</CardTitle>
-                  <Button size="sm" className="bg-primary-500 text-white hover:bg-primary-600">
-                    <FileText size={14} className="mr-1" />
-                    Export All Scorecards
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -499,10 +480,6 @@ export default function AdopterSupport() {
                           <span className={`font-bold ${getReadinessColor(adopter.readinessScore || 0)}`}>
                             {adopter.readinessScore || 0}%
                           </span>
-                          <Button variant="outline" size="sm">
-                            <FileText size={14} className="mr-1" />
-                            Export
-                          </Button>
                         </div>
                       </div>
                       
@@ -592,24 +569,7 @@ export default function AdopterSupport() {
                   <CardTitle>Support Actions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <Button className="w-full justify-start bg-primary-500 text-white hover:bg-primary-600">
-                      <Mail size={16} className="mr-2" />
-                      Send Support Update
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Calendar size={16} className="mr-2" />
-                      Schedule Team Check-ins
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      <FileText size={16} className="mr-2" />
-                      Generate Summary Report
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      <MessageCircle size={16} className="mr-2" />
-                      Create Support Ticket
-                    </Button>
-                  </div>
+                  <p className="text-sm text-gray-500 py-4 text-center">No support actions available yet.</p>
                 </CardContent>
               </Card>
             </div>

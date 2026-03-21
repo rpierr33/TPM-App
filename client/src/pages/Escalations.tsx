@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Mail,
   FileText,
-  ExternalLink,
   Pencil,
   Check,
   X
@@ -503,9 +502,6 @@ export default function Escalations() {
                                   <Pencil size={14} className="mr-1" />
                                   Edit
                                 </Button>
-                                <Button variant="ghost" size="sm">
-                                  <ExternalLink size={14} />
-                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -529,26 +525,23 @@ export default function Escalations() {
                   <div className="space-y-3">
                     <div className="p-3 border border-gray-200 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-1">Technical Issue Escalation</h4>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600">
                         Template for technical problems affecting program delivery
                       </p>
-                      <Button variant="outline" size="sm">Use Template</Button>
                     </div>
-                    
+
                     <div className="p-3 border border-gray-200 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-1">Resource Constraint</h4>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600">
                         Template for resource allocation and capacity issues
                       </p>
-                      <Button variant="outline" size="sm">Use Template</Button>
                     </div>
-                    
+
                     <div className="p-3 border border-gray-200 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-1">Timeline Delay</h4>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600">
                         Template for milestone delays and schedule impacts
                       </p>
-                      <Button variant="outline" size="sm">Use Template</Button>
                     </div>
                   </div>
                 </CardContent>

@@ -10,6 +10,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -61,6 +63,8 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [showTrackingModules, setShowTrackingModules] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [fieldValue, setFieldValue] = useState("");
 
   const updateProgramMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
@@ -1060,10 +1064,8 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
                               variant="outline"
                               className="h-6 text-[10px] border-amber-300 text-amber-700 hover:bg-amber-100"
                               onClick={() => {
-                                // Scroll to the edit section or open inline edit
-                                const el = document.querySelector(`[data-field="${item.field}"]`);
-                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                else toast({ title: "Edit Program", description: `Update ${item.label} in the program details above.` });
+                                setEditingField(item.field || item.key);
+                                setFieldValue("");
                               }}
                             >
                               Add
@@ -1461,6 +1463,111 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
           <PMPRecommendationsPanel programId={programId} />
         </div>
       </main>
+
+      {/* Field Edit Dialog for Missing Components */}
+      <Dialog open={editingField !== null} onOpenChange={(open) => { if (!open) setEditingField(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingField === 'ownerId' ? 'Set Owner' :
+               editingField === 'startDate' ? 'Set Start Date' :
+               editingField === 'endDate' ? 'Set End Date' :
+               editingField === 'description' ? 'Set Description' :
+               editingField === 'objectives' ? 'Set Objectives' :
+               editingField === 'kpis' ? 'Set KPIs' : 'Edit Field'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingField === 'ownerId' && (
+              <div>
+                <Label htmlFor="field-owner">Owner Name</Label>
+                <Input
+                  id="field-owner"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  placeholder="e.g., John Smith"
+                  autoFocus
+                />
+              </div>
+            )}
+            {(editingField === 'startDate' || editingField === 'endDate') && (
+              <div>
+                <Label htmlFor="field-date">{editingField === 'startDate' ? 'Start Date' : 'End Date'}</Label>
+                <Input
+                  id="field-date"
+                  type="date"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+            {editingField === 'description' && (
+              <div>
+                <Label htmlFor="field-description">Description</Label>
+                <Textarea
+                  id="field-description"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  placeholder="Describe this program..."
+                  rows={4}
+                  autoFocus
+                />
+              </div>
+            )}
+            {editingField === 'objectives' && (
+              <div>
+                <Label htmlFor="field-objectives">Objectives (one per line)</Label>
+                <Textarea
+                  id="field-objectives"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  placeholder="Enter each objective on a new line"
+                  rows={4}
+                  autoFocus
+                />
+              </div>
+            )}
+            {editingField === 'kpis' && (
+              <div>
+                <Label htmlFor="field-kpis">KPIs (one per line)</Label>
+                <Textarea
+                  id="field-kpis"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  placeholder="Enter each KPI on a new line"
+                  rows={4}
+                  autoFocus
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setEditingField(null)}>Cancel</Button>
+              <Button
+                className="bg-primary-500 text-white hover:bg-primary-600"
+                disabled={!fieldValue.trim() || updateProgramMutation.isPending}
+                onClick={() => {
+                  if (!editingField || !fieldValue.trim()) return;
+                  let data: Record<string, any> = {};
+                  if (editingField === 'objectives' || editingField === 'kpis') {
+                    data[editingField] = fieldValue.split('\n').map(s => s.trim()).filter(Boolean);
+                  } else {
+                    data[editingField] = fieldValue.trim();
+                  }
+                  updateProgramMutation.mutate({ id: programId, data }, {
+                    onSuccess: () => {
+                      setEditingField(null);
+                      setFieldValue("");
+                    }
+                  });
+                }}
+              >
+                {updateProgramMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
