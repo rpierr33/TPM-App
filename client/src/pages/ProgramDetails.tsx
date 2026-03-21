@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
 import { getMissingComponents as getMissingComponentsUtil } from "@/lib/missingComponents";
@@ -60,6 +61,7 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [showTrackingModules, setShowTrackingModules] = useState(false);
@@ -1473,15 +1475,22 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
           </DialogHeader>
           <div className="space-y-4">
             {editingField === 'ownerId' && (
-              <div>
-                <Label htmlFor="field-owner">Owner Name</Label>
-                <Input
-                  id="field-owner"
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  placeholder="e.g., John Smith"
-                  autoFocus
-                />
+              <div className="space-y-3">
+                <Label>Assign Owner</Label>
+                <Button
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={!userId || updateProgramMutation.isPending}
+                  onClick={() => {
+                    if (userId) {
+                      updateProgramMutation.mutate({ id: programId, data: { ownerId: userId } }, {
+                        onSuccess: () => { setEditingField(null); setFieldValue(""); }
+                      });
+                    }
+                  }}
+                >
+                  Assign to me
+                </Button>
+                <p className="text-[11px] text-gray-500 text-center">Sets you as the program owner</p>
               </div>
             )}
             {(editingField === 'startDate' || editingField === 'endDate') && (
@@ -1537,27 +1546,29 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             )}
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => setEditingField(null)}>Cancel</Button>
-              <Button
-                className="bg-primary-500 text-white hover:bg-primary-600"
-                disabled={!fieldValue.trim() || updateProgramMutation.isPending}
-                onClick={() => {
-                  if (!editingField || !fieldValue.trim()) return;
-                  let data: Record<string, any> = {};
-                  if (editingField === 'objectives' || editingField === 'kpis') {
-                    data[editingField] = fieldValue.split('\n').map(s => s.trim()).filter(Boolean);
-                  } else {
-                    data[editingField] = fieldValue.trim();
-                  }
-                  updateProgramMutation.mutate({ id: programId, data }, {
-                    onSuccess: () => {
-                      setEditingField(null);
-                      setFieldValue("");
+              {editingField !== 'ownerId' && (
+                <Button
+                  className="bg-primary-500 text-white hover:bg-primary-600"
+                  disabled={!fieldValue.trim() || updateProgramMutation.isPending}
+                  onClick={() => {
+                    if (!editingField || !fieldValue.trim()) return;
+                    let data: Record<string, any> = {};
+                    if (editingField === 'objectives' || editingField === 'kpis') {
+                      data[editingField] = fieldValue.split('\n').map(s => s.trim()).filter(Boolean);
+                    } else {
+                      data[editingField] = fieldValue.trim();
                     }
-                  });
-                }}
-              >
-                {updateProgramMutation.isPending ? "Saving..." : "Save"}
-              </Button>
+                    updateProgramMutation.mutate({ id: programId, data }, {
+                      onSuccess: () => {
+                        setEditingField(null);
+                        setFieldValue("");
+                      }
+                    });
+                  }}
+                >
+                  {updateProgramMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
