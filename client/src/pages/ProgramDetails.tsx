@@ -1475,22 +1475,51 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
           </DialogHeader>
           <div className="space-y-4">
             {editingField === 'ownerId' && (
-              <div className="space-y-3">
-                <Label>Assign Owner</Label>
-                <Button
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700"
-                  disabled={!userId || updateProgramMutation.isPending}
-                  onClick={() => {
-                    if (userId) {
-                      updateProgramMutation.mutate({ id: programId, data: { ownerId: userId } }, {
-                        onSuccess: () => { setEditingField(null); setFieldValue(""); }
-                      });
-                    }
-                  }}
-                >
-                  Assign to me
-                </Button>
-                <p className="text-[11px] text-gray-500 text-center">Sets you as the program owner</p>
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Quick Assign</Label>
+                  <Button
+                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                    disabled={!userId || updateProgramMutation.isPending}
+                    onClick={() => {
+                      if (userId) {
+                        updateProgramMutation.mutate({ id: programId, data: { ownerId: userId } }, {
+                          onSuccess: () => { setEditingField(null); setFieldValue(""); }
+                        });
+                      }
+                    }}
+                  >
+                    Assign to me
+                  </Button>
+                </div>
+                <div className="relative flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[11px] text-gray-400">or</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                <div>
+                  <Label htmlFor="field-owner-name" className="mb-2 block">Assign to someone else</Label>
+                  <Input
+                    id="field-owner-name"
+                    value={fieldValue}
+                    onChange={(e) => setFieldValue(e.target.value)}
+                    placeholder="e.g., John Smith"
+                    autoFocus
+                  />
+                  <Button
+                    className="w-full mt-2 bg-primary-500 text-white hover:bg-primary-600"
+                    disabled={!fieldValue.trim() || updateProgramMutation.isPending}
+                    onClick={() => {
+                      if (fieldValue.trim()) {
+                        updateProgramMutation.mutate({ id: programId, data: { ownerName: fieldValue.trim(), ownerId: null } }, {
+                          onSuccess: () => { setEditingField(null); setFieldValue(""); }
+                        });
+                      }
+                    }}
+                  >
+                    {updateProgramMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </div>
               </div>
             )}
             {(editingField === 'startDate' || editingField === 'endDate') && (

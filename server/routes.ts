@@ -172,7 +172,7 @@ export function registerApiRoutes(app: Express): void {
   app.put("/api/programs/:id", async (req, res) => {
     try {
       // Use loose validation — allow partial updates without strict FK checks
-      const allowedFields = ['name', 'description', 'status', 'ownerId', 'platformId', 'startDate', 'endDate', 'objectives', 'kpis', 'disabledComponents', 'dismissedWarnings'];
+      const allowedFields = ['name', 'description', 'status', 'ownerId', 'ownerName', 'platformId', 'startDate', 'endDate', 'objectives', 'kpis', 'disabledComponents', 'dismissedWarnings'];
       const updateData: Record<string, any> = {};
       for (const key of allowedFields) {
         if (key in req.body) {

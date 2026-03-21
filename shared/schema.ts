@@ -174,6 +174,7 @@ export const programs = pgTable("programs", {
   description: text("description"),
   status: programStatusEnum("status").default("planning"),
   ownerId: varchar("owner_id").references(() => users.id),
+  ownerName: varchar("owner_name"), // Display name for owner (supports non-registered users)
   platformId: varchar("platform_id").references(() => platforms.id),
   objectives: jsonb("objectives"), // Array of OKRs
   kpis: jsonb("kpis"), // Key Performance Indicators

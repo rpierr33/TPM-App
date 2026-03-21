@@ -4,6 +4,7 @@
 interface Program {
   description?: string | null;
   ownerId?: string | null;
+  ownerName?: string | null;
   startDate?: string | Date | null;
   endDate?: string | Date | null;
   objectives?: any;
@@ -35,7 +36,7 @@ export function getMissingComponents(
   };
 
   check('description', 'Description', !program.description || program.description.trim().length < 10, 'field', 'description');
-  check('owner', 'Owner', !program.ownerId, 'field', 'ownerId');
+  check('owner', 'Owner', !program.ownerId && !program.ownerName, 'field', 'ownerId');
   check('start_date', 'Start Date', !program.startDate, 'field', 'startDate');
   check('end_date', 'End Date', !program.endDate, 'field', 'endDate');
   check('objectives', 'Objectives', !program.objectives || (Array.isArray(program.objectives) && !program.objectives.length), 'field', 'objectives');
