@@ -64,6 +64,12 @@ import {
   type InsertStakeholderInteraction,
   type PmpRecommendation,
   type InsertPmpRecommendation,
+  todos,
+  decisions,
+  type Todo,
+  type InsertTodo,
+  type Decision,
+  type InsertDecision,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, count } from "drizzle-orm";
@@ -227,6 +233,20 @@ export interface IStorage {
   getPmpRecommendations(programId?: string, projectId?: string): Promise<PmpRecommendation[]>;
   createPmpRecommendation(recommendation: InsertPmpRecommendation): Promise<PmpRecommendation>;
   updatePmpRecommendation(id: string, updates: Partial<InsertPmpRecommendation>): Promise<PmpRecommendation>;
+
+  // Todo operations
+  getTodos(programId?: string): Promise<Todo[]>;
+  getTodo(id: string): Promise<Todo | undefined>;
+  createTodo(todo: InsertTodo): Promise<Todo>;
+  updateTodo(id: string, updates: Partial<InsertTodo>): Promise<Todo>;
+  deleteTodo(id: string): Promise<void>;
+
+  // Decision operations
+  getDecisions(programId?: string): Promise<Decision[]>;
+  getDecision(id: string): Promise<Decision | undefined>;
+  createDecision(decision: InsertDecision): Promise<Decision>;
+  updateDecision(id: string, updates: Partial<InsertDecision>): Promise<Decision>;
+  deleteDecision(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -328,6 +348,8 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Step 2: Delete program-related data
+    await db.delete(todos).where(eq(todos.programId, id));
+    await db.delete(decisions).where(eq(decisions.programId, id));
     await db.delete(risks).where(eq(risks.programId, id));
     await db.delete(adopters).where(eq(adopters.programId, id));
     await db.delete(escalations).where(eq(escalations.programId, id));
@@ -1462,6 +1484,67 @@ export class DatabaseStorage implements IStorage {
         });
       }
     }
+  }
+  // Todo operations
+  async getTodos(programId?: string): Promise<Todo[]> {
+    if (programId) {
+      return await db.select().from(todos).where(eq(todos.programId, programId)).orderBy(desc(todos.createdAt));
+    }
+    return await db.select().from(todos).orderBy(desc(todos.createdAt));
+  }
+
+  async getTodo(id: string): Promise<Todo | undefined> {
+    const [todo] = await db.select().from(todos).where(eq(todos.id, id));
+    return todo;
+  }
+
+  async createTodo(todoData: InsertTodo): Promise<Todo> {
+    const [todo] = await db.insert(todos).values(todoData).returning();
+    return todo;
+  }
+
+  async updateTodo(id: string, todoData: Partial<InsertTodo>): Promise<Todo> {
+    const [todo] = await db
+      .update(todos)
+      .set({ ...todoData, updatedAt: new Date() })
+      .where(eq(todos.id, id))
+      .returning();
+    return todo;
+  }
+
+  async deleteTodo(id: string): Promise<void> {
+    await db.delete(todos).where(eq(todos.id, id));
+  }
+
+  // Decision operations
+  async getDecisions(programId?: string): Promise<Decision[]> {
+    if (programId) {
+      return await db.select().from(decisions).where(eq(decisions.programId, programId)).orderBy(desc(decisions.createdAt));
+    }
+    return await db.select().from(decisions).orderBy(desc(decisions.createdAt));
+  }
+
+  async getDecision(id: string): Promise<Decision | undefined> {
+    const [decision] = await db.select().from(decisions).where(eq(decisions.id, id));
+    return decision;
+  }
+
+  async createDecision(decisionData: InsertDecision): Promise<Decision> {
+    const [decision] = await db.insert(decisions).values(decisionData).returning();
+    return decision;
+  }
+
+  async updateDecision(id: string, decisionData: Partial<InsertDecision>): Promise<Decision> {
+    const [decision] = await db
+      .update(decisions)
+      .set({ ...decisionData, updatedAt: new Date() })
+      .where(eq(decisions.id, id))
+      .returning();
+    return decision;
+  }
+
+  async deleteDecision(id: string): Promise<void> {
+    await db.delete(decisions).where(eq(decisions.id, id));
   }
 }
 

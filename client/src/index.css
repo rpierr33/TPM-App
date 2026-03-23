@@ -177,10 +177,12 @@
 .dark .bg-green-50, .dark .bg-green-50\/50 { background-color: hsl(142, 35%, 13%) !important; }
 .dark .bg-green-100 { background-color: hsl(142, 30%, 17%) !important; }
 .dark .bg-orange-50 { background-color: hsl(25, 35%, 14%) !important; }
+.dark .bg-orange-100 { background-color: hsl(25, 30%, 18%) !important; }
 .dark .bg-cyan-50 { background-color: hsl(190, 35%, 14%) !important; }
 .dark .bg-pink-50 { background-color: hsl(330, 35%, 14%) !important; }
 .dark .bg-indigo-50 { background-color: hsl(230, 35%, 15%) !important; }
 .dark .bg-yellow-50 { background-color: hsl(50, 35%, 14%) !important; }
+.dark .bg-yellow-100 { background-color: hsl(50, 30%, 18%) !important; }
 
 /* Colored text overrides for dark mode (dark tints → bright tints) */
 .dark .text-red-700 { color: hsl(0, 70%, 65%) !important; }
@@ -200,6 +202,11 @@
 .dark .text-green-700 { color: hsl(142, 60%, 55%) !important; }
 .dark .text-green-600 { color: hsl(142, 55%, 50%) !important; }
 .dark .text-orange-500, .dark .text-orange-600 { color: hsl(25, 80%, 55%) !important; }
+.dark .text-orange-800 { color: hsl(25, 75%, 65%) !important; }
+.dark .text-yellow-800 { color: hsl(50, 75%, 65%) !important; }
+.dark .text-green-800 { color: hsl(142, 55%, 55%) !important; }
+.dark .text-red-800 { color: hsl(0, 65%, 65%) !important; }
+.dark .text-blue-800 { color: hsl(221, 70%, 65%) !important; }
 .dark .text-cyan-500, .dark .text-cyan-600 { color: hsl(190, 70%, 55%) !important; }
 .dark .text-pink-500, .dark .text-pink-600 { color: hsl(330, 70%, 65%) !important; }
 

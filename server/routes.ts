@@ -19,15 +19,115 @@ import {
   insertReportSchema,
   insertInitiativeSchema,
   insertProjectSchema,
+  insertTodoSchema,
+  insertDecisionSchema,
   type Program,
   type Project
 } from "../shared/schema";
 import { aiService } from "./services/ai";
 import { integrationService } from "./services/integrations";
 import { PMPService } from "./services/pmp";
+import { jiraService } from "./services/jira";
 
 const pmpService = new PMPService();
 import { WebSocketServer, WebSocket } from "ws";
+
+// Helper: get Jira project key for a program (returns null if not linked)
+async function getJiraKeyForProgram(programId: string): Promise<string | null> {
+  if (!jiraService.isConfigured()) return null;
+  const program = await storage.getProgram(programId);
+  return (program as any)?.jiraProjectKey || null;
+}
+
+// Helper: push a milestone to Jira (create or update)
+async function pushMilestoneToJira(milestone: any, programId: string) {
+  const jiraKey = await getJiraKeyForProgram(programId);
+  if (!jiraKey) return;
+  try {
+    if (milestone.jiraEpicKey) {
+      // Update existing Jira issue
+      await jiraService.updateIssue(milestone.jiraEpicKey, { summary: milestone.title });
+      // Sync status via transitions
+      await syncStatusToJira(milestone.jiraEpicKey, milestone.status);
+    } else {
+      // Create new Jira issue
+      const jiraIssue = await jiraService.createIssue(jiraKey, milestone.title, milestone.description || "");
+      await storage.updateMilestone(milestone.id, { jiraEpicKey: jiraIssue.key } as any);
+    }
+  } catch (err: any) { console.error("Jira milestone push failed:", err?.message); }
+}
+
+// Helper: push a risk to Jira
+async function pushRiskToJira(risk: any, programId: string) {
+  const jiraKey = await getJiraKeyForProgram(programId);
+  if (!jiraKey) return;
+  try {
+    if (risk.jiraIssueKey) {
+      await jiraService.updateIssue(risk.jiraIssueKey, {
+        summary: `[Risk] ${risk.title}`,
+        labels: ["risk", risk.severity || "medium"],
+      });
+    } else {
+      const desc = `Severity: ${risk.severity || 'unknown'}\n${risk.description || ''}\nMitigation: ${risk.mitigationPlan || 'N/A'}`;
+      const jiraIssue = await jiraService.createIssueWithLabels(jiraKey, `[Risk] ${risk.title}`, desc, ["risk", risk.severity || "medium"]);
+      await storage.updateRisk(risk.id, { jiraIssueKey: jiraIssue.key } as any);
+    }
+  } catch (err: any) { console.error("Jira risk push failed:", err?.message); }
+}
+
+// Helper: push a decision to Jira
+async function pushDecisionToJira(decision: any, programId: string) {
+  const jiraKey = await getJiraKeyForProgram(programId);
+  if (!jiraKey) return;
+  try {
+    if (decision.jiraIssueKey) {
+      await jiraService.updateIssue(decision.jiraIssueKey, {
+        summary: `[Decision] ${decision.title}`,
+        labels: ["decision", decision.status || "proposed"],
+      });
+    } else {
+      const desc = `Status: ${decision.status}\nRationale: ${decision.rationale || 'N/A'}\nImpact: ${decision.impact || 'N/A'}`;
+      const jiraIssue = await jiraService.createIssueWithLabels(jiraKey, `[Decision] ${decision.title}`, desc, ["decision"]);
+      await storage.updateDecision(decision.id, { jiraIssueKey: jiraIssue.key } as any);
+    }
+  } catch (err: any) { console.error("Jira decision push failed:", err?.message); }
+}
+
+// Helper: push a todo as a comment on the program's Jira project
+async function pushTodoToJira(todo: any, programId: string) {
+  const jiraKey = await getJiraKeyForProgram(programId);
+  if (!jiraKey) return;
+  try {
+    // Find any Jira issue in this project to attach the comment to
+    // Use the first milestone's Jira key, or search for the project's root issue
+    const milestones = await storage.getMilestones(programId);
+    const linkedMilestone = milestones.find((m: any) => m.jiraEpicKey);
+    if (linkedMilestone?.jiraEpicKey) {
+      const statusEmoji = todo.status === 'completed' ? '✅' : todo.status === 'in_progress' ? '🔄' : '📋';
+      const comment = `${statusEmoji} Todo [${todo.status}]: ${todo.title}${todo.description ? '\n' + todo.description : ''}${todo.priority ? ' (Priority: ' + todo.priority + ')' : ''}`;
+      await jiraService.addComment(linkedMilestone.jiraEpicKey, comment);
+    }
+  } catch (err: any) { console.error("Jira todo push failed:", err?.message); }
+}
+
+// Helper: sync TPM status to Jira via transitions
+async function syncStatusToJira(jiraIssueKey: string, tpmStatus: string) {
+  try {
+    const transitions = await jiraService.getTransitions(jiraIssueKey);
+    let targetTransition: any = null;
+    if (['completed', 'resolved', 'closed'].includes(tpmStatus)) {
+      targetTransition = transitions.find((t: any) => ['done', 'closed', 'resolved'].includes(t.name.toLowerCase()));
+    } else if (['in_progress', 'active'].includes(tpmStatus)) {
+      targetTransition = transitions.find((t: any) => ['in progress', 'in review', 'start progress'].includes(t.name.toLowerCase()));
+    }
+    if (targetTransition) {
+      await jiraService.updateIssueStatus(jiraIssueKey, targetTransition.id);
+    }
+  } catch { /* transition not available — skip */ }
+}
+
+// Helper: check if storage has updateDecision with jiraIssueKey support
+// (uses the existing storage.updateDecision which accepts Partial)
 
 // Register only API routes on the Express app (no HTTP server or WebSocket)
 export function registerApiRoutes(app: Express): void {
@@ -50,6 +150,59 @@ export function registerApiRoutes(app: Express): void {
     } catch (error) {
       console.error("Error fetching dashboard priorities:", error);
       res.status(500).json({ message: "Failed to fetch dashboard priorities" });
+    }
+  });
+
+  // Dashboard activity feed — recent items from the last 48 hours
+  app.get("/api/dashboard/activity", async (req, res) => {
+    try {
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+      const [programs, milestones, risks, escalations] = await Promise.all([
+        storage.getPrograms(),
+        storage.getMilestones(),
+        storage.getRisks(),
+        storage.getEscalations(),
+      ]);
+
+      // Build a program name lookup
+      const programMap = new Map<string, string>();
+      for (const p of programs) programMap.set(p.id, p.name);
+
+      const items: Array<{ type: string; title: string; programName: string; action: string; timestamp: string }> = [];
+
+      for (const p of programs) {
+        const ts = p.updatedAt || p.createdAt;
+        if (ts && new Date(ts) >= cutoff) {
+          const isNew = p.createdAt && p.updatedAt && new Date(p.createdAt).getTime() === new Date(p.updatedAt).getTime();
+          items.push({ type: 'program', title: p.name, programName: '', action: isNew ? 'created' : 'updated', timestamp: String(ts) });
+        }
+      }
+      for (const m of milestones) {
+        const ts = m.updatedAt || m.createdAt;
+        if (ts && new Date(ts) >= cutoff) {
+          items.push({ type: 'milestone', title: m.title, programName: programMap.get(m.programId || '') || '', action: m.status === 'completed' ? 'completed' : 'updated', timestamp: String(ts) });
+        }
+      }
+      for (const r of risks) {
+        const ts = r.updatedAt || r.createdAt;
+        if (ts && new Date(ts) >= cutoff) {
+          items.push({ type: 'risk', title: r.title, programName: programMap.get(r.programId || '') || '', action: r.status === 'resolved' ? 'resolved' : 'updated', timestamp: String(ts) });
+        }
+      }
+      for (const e of escalations) {
+        const ts = e.createdAt;
+        if (ts && new Date(ts) >= cutoff) {
+          items.push({ type: 'escalation', title: e.summary, programName: programMap.get(e.programId || '') || '', action: 'raised', timestamp: String(ts) });
+        }
+      }
+
+      // Sort newest first, return top 10
+      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      res.json(items.slice(0, 10));
+    } catch (error) {
+      console.error("Error fetching dashboard activity:", error);
+      res.status(500).json({ message: "Failed to fetch activity feed" });
     }
   });
 
@@ -158,10 +311,37 @@ export function registerApiRoutes(app: Express): void {
         ownerId: req.body.ownerId || req.auth?.userId || null,
       });
       const program = await storage.createProgram(validatedData);
-      
+
       // Broadcast real-time update
       (app as any).broadcast('data_changed', { type: 'program_created', data: program });
-      
+
+      // Auto-create Jira project for this program
+      if (jiraService.isConfigured() && !(program as any).jiraProjectKey) {
+        try {
+          let baseKey = program.name
+            .replace(/[^a-zA-Z\s]/g, '')
+            .split(/\s+/)
+            .map((w: string) => w[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 6);
+          if (baseKey.length < 2) baseKey = program.name.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 4);
+          if (baseKey.length < 2) baseKey = 'TPM';
+
+          const existingProjects = await jiraService.getProjects();
+          const existingKeys = new Set(existingProjects.map(p => p.key));
+          let key = baseKey;
+          let suffix = 1;
+          while (existingKeys.has(key)) { key = `${baseKey}${suffix}`; suffix++; }
+
+          const jiraProject = await jiraService.createProject(program.name, key);
+          await storage.updateProgram(program.id, { jiraProjectKey: jiraProject.key } as any);
+          (program as any).jiraProjectKey = jiraProject.key;
+        } catch (jiraErr: any) {
+          console.error("Failed to create Jira project for new program:", jiraErr?.message);
+        }
+      }
+
       res.status(201).json(program);
     } catch (error) {
       console.error("Error creating program:", error);
@@ -172,7 +352,7 @@ export function registerApiRoutes(app: Express): void {
   app.put("/api/programs/:id", async (req, res) => {
     try {
       // Use loose validation — allow partial updates without strict FK checks
-      const allowedFields = ['name', 'description', 'status', 'ownerId', 'ownerName', 'platformId', 'startDate', 'endDate', 'objectives', 'kpis', 'disabledComponents', 'dismissedWarnings'];
+      const allowedFields = ['name', 'description', 'status', 'ownerId', 'ownerName', 'platformId', 'startDate', 'endDate', 'objectives', 'kpis', 'disabledComponents', 'dismissedWarnings', 'jiraProjectKey'];
       const updateData: Record<string, any> = {};
       for (const key of allowedFields) {
         if (key in req.body) {
@@ -300,17 +480,12 @@ export function registerApiRoutes(app: Express): void {
       
       // Broadcast real-time update
       (app as any).broadcast('data_changed', { type: 'milestone_created', data: milestone });
-      
-      // If Live mode and JIRA integration is configured, push to JIRA
-      if (req.body.pushToJira) {
-        try {
-          const jiraEpicKey = await integrationService.pushMilestoneToJira(milestone);
-          await storage.updateMilestone(milestone.id, { jiraEpicKey });
-        } catch (jiraError) {
-          console.error("Error pushing milestone to JIRA:", jiraError);
-        }
+
+      // Auto-push to Jira if program is linked
+      if (milestone.programId) {
+        pushMilestoneToJira(milestone, milestone.programId);
       }
-      
+
       res.status(201).json(milestone);
     } catch (error) {
       console.error("Error creating milestone:", error);
@@ -323,6 +498,12 @@ export function registerApiRoutes(app: Express): void {
       const validatedData = insertMilestoneSchema.partial().parse(req.body);
       const milestone = await storage.updateMilestone(req.params.id, validatedData);
       (app as any).broadcast('data_changed', { type: 'milestone_updated', data: milestone });
+
+      // Auto-push to Jira
+      if (milestone.programId) {
+        pushMilestoneToJira(milestone, milestone.programId);
+      }
+
       res.json(milestone);
     } catch (error) {
       console.error("Error updating milestone:", error);
@@ -574,17 +755,12 @@ export function registerApiRoutes(app: Express): void {
       
       // Broadcast real-time update
       (app as any).broadcast('data_changed', { type: 'risk_created', data: risk });
-      
-      // If Live mode and JIRA integration is configured, push to JIRA
-      if (req.body.pushToJira) {
-        try {
-          const jiraIssueKey = await integrationService.pushRiskToJira(risk);
-          await storage.updateRisk(risk.id, { jiraIssueKey });
-        } catch (jiraError) {
-          console.error("Error pushing risk to JIRA:", jiraError);
-        }
+
+      // Auto-push to Jira
+      if (risk.programId) {
+        pushRiskToJira(risk, risk.programId);
       }
-      
+
       res.status(201).json(risk);
     } catch (error) {
       console.error("Error creating risk:", error);
@@ -596,6 +772,12 @@ export function registerApiRoutes(app: Express): void {
     try {
       const validatedData = insertRiskSchema.partial().parse(req.body);
       const risk = await storage.updateRisk(req.params.id, validatedData);
+
+      // Auto-push to Jira
+      if (risk.programId) {
+        pushRiskToJira(risk, risk.programId);
+      }
+
       res.json(risk);
     } catch (error) {
       console.error("Error updating risk:", error);
@@ -745,6 +927,224 @@ export function registerApiRoutes(app: Express): void {
     } catch (error) {
       console.error("Error updating integration:", error);
       res.status(400).json({ message: "Failed to update integration" });
+    }
+  });
+
+  // Todo routes
+  app.get("/api/todos", async (req, res) => {
+    try {
+      const { programId } = req.query;
+      const todosList = await storage.getTodos(programId as string);
+      res.json(todosList);
+    } catch (error) {
+      console.error("Error fetching todos:", error);
+      res.status(500).json({ message: "Failed to fetch todos" });
+    }
+  });
+
+  app.post("/api/todos", async (req, res) => {
+    try {
+      const validatedData = insertTodoSchema.parse(req.body);
+      const todo = await storage.createTodo(validatedData);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'todo_created', data: todo });
+
+      // Push todo as Jira comment
+      if (todo.programId) {
+        pushTodoToJira(todo, todo.programId);
+      }
+
+      res.status(201).json(todo);
+    } catch (error) {
+      console.error("Error creating todo:", error);
+      res.status(400).json({ message: "Failed to create todo" });
+    }
+  });
+
+  app.patch("/api/todos/:id", async (req, res) => {
+    try {
+      const validatedData = insertTodoSchema.partial().parse(req.body);
+      const todo = await storage.updateTodo(req.params.id, validatedData);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'todo_updated', data: todo });
+
+      // Push status update as Jira comment
+      if (todo.programId) {
+        pushTodoToJira(todo, todo.programId);
+      }
+
+      res.json(todo);
+    } catch (error) {
+      console.error("Error updating todo:", error);
+      res.status(400).json({ message: "Failed to update todo" });
+    }
+  });
+
+  app.delete("/api/todos/:id", async (req, res) => {
+    try {
+      await storage.deleteTodo(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'todo_deleted', id: req.params.id });
+      res.json({ message: "Todo deleted" });
+    } catch (error) {
+      console.error("Error deleting todo:", error);
+      res.status(500).json({ message: "Failed to delete todo" });
+    }
+  });
+
+  // Generate todos from PMP recommendations for a program
+  app.post("/api/todos/generate/:programId", async (req, res) => {
+    try {
+      const { programId } = req.params;
+      const program = await storage.getProgram(programId);
+      if (!program) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+
+      const [programMilestones, programRisks, programDependencies, programAdopters, existingTodos] = await Promise.all([
+        storage.getMilestones(programId),
+        storage.getRisks(programId),
+        storage.getDependencies(programId),
+        storage.getAdopters(programId),
+        storage.getTodos(programId),
+      ]);
+
+      // Existing PMP todo titles for dedup
+      const existingPmpTitles = new Set(
+        existingTodos
+          .filter(t => t.source === 'pmp_recommendation')
+          .map(t => t.title.toLowerCase())
+      );
+
+      const todosToCreate: Array<{ title: string; description: string; priority: number }> = [];
+
+      // Check for missing components and generate todos
+      if (!program.description || (program.description && program.description.length < 50)) {
+        todosToCreate.push({ title: 'Develop Program Charter', description: 'Write comprehensive program charter with clear scope, objectives, and success criteria', priority: 3 });
+      }
+      if (!program.ownerId) {
+        todosToCreate.push({ title: 'Assign Program Manager', description: 'Designate clear ownership and accountability through program leadership', priority: 4 });
+      }
+      if (!program.startDate) {
+        todosToCreate.push({ title: 'Define Start Date', description: 'Establish clear timeline boundaries for program initiation', priority: 2 });
+      }
+      if (!program.endDate) {
+        todosToCreate.push({ title: 'Establish End Date', description: 'Set time-bound objectives for successful program closure', priority: 2 });
+      }
+      if (programMilestones.length === 0) {
+        todosToCreate.push({ title: 'Create Work Breakdown Structure', description: 'Define milestones and decompose work into trackable deliverables', priority: 5 });
+      }
+      if (programRisks.length === 0) {
+        todosToCreate.push({ title: 'Conduct Risk Assessment', description: 'Identify and assess risks with mitigation strategies', priority: 4 });
+      }
+      if (programDependencies.length === 0) {
+        todosToCreate.push({ title: 'Map Dependencies', description: 'Identify cross-program and external dependencies for critical path management', priority: 3 });
+      }
+      if (programAdopters.length === 0) {
+        todosToCreate.push({ title: 'Identify Stakeholders & Adopters', description: 'Map stakeholder influence and plan engagement strategy', priority: 3 });
+      }
+      if (!program.objectives || (Array.isArray(program.objectives) && program.objectives.length === 0)) {
+        todosToCreate.push({ title: 'Define SMART Objectives', description: 'Set specific, measurable, achievable, relevant, time-bound objectives', priority: 3 });
+      }
+      if (!program.kpis || (Array.isArray(program.kpis) && program.kpis.length === 0)) {
+        todosToCreate.push({ title: 'Establish KPIs', description: 'Define measurable success criteria and performance indicators', priority: 2 });
+      }
+
+      // Critical risks need response plans
+      const criticalRisks = programRisks.filter(r => r.severity === 'critical' || r.severity === 'high');
+      if (criticalRisks.length > 0) {
+        todosToCreate.push({ title: 'Implement Risk Response Plans', description: `${criticalRisks.length} critical/high risks need immediate response strategies`, priority: 5 });
+      }
+
+      // Blocked dependencies
+      const blockedDeps = programDependencies.filter(d => d.status === 'blocked');
+      if (blockedDeps.length > 0) {
+        todosToCreate.push({ title: 'Resolve Blocked Dependencies', description: `${blockedDeps.length} dependencies are currently blocked and need escalation`, priority: 5 });
+      }
+
+      // Filter out duplicates
+      const newTodos = todosToCreate.filter(t => !existingPmpTitles.has(t.title.toLowerCase()));
+
+      // Create the todos
+      const created = [];
+      for (const todo of newTodos) {
+        const result = await storage.createTodo({
+          title: todo.title,
+          description: todo.description,
+          programId,
+          source: 'pmp_recommendation',
+          priority: todo.priority,
+          status: 'not_started',
+        });
+        created.push(result);
+      }
+
+      res.json({ generated: created.length, todos: created });
+    } catch (error) {
+      console.error("Error generating todos:", error);
+      res.status(500).json({ message: "Failed to generate todos" });
+    }
+  });
+
+  // Decision routes
+  app.get("/api/decisions", async (req, res) => {
+    try {
+      const { programId } = req.query;
+      const decisionsList = await storage.getDecisions(programId as string);
+      res.json(decisionsList);
+    } catch (error) {
+      console.error("Error fetching decisions:", error);
+      res.status(500).json({ message: "Failed to fetch decisions" });
+    }
+  });
+
+  app.post("/api/decisions", async (req, res) => {
+    try {
+      const validatedData = insertDecisionSchema.parse(req.body);
+      const decision = await storage.createDecision(validatedData);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'decision_created', data: decision });
+
+      // Auto-push to Jira
+      if (decision.programId) {
+        pushDecisionToJira(decision, decision.programId);
+      }
+
+      res.status(201).json(decision);
+    } catch (error) {
+      console.error("Error creating decision:", error);
+      res.status(400).json({ message: "Failed to create decision" });
+    }
+  });
+
+  app.patch("/api/decisions/:id", async (req, res) => {
+    try {
+      const validatedData = insertDecisionSchema.partial().parse(req.body);
+      const decision = await storage.updateDecision(req.params.id, validatedData);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'decision_updated', data: decision });
+
+      // Auto-push to Jira
+      if (decision.programId) {
+        pushDecisionToJira(decision, decision.programId);
+      }
+
+      res.json(decision);
+    } catch (error) {
+      console.error("Error updating decision:", error);
+      res.status(400).json({ message: "Failed to update decision" });
+    }
+  });
+
+  app.delete("/api/decisions/:id", async (req, res) => {
+    try {
+      await storage.deleteDecision(req.params.id);
+      const broadcast = (app as any).broadcast;
+      if (broadcast) broadcast('data_changed', { type: 'decision_deleted', id: req.params.id });
+      res.json({ message: "Decision deleted" });
+    } catch (error) {
+      console.error("Error deleting decision:", error);
+      res.status(500).json({ message: "Failed to delete decision" });
     }
   });
 
@@ -1029,6 +1429,36 @@ export function registerApiRoutes(app: Express): void {
         storage.getAdopters()
       ]);
 
+      // Fetch Jira data if configured
+      let jiraData: any = { connected: false };
+      try {
+        const jiraStatus = await jiraService.testConnection();
+        if (jiraStatus) {
+          const jiraProjects = await jiraService.getProjects();
+          const allIssues: any[] = [];
+          for (const proj of jiraProjects.slice(0, 5)) { // limit to 5 projects
+            const issues = await jiraService.getIssues(proj.key);
+            allIssues.push(...issues.slice(0, 30).map((i: any) => ({
+              key: i.key,
+              summary: i.fields?.summary,
+              status: i.fields?.status?.name,
+              assignee: i.fields?.assignee?.displayName || 'Unassigned',
+              priority: i.fields?.priority?.name,
+              type: i.fields?.issuetype?.name,
+              dueDate: i.fields?.duedate,
+              project: proj.key
+            })));
+          }
+          jiraData = {
+            connected: true,
+            projects: jiraProjects.map((p: any) => ({ key: p.key, name: p.name })),
+            issues: allIssues
+          };
+        }
+      } catch (jiraErr: any) {
+        console.error("Jira context fetch failed:", jiraErr?.message);
+      }
+
       // Sort programs by createdAt so oldest/newest references work correctly
       const programsSorted = [...programs].sort((a, b) =>
         new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
@@ -1039,7 +1469,8 @@ export function registerApiRoutes(app: Express): void {
         risks: risks.map(r => ({ id: r.id, title: r.title, severity: r.severity, programId: r.programId })),
         milestones: milestones.map(m => ({ id: m.id, title: m.title, status: m.status, programId: m.programId })),
         dependencies: dependencies.map(d => ({ id: d.id, title: d.title, status: d.status })),
-        adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status }))
+        adopters: adopters.map(a => ({ id: a.id, teamName: a.teamName, status: a.status })),
+        jira: jiraData
       };
 
       // Carry recent chat history for context (from request body if provided)
@@ -1907,6 +2338,295 @@ ${sections}
     } catch (error) {
       console.error("Error deleting phase stage:", error);
       res.status(500).json({ message: "Failed to delete phase stage" });
+    }
+  });
+
+  // Global Search endpoint
+  app.get("/api/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string || "").toLowerCase().trim();
+      if (!q) {
+        return res.json({ programs: [], milestones: [], risks: [], todos: [], decisions: [], escalations: [], stakeholders: [], dependencies: [] });
+      }
+
+      const [allPrograms, allMilestones, allRisks, allTodos, allDecisions, allEscalations, allStakeholders, allDependencies] = await Promise.all([
+        storage.getPrograms(), storage.getMilestones(), storage.getRisks(),
+        storage.getTodos(), storage.getDecisions(),
+        storage.getEscalations(), storage.getStakeholders(), storage.getDependencies(),
+      ]);
+
+      const programNameMap: Record<string, string> = {};
+      for (const p of allPrograms) programNameMap[p.id] = p.name;
+
+      const matchPrograms = allPrograms.filter(p => p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q)).map(p => ({ id: p.id, title: p.name, type: "program" as const, programName: null, matchField: p.name.toLowerCase().includes(q) ? "name" : "description" }));
+      const matchMilestones = allMilestones.filter(m => m.title.toLowerCase().includes(q)).map(m => ({ id: m.id, title: m.title, type: "milestone" as const, programName: m.programId ? programNameMap[m.programId] || null : null, matchField: "title" }));
+      const matchRisks = allRisks.filter(r => r.title.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q)).map(r => ({ id: r.id, title: r.title, type: "risk" as const, programName: r.programId ? programNameMap[r.programId] || null : null, matchField: r.title.toLowerCase().includes(q) ? "title" : "description" }));
+      const matchTodos = allTodos.filter(t => t.title.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q)).map(t => ({ id: t.id, title: t.title, type: "todo" as const, programName: t.programId ? programNameMap[t.programId] || null : null, matchField: t.title.toLowerCase().includes(q) ? "title" : "description" }));
+      const matchDecisions = allDecisions.filter(d => d.title.toLowerCase().includes(q) || (d.rationale || "").toLowerCase().includes(q)).map(d => ({ id: d.id, title: d.title, type: "decision" as const, programName: d.programId ? programNameMap[d.programId] || null : null, matchField: d.title.toLowerCase().includes(q) ? "title" : "rationale" }));
+      const matchEscalations = allEscalations.filter(e => e.summary.toLowerCase().includes(q)).map(e => ({ id: e.id, title: e.summary, type: "escalation" as const, programName: e.programId ? programNameMap[e.programId] || null : null, matchField: "summary" }));
+      const matchStakeholders = allStakeholders.filter(s => s.name.toLowerCase().includes(q) || (s.role || "").toLowerCase().includes(q)).map(s => ({ id: s.id, title: s.name, type: "stakeholder" as const, programName: s.programId ? programNameMap[s.programId] || null : null, matchField: s.name.toLowerCase().includes(q) ? "name" : "role" }));
+      const matchDependencies = allDependencies.filter(d => d.title.toLowerCase().includes(q) || (d.description || "").toLowerCase().includes(q)).map(d => ({ id: d.id, title: d.title, type: "dependency" as const, programName: d.programId ? programNameMap[d.programId] || null : null, matchField: d.title.toLowerCase().includes(q) ? "title" : "description" }));
+
+      res.json({ programs: matchPrograms, milestones: matchMilestones, risks: matchRisks, todos: matchTodos, decisions: matchDecisions, escalations: matchEscalations, stakeholders: matchStakeholders, dependencies: matchDependencies });
+    } catch (error) {
+      console.error("Error performing search:", error);
+      res.status(500).json({ message: "Failed to perform search" });
+    }
+  });
+
+  // Weekly Status Generator
+  app.post("/api/programs/:id/weekly-status", async (req, res) => {
+    try {
+      const programId = req.params.id;
+      const program = await storage.getProgram(programId);
+      if (!program) return res.status(404).json({ message: "Program not found" });
+
+      const [milestones, risks, dependencies, escalations] = await Promise.all([
+        storage.getMilestones(programId), storage.getRisks(programId),
+        storage.getDependencies(programId), storage.getEscalations(programId),
+      ]);
+
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const completedMilestones = milestones.filter(m => m.status === "completed").length;
+      const totalMilestones = milestones.length;
+      const criticalRisks = risks.filter(r => r.severity === "critical" || r.severity === "high").length;
+      const healthScore = totalMilestones > 0 ? Math.round(((completedMilestones / totalMilestones) * 50) + ((1 - Math.min(criticalRisks, 5) / 5) * 50)) : 100 - Math.min(criticalRisks * 10, 50);
+
+      res.json({
+        summary: { programName: program.name, status: program.status || "planning", healthScore, totalMilestones, completedMilestones, openRisks: risks.filter(r => r.status !== "resolved" && r.status !== "mitigated").length, criticalRisks },
+        completedThisWeek: milestones.filter(m => m.status === "completed" && m.completedDate && new Date(m.completedDate) >= oneWeekAgo).map(m => ({ id: m.id, title: m.title, completedDate: m.completedDate })),
+        inProgress: milestones.filter(m => m.status === "in_progress" || m.status === "at_risk").map(m => ({ id: m.id, title: m.title, status: m.status, dueDate: m.dueDate })),
+        risksAndBlockers: {
+          criticalHighRisks: risks.filter(r => (r.severity === "critical" || r.severity === "high") && r.status !== "resolved" && r.status !== "mitigated").map(r => ({ id: r.id, title: r.title, severity: r.severity, status: r.status })),
+          blockedDependencies: dependencies.filter(d => d.status === "blocked").map(d => ({ id: d.id, title: d.title, status: d.status })),
+          openEscalations: escalations.filter(e => e.status === "open" || e.status === "in_progress").map(e => ({ id: e.id, title: e.summary, urgency: e.urgency, status: e.status })),
+        },
+        nextWeekFocus: milestones.filter(m => m.dueDate && m.status !== "completed" && new Date(m.dueDate) >= now && new Date(m.dueDate) <= oneWeekFromNow).map(m => ({ id: m.id, title: m.title, dueDate: m.dueDate })).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
+        overdueItems: milestones.filter(m => m.dueDate && m.status !== "completed" && new Date(m.dueDate) < now).map(m => ({ id: m.id, title: m.title, dueDate: m.dueDate, daysOverdue: Math.ceil((now.getTime() - new Date(m.dueDate!).getTime()) / (1000 * 60 * 60 * 24)) })),
+        generatedAt: now.toISOString(),
+      });
+    } catch (error) {
+      console.error("Error generating weekly status:", error);
+      res.status(500).json({ message: "Failed to generate weekly status" });
+    }
+  });
+
+  // Jira integration routes
+  app.get("/api/jira/status", async (req, res) => {
+    try {
+      if (!jiraService.isConfigured()) return res.json({ connected: false, user: null, projects: [] });
+      const user = await jiraService.testConnection();
+      const projects = await jiraService.getProjects();
+      res.json({ connected: true, user: user.displayName, projects });
+    } catch (error) {
+      console.error("Error testing Jira connection:", error);
+      res.json({ connected: false, user: null, projects: [], error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/jira/projects", async (req, res) => {
+    try {
+      const projects = await jiraService.getProjects();
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching Jira projects:", error);
+      res.status(500).json({ message: "Failed to fetch Jira projects" });
+    }
+  });
+
+  app.get("/api/jira/issues", async (req, res) => {
+    try {
+      const projectKey = req.query.projectKey as string;
+      const jql = req.query.jql as string | undefined;
+      if (!projectKey) return res.status(400).json({ message: "projectKey query parameter is required" });
+      const issues = await jiraService.getIssues(projectKey, jql);
+      res.json(issues);
+    } catch (error) {
+      console.error("Error fetching Jira issues:", error);
+      res.status(500).json({ message: "Failed to fetch Jira issues" });
+    }
+  });
+
+  app.post("/api/jira/issues", async (req, res) => {
+    try {
+      const { projectKey, summary, description, issueType } = req.body;
+      if (!projectKey || !summary) return res.status(400).json({ message: "projectKey and summary are required" });
+      const issue = await jiraService.createIssue(projectKey, summary, description || "", issueType || "Task");
+      res.status(201).json(issue);
+    } catch (error) {
+      console.error("Error creating Jira issue:", error);
+      res.status(500).json({ message: "Failed to create Jira issue" });
+    }
+  });
+
+  app.post("/api/jira/sync/:programId", async (req, res) => {
+    try {
+      const { programId } = req.params;
+      const { projectKey } = req.body;
+      if (!projectKey) return res.status(400).json({ message: "projectKey is required in request body" });
+      const program = await storage.getProgram(programId);
+      if (!program) return res.status(404).json({ message: "Program not found" });
+
+      const issues = await jiraService.getIssues(projectKey);
+      const existingMilestones = await storage.getMilestones();
+      const programMilestones = existingMilestones.filter((m: any) => m.programId === programId);
+      const syncedKeys = new Set(programMilestones.filter((m: any) => m.jiraEpicKey).map((m: any) => m.jiraEpicKey));
+
+      let created = 0, updated = 0;
+      for (const issue of issues) {
+        const jiraStatus = issue.fields.status?.name?.toLowerCase() || "";
+        let milestoneStatus: "not_started" | "in_progress" | "completed" | "at_risk" | "delayed" = "not_started";
+        if (["done", "closed", "resolved"].includes(jiraStatus)) milestoneStatus = "completed";
+        else if (["in progress", "in review"].includes(jiraStatus)) milestoneStatus = "in_progress";
+
+        if (syncedKeys.has(issue.key)) {
+          const existing = programMilestones.find((m: any) => m.jiraEpicKey === issue.key);
+          if (existing) { await storage.updateMilestone(existing.id, { title: issue.fields.summary, status: milestoneStatus }); updated++; }
+        } else {
+          await storage.createMilestone({ title: issue.fields.summary, description: `[Jira ${issue.key}] ${issue.fields.issuetype?.name || "Issue"}`, programId, status: milestoneStatus, jiraEpicKey: issue.key, dueDate: issue.fields.duedate ? new Date(issue.fields.duedate) : undefined } as any);
+          created++;
+        }
+      }
+      res.json({ message: `Synced ${issues.length} Jira issues: ${created} created, ${updated} updated`, created, updated, total: issues.length });
+    } catch (error) {
+      console.error("Error syncing Jira issues:", error);
+      res.status(500).json({ message: "Failed to sync Jira issues" });
+    }
+  });
+
+  // Auto-sync: import Jira projects as programs and sync issues as milestones
+  app.post("/api/jira/auto-sync", async (req, res) => {
+    try {
+      const status = await jiraService.testConnection();
+      if (!status) return res.json({ synced: false, message: "Jira not connected" });
+
+      const jiraProjects = await jiraService.getProjects();
+      const existingPrograms = await storage.getPrograms();
+
+      let programsCreated = 0, programsUpdated = 0, issuesSynced = 0;
+
+      for (const jiraProj of jiraProjects) {
+        // Find existing program linked to this Jira project
+        let program = existingPrograms.find((p: any) => p.jiraProjectKey === jiraProj.key);
+
+        if (!program) {
+          // Create a new program for this Jira project
+          program = await storage.createProgram({
+            name: jiraProj.name,
+            description: `Synced from Jira project ${jiraProj.key}`,
+            status: "active",
+            jiraProjectKey: jiraProj.key,
+          } as any);
+          programsCreated++;
+        }
+
+        // Sync issues as milestones
+        const issues = await jiraService.getIssues(jiraProj.key);
+        const existingMilestones = await storage.getMilestones(program.id);
+        const syncedKeys = new Set(existingMilestones.filter((m: any) => m.jiraEpicKey).map((m: any) => m.jiraEpicKey));
+
+        for (const issue of issues) {
+          // Skip subtasks — only sync top-level issues
+          if (issue.fields.issuetype?.name?.toLowerCase() === 'subtask') continue;
+
+          const jiraStatus = issue.fields.status?.name?.toLowerCase() || "";
+          let milestoneStatus: "not_started" | "in_progress" | "completed" | "at_risk" | "delayed" = "not_started";
+          if (["done", "closed", "resolved"].includes(jiraStatus)) milestoneStatus = "completed";
+          else if (["in progress", "in review"].includes(jiraStatus)) milestoneStatus = "in_progress";
+
+          if (syncedKeys.has(issue.key)) {
+            const existing = existingMilestones.find((m: any) => m.jiraEpicKey === issue.key);
+            if (existing) {
+              await storage.updateMilestone(existing.id, { title: issue.fields.summary, status: milestoneStatus });
+            }
+          } else {
+            await storage.createMilestone({
+              title: issue.fields.summary,
+              description: `[Jira ${issue.key}] ${issue.fields.issuetype?.name || "Issue"}`,
+              programId: program.id,
+              status: milestoneStatus,
+              jiraEpicKey: issue.key,
+              dueDate: issue.fields.duedate ? new Date(issue.fields.duedate) : undefined,
+            } as any);
+            issuesSynced++;
+          }
+        }
+        programsUpdated++;
+      }
+
+      // REVERSE SYNC: TPM programs without a Jira project → create Jira project
+      let jiraProjectsCreated = 0;
+      const refreshedPrograms = await storage.getPrograms();
+      const existingJiraKeys = new Set(jiraProjects.map(p => p.key));
+
+      for (const program of refreshedPrograms) {
+        if ((program as any).jiraProjectKey) continue; // already linked
+
+        // Generate a Jira project key from program name (max 10 chars, uppercase, alpha only)
+        let baseKey = program.name
+          .replace(/[^a-zA-Z\s]/g, '')
+          .split(/\s+/)
+          .map(w => w[0])
+          .join('')
+          .toUpperCase()
+          .substring(0, 6);
+        if (baseKey.length < 2) baseKey = program.name.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 4);
+        if (baseKey.length < 2) baseKey = 'TPM';
+
+        // Ensure unique key
+        let key = baseKey;
+        let suffix = 1;
+        while (existingJiraKeys.has(key)) {
+          key = `${baseKey}${suffix}`;
+          suffix++;
+        }
+
+        try {
+          const jiraProject = await jiraService.createProject(program.name, key);
+          await storage.updateProgram(program.id, { jiraProjectKey: jiraProject.key } as any);
+          existingJiraKeys.add(jiraProject.key);
+          jiraProjectsCreated++;
+
+          // Push existing milestones to the new Jira project as issues
+          const programMilestones = await storage.getMilestones(program.id);
+          for (const ms of programMilestones) {
+            if ((ms as any).jiraEpicKey) continue; // already synced
+            try {
+              const jiraIssue = await jiraService.createIssue(jiraProject.key, ms.title, ms.description || "");
+              await storage.updateMilestone(ms.id, { jiraEpicKey: jiraIssue.key } as any);
+            } catch (msErr: any) { console.error(`Failed to push milestone "${ms.title}" to Jira:`, msErr?.message); }
+          }
+
+          // Push existing risks
+          const programRisks = await storage.getRisks(program.id);
+          for (const risk of programRisks) {
+            if ((risk as any).jiraIssueKey) continue;
+            try {
+              const desc = `Severity: ${risk.severity || 'unknown'}\n${risk.description || ''}`;
+              const jiraIssue = await jiraService.createIssueWithLabels(jiraProject.key, `[Risk] ${risk.title}`, desc, ["risk", risk.severity || "medium"]);
+              await storage.updateRisk(risk.id, { jiraIssueKey: jiraIssue.key } as any);
+            } catch (rErr: any) { console.error(`Failed to push risk "${risk.title}" to Jira:`, rErr?.message); }
+          }
+        } catch (projErr: any) {
+          console.error(`Failed to create Jira project for "${program.name}":`, projErr?.message);
+        }
+      }
+
+      (app as any).broadcast('data_changed', { type: 'jira_sync' });
+      res.json({
+        synced: true,
+        programsCreated,
+        programsUpdated,
+        issuesSynced,
+        jiraProjectsCreated,
+        totalJiraProjects: jiraProjects.length + jiraProjectsCreated
+      });
+    } catch (error: any) {
+      console.error("Jira auto-sync error:", error);
+      res.status(500).json({ synced: false, message: error?.message || "Jira auto-sync failed" });
     }
   });
 

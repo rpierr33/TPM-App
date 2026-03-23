@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PMPRecommendationsPanel } from "@/components/pmp/PMPRecommendationsPanel";
+import { ProgramTodos } from "@/components/program/ProgramTodos";
+import { ProgramDecisions } from "@/components/program/ProgramDecisions";
 import { getMissingComponents as getMissingComponentsUtil } from "@/lib/missingComponents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +15,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuthToken } from "@/lib/authFetch";
 import { calculateProgramHealth, getHealthBadge, getHealthProgressColor } from "@/lib/healthCalculation";
 import {
   ArrowLeft,
@@ -50,8 +54,21 @@ import {
   Gauge,
   Settings,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ExternalLink,
+  RefreshCw,
+  FileBarChart,
+  Copy,
+  Loader2
 } from "lucide-react";
+
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function useSafeUserId(): string | null | undefined {
+  if (!CLERK_ENABLED) return null;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useClerkAuth().userId;
+}
 
 interface ProgramDetailsProps {
   programId: string;
@@ -61,12 +78,16 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { userId } = useAuth();
+  const userId = useSafeUserId();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [showTrackingModules, setShowTrackingModules] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [fieldValue, setFieldValue] = useState("");
+  const [selectedJiraProject, setSelectedJiraProject] = useState<string>("");
+  const [showWeeklyStatus, setShowWeeklyStatus] = useState(false);
+  const [weeklyStatusData, setWeeklyStatusData] = useState<any>(null);
+  const [weeklyStatusLoading, setWeeklyStatusLoading] = useState(false);
 
   const updateProgramMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
@@ -110,6 +131,84 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
   const { data: milestones = [] } = useQuery<any[]>({ queryKey: ["/api/milestones"] });
   const { data: dependencies = [] } = useQuery<any[]>({ queryKey: ["/api/dependencies"] });
   const { data: adopters = [] } = useQuery<any[]>({ queryKey: ["/api/adopters"] });
+
+  // Jira integration — check disabled inline since program may not exist yet
+  const jiraEnabled = (() => {
+    const p = programs.find((p: any) => p.id === programId);
+    if (!p) return false;
+    const dc: string[] = Array.isArray(p.disabledComponents) ? p.disabledComponents : [];
+    return !dc.includes('jira');
+  })();
+
+  const { data: jiraStatus } = useQuery<{
+    connected: boolean;
+    user: string | null;
+    projects: { id: string; key: string; name: string; projectTypeKey: string }[];
+  }>({
+    queryKey: ["/api/jira/status"],
+    enabled: jiraEnabled,
+  });
+
+  const { data: jiraIssues = [], isLoading: jiraIssuesLoading, refetch: refetchJiraIssues } = useQuery<any[]>({
+    queryKey: ["/api/jira/issues", selectedJiraProject],
+    queryFn: async () => {
+      if (!selectedJiraProject) return [];
+      const headers: Record<string, string> = {};
+      const token = await getAuthToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`/api/jira/issues?projectKey=${selectedJiraProject}`, { headers, credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch Jira issues");
+      return res.json();
+    },
+    enabled: jiraEnabled && !!selectedJiraProject && !!jiraStatus?.connected,
+  });
+
+  const syncJiraMutation = useMutation({
+    mutationFn: async (projectKey: string) => {
+      return await apiRequest(`/api/jira/sync/${programId}`, "POST", { projectKey });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Jira Sync Complete", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+      refetchJiraIssues();
+    },
+    onError: (error: any) => {
+      toast({ title: "Sync Failed", description: error.message || "Failed to sync Jira issues", variant: "destructive" });
+    },
+  });
+
+  const handleGenerateWeeklyStatus = async () => {
+    setWeeklyStatusLoading(true);
+    setShowWeeklyStatus(true);
+    try {
+      const data = await apiRequest(`/api/programs/${programId}/weekly-status`, "POST");
+      setWeeklyStatusData(data);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to generate weekly status", variant: "destructive" });
+      setShowWeeklyStatus(false);
+    } finally {
+      setWeeklyStatusLoading(false);
+    }
+  };
+
+  const formatWeeklyStatusMarkdown = () => {
+    if (!weeklyStatusData) return "";
+    const d = weeklyStatusData;
+    const lines: string[] = [];
+    lines.push(`# Weekly Status: ${d.summary.programName}`);
+    lines.push(`**Status:** ${d.summary.status} | **Health Score:** ${d.summary.healthScore}%`);
+    lines.push("");
+    if (d.completedThisWeek?.length > 0) { lines.push("## Completed This Week"); d.completedThisWeek.forEach((item: any) => lines.push(`- ${item.title}`)); lines.push(""); }
+    if (d.inProgress?.length > 0) { lines.push("## In Progress"); d.inProgress.forEach((item: any) => lines.push(`- ${item.title} [${item.status}]`)); lines.push(""); }
+    if (d.risksAndBlockers?.criticalHighRisks?.length > 0) { lines.push("## Risks & Blockers"); d.risksAndBlockers.criticalHighRisks.forEach((r: any) => lines.push(`- [${(r.severity || "").toUpperCase()}] ${r.title}`)); lines.push(""); }
+    if (d.overdueItems?.length > 0) { lines.push("## Overdue"); d.overdueItems.forEach((item: any) => lines.push(`- ${item.title} — ${item.daysOverdue}d overdue`)); lines.push(""); }
+    if (d.nextWeekFocus?.length > 0) { lines.push("## Next Week"); d.nextWeekFocus.forEach((item: any) => lines.push(`- ${item.title}`)); lines.push(""); }
+    return lines.join("\n");
+  };
+
+  const handleCopyWeeklyStatus = async () => {
+    try { await navigator.clipboard.writeText(formatWeeklyStatusMarkdown()); toast({ title: "Copied to clipboard" }); } catch { toast({ title: "Failed to copy", variant: "destructive" }); }
+  };
 
   const program = programs.find(p => p.id === programId);
 
@@ -386,6 +485,10 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleGenerateWeeklyStatus} disabled={weeklyStatusLoading} className="text-gray-600 hover:text-gray-800 border-gray-200">
+              {weeklyStatusLoading ? <Loader2 size={14} className="mr-2 animate-spin" /> : <FileBarChart size={14} className="mr-2" />}
+              Generate Status
+            </Button>
             <Badge className={`border ${program.status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-100 text-blue-800 border-blue-200'}`}>
               {program.status || 'planning'}
             </Badge>
@@ -457,14 +560,25 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${4 + (isComponentDisabled('dependencies') ? 0 : 1) + (isComponentDisabled('adopters') ? 0 : 1)}, minmax(0, 1fr))` }}>
-            <TabsTrigger value="overview">Program Snapshot</TabsTrigger>
+          <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${6 + (isComponentDisabled('dependencies') ? 0 : 1) + (isComponentDisabled('adopters') ? 0 : 1) + (isComponentDisabled('jira') ? 0 : 1)}, minmax(0, 1fr))` }}>
+            <TabsTrigger value="overview">Snapshot</TabsTrigger>
+            <TabsTrigger value="todos">Todos</TabsTrigger>
             <TabsTrigger value="risks">Risks</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
             {!isComponentDisabled('dependencies') && <TabsTrigger value="dependencies">Dependencies</TabsTrigger>}
-            {!isComponentDisabled('adopters') && <TabsTrigger value="adopters">Team Adoption</TabsTrigger>}
+            {!isComponentDisabled('adopters') && <TabsTrigger value="adopters">Adoption</TabsTrigger>}
             <TabsTrigger value="stakeholders">Stakeholders</TabsTrigger>
+            <TabsTrigger value="decisions">Decisions</TabsTrigger>
+            {!isComponentDisabled('jira') && <TabsTrigger value="jira">Jira</TabsTrigger>}
           </TabsList>
+
+          <TabsContent value="todos" className="mt-6">
+            <ProgramTodos programId={programId} />
+          </TabsContent>
+
+          <TabsContent value="decisions" className="mt-6">
+            <ProgramDecisions programId={programId} />
+          </TabsContent>
 
           <TabsContent value="stakeholders" className="space-y-6 mt-6">
             {/* Stakeholder Management Dashboard */}
@@ -1452,6 +1566,142 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
               </Card>
             </TabsContent>
           )}
+
+          {/* Jira Integration Tab */}
+          {!isComponentDisabled('jira') && (
+            <TabsContent value="jira" className="mt-6 space-y-6">
+              {!jiraStatus?.connected ? (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <Link2 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Jira Not Connected</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Configure Jira credentials in Settings to enable issue syncing.
+                    </p>
+                    <Button variant="outline" onClick={() => setLocation("/settings")}>
+                      Go to Settings
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Sync Controls */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Jira Issue Sync</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-end gap-4">
+                        <div className="flex-1">
+                          <Label className="mb-2 block text-sm">Jira Project</Label>
+                          <Select value={selectedJiraProject} onValueChange={setSelectedJiraProject}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a Jira project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(jiraStatus?.projects || []).map((proj) => (
+                                <SelectItem key={proj.key} value={proj.key}>
+                                  {proj.name} ({proj.key})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          onClick={() => selectedJiraProject && syncJiraMutation.mutate(selectedJiraProject)}
+                          disabled={!selectedJiraProject || syncJiraMutation.isPending}
+                          className="flex items-center gap-2"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${syncJiraMutation.isPending ? 'animate-spin' : ''}`} />
+                          {syncJiraMutation.isPending ? "Syncing..." : "Sync Issues"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Syncing will pull Jira issues and create/update milestones in this program.
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Jira Issues List */}
+                  {selectedJiraProject && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span>Jira Issues ({jiraIssues.length})</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => refetchJiraIssues()}
+                            disabled={jiraIssuesLoading}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${jiraIssuesLoading ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {jiraIssuesLoading ? (
+                          <div className="animate-pulse space-y-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                              <div key={i} className="h-16 bg-gray-100 rounded"></div>
+                            ))}
+                          </div>
+                        ) : jiraIssues.length === 0 ? (
+                          <p className="text-gray-500 text-center py-8">No issues found in this Jira project.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {jiraIssues.map((issue: any) => {
+                              const statusName = issue.fields?.status?.name || "Unknown";
+                              const statusCategory = issue.fields?.status?.statusCategory?.key || "";
+                              const priorityName = issue.fields?.priority?.name || "None";
+                              const assigneeName = issue.fields?.assignee?.displayName || "Unassigned";
+
+                              const statusColor =
+                                statusCategory === "done" ? "bg-green-100 text-green-800" :
+                                statusCategory === "indeterminate" ? "bg-blue-100 text-blue-800" :
+                                "bg-gray-100 text-gray-800";
+
+                              const priorityColor =
+                                priorityName === "Highest" || priorityName === "Critical" ? "bg-red-100 text-red-800" :
+                                priorityName === "High" ? "bg-orange-100 text-orange-800" :
+                                priorityName === "Medium" ? "bg-yellow-100 text-yellow-800" :
+                                "bg-gray-100 text-gray-800";
+
+                              return (
+                                <div key={issue.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <a
+                                        href={`https://humanityandb.atlassian.net/browse/${issue.key}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-mono text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                      >
+                                        {issue.key}
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                      <Badge className={`text-xs ${statusColor}`}>{statusName}</Badge>
+                                    </div>
+                                    <p className="font-medium text-gray-900 truncate">{issue.fields?.summary}</p>
+                                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                      <span>{issue.fields?.issuetype?.name || "Issue"}</span>
+                                      <span>{assigneeName}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-4">
+                                    <Badge className={`text-xs ${priorityColor}`}>{priorityName}</Badge>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* PMP Recommendations for this program */}
@@ -1600,6 +1850,53 @@ export default function ProgramDetails({ programId }: ProgramDetailsProps) {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Weekly Status Modal */}
+      <Dialog open={showWeeklyStatus} onOpenChange={setShowWeeklyStatus}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <FileBarChart size={18} />
+                Weekly Status Report
+              </span>
+              {weeklyStatusData && (
+                <Button variant="outline" size="sm" onClick={handleCopyWeeklyStatus}>
+                  <Copy size={14} className="mr-2" />
+                  Copy as Markdown
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {weeklyStatusLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          ) : weeklyStatusData ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-semibold">{weeklyStatusData.summary.programName}</p>
+                <p className="text-xs text-gray-500">Status: {weeklyStatusData.summary.status} | Health: {weeklyStatusData.summary.healthScore}%</p>
+              </div>
+              {weeklyStatusData.completedThisWeek?.length > 0 && (
+                <div><h4 className="text-sm font-semibold text-green-700 mb-1">Completed This Week</h4>{weeklyStatusData.completedThisWeek.map((item: any, i: number) => <p key={i} className="text-xs text-gray-600 pl-3">- {item.title}</p>)}</div>
+              )}
+              {weeklyStatusData.inProgress?.length > 0 && (
+                <div><h4 className="text-sm font-semibold text-blue-700 mb-1">In Progress</h4>{weeklyStatusData.inProgress.map((item: any, i: number) => <p key={i} className="text-xs text-gray-600 pl-3">- {item.title} [{item.status}]</p>)}</div>
+              )}
+              {weeklyStatusData.risksAndBlockers?.criticalHighRisks?.length > 0 && (
+                <div><h4 className="text-sm font-semibold text-red-700 mb-1">Risks & Blockers</h4>{weeklyStatusData.risksAndBlockers.criticalHighRisks.map((r: any, i: number) => <p key={i} className="text-xs text-gray-600 pl-3">- [{(r.severity || "").toUpperCase()}] {r.title}</p>)}</div>
+              )}
+              {weeklyStatusData.overdueItems?.length > 0 && (
+                <div><h4 className="text-sm font-semibold text-amber-700 mb-1">Overdue</h4>{weeklyStatusData.overdueItems.map((item: any, i: number) => <p key={i} className="text-xs text-gray-600 pl-3">- {item.title} ({item.daysOverdue}d overdue)</p>)}</div>
+              )}
+              {weeklyStatusData.nextWeekFocus?.length > 0 && (
+                <div><h4 className="text-sm font-semibold text-purple-700 mb-1">Next Week Focus</h4>{weeklyStatusData.nextWeekFocus.map((item: any, i: number) => <p key={i} className="text-xs text-gray-600 pl-3">- {item.title}</p>)}</div>
+              )}
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

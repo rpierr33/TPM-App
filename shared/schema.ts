@@ -131,6 +131,26 @@ export const integrationStatusEnum = pgEnum("integration_status", [
   "error",
 ]);
 
+export const todoStatusEnum = pgEnum("todo_status", [
+  "not_started",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+
+export const todoSourceEnum = pgEnum("todo_source", [
+  "manual",
+  "pmp_recommendation",
+  "ai_generated",
+]);
+
+export const decisionStatusEnum = pgEnum("decision_status", [
+  "proposed",
+  "approved",
+  "rejected",
+  "deferred",
+]);
+
 // Core Tables
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -184,6 +204,7 @@ export const programs = pgTable("programs", {
   estimatedCompletionPercentage: integer("estimated_completion_percentage").default(0), // 0-100 for mid-execution programs
   disabledComponents: jsonb("disabled_components").default([]), // Array of disabled tracking module names, e.g. ["adopters", "dependencies"]
   dismissedWarnings: jsonb("dismissed_warnings").default([]), // Array of dismissed missing-component warnings, e.g. ["owner", "start_date", "objectives"]
+  jiraProjectKey: varchar("jira_project_key"), // Linked Jira project key for auto-sync
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -546,6 +567,56 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   }),
 }));
 
+// Todos
+export const todos = pgTable("todos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  programId: varchar("program_id").references(() => programs.id),
+  ownerId: varchar("owner_id").references(() => users.id),
+  status: todoStatusEnum("status").default("not_started"),
+  source: todoSourceEnum("source").default("manual"),
+  priority: integer("priority").default(1),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const todosRelations = relations(todos, ({ one }) => ({
+  program: one(programs, {
+    fields: [todos.programId],
+    references: [programs.id],
+  }),
+  owner: one(users, {
+    fields: [todos.ownerId],
+    references: [users.id],
+  }),
+}));
+
+// Decisions
+export const decisions = pgTable("decisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  programId: varchar("program_id").references(() => programs.id),
+  decidedBy: varchar("decided_by"),
+  rationale: text("rationale"),
+  impact: text("impact"),
+  status: decisionStatusEnum("status").default("proposed"),
+  decisionDate: timestamp("decision_date"),
+  jiraIssueKey: varchar("jira_issue_key"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const decisionsRelations = relations(decisions, ({ one }) => ({
+  program: one(programs, {
+    fields: [decisions.programId],
+    references: [programs.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -789,6 +860,29 @@ export type ProgramPhase = typeof programPhases.$inferSelect;
 export type InsertProgramPhase = z.infer<typeof insertProgramPhaseSchema>;
 export type PhaseStage = typeof phaseStages.$inferSelect;
 export type InsertPhaseStage = z.infer<typeof insertPhaseStageSchema>;
+
+// Todos & Decisions
+export const insertTodoSchema = createInsertSchema(todos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dueDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
+  completedDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
+});
+
+export const insertDecisionSchema = createInsertSchema(decisions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  decisionDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
+});
+
+export type Todo = typeof todos.$inferSelect;
+export type InsertTodo = z.infer<typeof insertTodoSchema>;
+export type Decision = typeof decisions.$inferSelect;
+export type InsertDecision = z.infer<typeof insertDecisionSchema>;
 
 // Dashboard metrics type
 export type DashboardMetrics = {

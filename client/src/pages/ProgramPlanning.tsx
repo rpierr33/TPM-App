@@ -48,7 +48,7 @@ export default function ProgramPlanning() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setLocation("/dashboard")}
+                onClick={() => setLocation("/")}
                 className="text-gray-600 hover:text-gray-800"
               >
                 <ArrowLeft size={16} className="mr-2" />

@@ -17,6 +17,7 @@ import Milestones from "@/pages/Milestones";
 import RiskManagement from "@/pages/RiskManagement";
 import Dependencies from "@/pages/Dependencies";
 import AdopterSupport from "@/pages/AdopterSupport";
+import People from "@/pages/People";
 import Escalations from "@/pages/Escalations";
 import ExecutiveReports from "@/pages/ExecutiveReports";
 import Stakeholders from "@/pages/Stakeholders";
@@ -73,8 +74,9 @@ function Router() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Switch>
-          <Route path="/" component={AIAssistant} />
+          <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/ai" component={AIAssistant} />
           <Route path="/programs" component={Programs} />
           <Route path="/programs/:id">
             {(params) => <ProgramDetails programId={params.id} />}
@@ -83,6 +85,7 @@ function Router() {
           <Route path="/risk-management" component={RiskManagement} />
           <Route path="/dependencies" component={Dependencies} />
           <Route path="/adopter-support" component={AdopterSupport} />
+          <Route path="/people" component={People} />
           <Route path="/escalations" component={Escalations} />
           <Route path="/executive-reports" component={ExecutiveReports} />
           <Route path="/stakeholders" component={Stakeholders} />

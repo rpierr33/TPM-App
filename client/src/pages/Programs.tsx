@@ -156,7 +156,7 @@ export default function Programs() {
       <Header
         title={getFilterTitle()}
         subtitle={getFilterSubtitle()}
-        onNewClick={() => setLocation("/dashboard")}
+        onNewClick={() => setLocation("/")}
         newButtonText="New Program"
       />
 
@@ -235,7 +235,7 @@ export default function Programs() {
                 }
               </p>
               {!searchTerm && statusFilter === 'all' && (
-                <Button onClick={() => setLocation("/dashboard")} className="bg-primary-500 text-white hover:bg-primary-600">
+                <Button onClick={() => setLocation("/")} className="bg-primary-500 text-white hover:bg-primary-600">
                   Create First Program
                 </Button>
               )}

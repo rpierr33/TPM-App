@@ -78,7 +78,7 @@ export const useAppStore = create<AppState>()(
         showProgramSnapshot: true,
         showProgramsList: true,
         showEscalations: true,
-        showPMPRecommendations: true,
+        showPMPRecommendations: false,
       },
       setDashboardPrefs: (prefs) => set((state) => ({
         dashboardPrefs: { ...state.dashboardPrefs, ...prefs }

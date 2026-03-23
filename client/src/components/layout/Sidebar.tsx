@@ -1,9 +1,6 @@
 import { Link, useLocation } from "wouter";
 import {
   ChartGantt,
-  Flag,
-  AlertTriangle,
-  Users,
   TrendingUp,
   BarChart3,
   Settings,
@@ -11,34 +8,43 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
-  UserCheck,
+  Users,
   Sparkles,
-  Wifi,
-  WifiOff
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserButton, useUser } from "@clerk/clerk-react";
 
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
 const navigationItems = [
-  { path: "/", icon: Brain, label: "AI Assistant", group: "core" },
-  { path: "/dashboard", icon: Activity, label: "Dashboard", group: "core" },
+  { path: "/", icon: Activity, label: "Home", group: "core" },
+  { path: "/ai", icon: Brain, label: "AI Assistant", group: "core" },
   { path: "/programs", icon: ChartGantt, label: "Programs", group: "manage" },
-  { path: "/milestones", icon: Flag, label: "Milestones", group: "manage" },
-  { path: "/risk-management", icon: AlertTriangle, label: "Risks", group: "manage" },
-  { path: "/dependencies", icon: ChartGantt, label: "Dependencies", group: "manage" },
-  { path: "/adopter-support", icon: Users, label: "Adopters", group: "track" },
-  { path: "/stakeholders", icon: UserCheck, label: "Stakeholders", group: "track" },
+  { path: "/people", icon: Users, label: "People", group: "manage" },
   { path: "/escalations", icon: TrendingUp, label: "Escalations", group: "track" },
   { path: "/executive-reports", icon: BarChart3, label: "Reports", group: "track" },
 ];
 
 const groupLabels: Record<string, string> = {
   core: "Overview",
-  manage: "Program Management",
-  track: "Tracking & Reports",
+  manage: "Management",
+  track: "Tracking",
 };
+
+function SidebarUserInfo() {
+  const { user } = useUser();
+  return (
+    <div className="flex-1 min-w-0">
+      <p className="text-[13px] font-medium text-gray-200 truncate">
+        {user?.fullName || user?.primaryEmailAddress?.emailAddress || "User"}
+      </p>
+      <p className="text-[11px] text-gray-500 truncate">
+        {user?.primaryEmailAddress?.emailAddress || ""}
+      </p>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -50,24 +56,6 @@ export function Sidebar() {
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
   }, [isCollapsed]);
-
-  const { data: integrations } = useQuery({
-    queryKey: ["/api/integrations"],
-  });
-
-  const getIntegrationStatus = (name: string) => {
-    const integration = Array.isArray(integrations) ? integrations.find((i: any) => i.name === name) : undefined;
-    return integration?.status || "disconnected";
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "connected": return "bg-emerald-400";
-      case "limited": return "bg-amber-400";
-      case "error": return "bg-red-400";
-      default: return "bg-gray-600";
-    }
-  };
 
   // Group navigation items
   const groups = ["core", "manage", "track"];
@@ -160,32 +148,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* Integration Status */}
-        {!isCollapsed && (
-          <div className="mx-3 mt-4 p-3 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-            <h3 className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2.5">Integrations</h3>
-            <div className="space-y-2">
-              {["jira", "smartsheet", "confluence", "slack", "teams"].map((integration) => {
-                const status = getIntegrationStatus(integration);
-                return (
-                  <div key={integration} className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400 capitalize font-medium">{integration}</span>
-                    <div className="flex items-center gap-1.5">
-                      {status === "connected" ? (
-                        <Wifi className="h-2.5 w-2.5 text-emerald-400" />
-                      ) : (
-                        <WifiOff className="h-2.5 w-2.5 text-gray-600" />
-                      )}
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status)}`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* Settings */}
@@ -200,30 +162,20 @@ export function Sidebar() {
       </div>
 
       {/* User Profile + Sign Out */}
-      <div className={`${isCollapsed ? 'p-2' : 'px-3 pb-4 pt-2'} border-t border-white/[0.06]`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-2'}`}>
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "w-8 h-8",
-              },
-            }}
-          />
-          {!isCollapsed && (() => {
-            const { user } = useUser();
-            return (
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-gray-200 truncate">
-                  {user?.fullName || user?.primaryEmailAddress?.emailAddress || "User"}
-                </p>
-                <p className="text-[11px] text-gray-500 truncate">
-                  {user?.primaryEmailAddress?.emailAddress || ""}
-                </p>
-              </div>
-            );
-          })()}
+      {CLERK_ENABLED && (
+        <div className={`${isCollapsed ? 'p-2' : 'px-3 pb-4 pt-2'} border-t border-white/[0.06]`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-2'}`}>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                },
+              }}
+            />
+            {!isCollapsed && <SidebarUserInfo />}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

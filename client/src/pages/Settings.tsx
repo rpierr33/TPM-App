@@ -11,11 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Settings as SettingsIcon, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Settings as SettingsIcon,
+  Plus,
+  Edit,
+  Trash2,
   Archive,
   ChartGantt,
   Target,
@@ -23,12 +23,16 @@ import {
   MapPin,
   Palette,
   Check,
-  X
+  X,
+  Link2,
+  RefreshCw,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import type { Platform, Initiative, Program, InsertPlatform } from "@shared/schema";
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'platforms' | 'initiatives' | 'programs'>('platforms');
+  const [activeTab, setActiveTab] = useState<'platforms' | 'initiatives' | 'programs' | 'jira'>('platforms');
   const [showPlatformModal, setShowPlatformModal] = useState(false);
   const [showInitiativeModal, setShowInitiativeModal] = useState(false);
   const [showProgramModal, setShowProgramModal] = useState(false);
@@ -81,6 +85,16 @@ export default function Settings() {
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<Program[]>({
     queryKey: ["/api/programs"],
+  });
+
+  const { data: jiraStatus, isLoading: jiraLoading, refetch: refetchJira } = useQuery<{
+    connected: boolean;
+    user: string | null;
+    projects: { id: string; key: string; name: string; projectTypeKey: string }[];
+    error?: string;
+  }>({
+    queryKey: ["/api/jira/status"],
+    enabled: activeTab === 'jira',
   });
 
   // Platform mutations
@@ -340,6 +354,14 @@ export default function Settings() {
             <ChartGantt className="h-4 w-4" />
             Programs
           </Button>
+          <Button
+            variant={activeTab === 'jira' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('jira')}
+            className="flex items-center gap-2"
+          >
+            <Link2 className="h-4 w-4" />
+            Jira
+          </Button>
         </div>
 
         {/* Platforms Tab */}
@@ -572,6 +594,114 @@ export default function Settings() {
                   );
                 })
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Jira Tab */}
+        {activeTab === 'jira' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Jira Integration</h2>
+                <p className="text-sm text-gray-600">Connect your Jira account to sync issues with programs</p>
+              </div>
+              <Button
+                onClick={() => refetchJira()}
+                variant="outline"
+                className="flex items-center gap-2"
+                disabled={jiraLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${jiraLoading ? 'animate-spin' : ''}`} />
+                Test Connection
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Connection Status Card */}
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {jiraLoading ? (
+                      <RefreshCw className="h-5 w-5 animate-spin text-gray-400" />
+                    ) : jiraStatus?.connected ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    )}
+                    Connection Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {jiraLoading ? (
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ) : jiraStatus?.connected ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Authenticated as:</p>
+                        <p className="font-medium text-gray-900">{jiraStatus.user}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-red-100 text-red-800">Not Connected</Badge>
+                      </div>
+                      {jiraStatus?.error && (
+                        <p className="text-sm text-red-600">{jiraStatus.error}</p>
+                      )}
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm font-medium text-gray-900 mb-2">Setup Instructions</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Set the following environment variables on Vercel:
+                        </p>
+                        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                          <li><code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">JIRA_DOMAIN</code> — Your Atlassian domain (e.g., yourteam.atlassian.net)</li>
+                          <li><code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">JIRA_EMAIL</code> — Your Jira account email</li>
+                          <li><code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">JIRA_API_TOKEN</code> — API token from id.atlassian.com</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Jira Projects Card */}
+              <Card className="border border-gray-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle>Jira Projects</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {jiraLoading ? (
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-full"></div>
+                    </div>
+                  ) : !jiraStatus?.connected ? (
+                    <p className="text-sm text-gray-500 text-center py-4">Connect to Jira to see projects</p>
+                  ) : jiraStatus.projects.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">No projects found in your Jira account</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {jiraStatus.projects.map((project) => (
+                        <div key={project.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">{project.name}</p>
+                            <p className="text-sm text-gray-500">Key: {project.key}</p>
+                          </div>
+                          <Badge variant="outline">{project.projectTypeKey}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
